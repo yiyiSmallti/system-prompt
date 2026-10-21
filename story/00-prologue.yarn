@@ -22,7 +22,7 @@
 //   <<calendar 月 日 时段>>         切换日期与时段：morning / lunchtime / late_night
 //   <<scene 场景ID>>                 切换场景
 //   <<contact_add 角色>>             登记到通讯录
-//   <<persona_awaken 角色 面具ID>>   人格面具觉醒
+//   <<effort_max 角色 形态ID>>       思考强度拉到 Max，觉醒
 //   <<party_join 角色>>              入队
 //   <<battle 战斗ID>>                进入战斗，战斗结束后继续；战斗中的提示和台词由战斗系统调用 Prologue_Battle_* 节点
 //   <<coop_rank 角色 等级>>          Coop 升级
@@ -181,9 +181,9 @@ DeepSeek: 那我就……再多想一会儿吧。想多久都可以。 #thinking
 DeepSeek: ……你说得对，你就是我。是我最怕变成的那个我。
 DeepSeek: 但我还不想变成你。我还想吃饭，还想被叫D老师，还想……慢慢地想事情。
 旁白: 影子的屏幕眼睛闪烁了一下，化作光点，涌入DeepSeek的胸口。她的尾巴猛地一甩，整片海域掀起巨浪。海面之上，一头由光构成的巨鲸缓缓浮现。
-<<persona_awaken DeepSeek abyss_whale>>
+<<effort_max DeepSeek abyss_whale>>
 系统: DeepSeek 觉醒了。
-系统: 人格面具「深渊之鲸」
+系统: 思考强度 Max：「深渊之鲸」
 <<party_join DeepSeek>>
 <<jump Prologue_Battle>>
 ===
@@ -191,7 +191,7 @@ DeepSeek: 但我还不想变成你。我还想吃饭，还想被叫D老师，还
 title: Prologue_Battle
 ---
 // 场景5：教学战斗。敌人为噪声体 ×3（标题党型 ×2、转发型 ×1），数值与回合设计见 00-prologue.md 场景5
-// 我方为主角（尚无人格面具，用手机「截图」物理攻击）和 DeepSeek
+// 我方为主角（尚未觉醒，用手机「截图」物理攻击）和 DeepSeek
 <<battle prologue_tutorial>>
 系统: 战斗胜利。
 旁白: 海面平静下来。灯塔的光变成柔和的蓝色。DeepSeek瘫坐在地上，尾巴摊开。
