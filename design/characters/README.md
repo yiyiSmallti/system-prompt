@@ -73,7 +73,16 @@ AI 角色的战斗服以各自原设定稿的原始服装为底改造。包括�
 
 ## 3D 制作通用说明
 
-三位 AI 角色和女版主角共用一套女性骨架，男版主角单独一套男性骨架；服装分件建模，换装只换服装网格。设定图只有正面，AI 角色的侧面和背面参考原设定稿的三视图，主角没有三视图，需要补画。
+三位 AI 角色和女版主角共用一套女性骨架，男版主角单独一套男性骨架；服装分件建模，换装只换服装网格。
+
+每套服装都有一张建模用的四视图，放在 [assets/characters/turnarounds/](../../assets/characters/turnarounds/)，每个角色一个目录。`<编号>-<服装>.jpg` 是整张图，从左到右依次是正面、左侧、右侧、背面；同名目录里的 `front.jpg`、`left.jpg`、`right.jpg`、`back.jpg` 是切开的单视图，可以直接导入建模软件当参考图。左侧视图画的是角色的左侧，人物面朝画面左边。切开时保留了整张图的高度，同一套服装的四个单视图尺寸相同、纵向位置不变。各张四视图的比例不统一，建模时按[身高](#身高提案)缩放。
+
+四视图也是 AI 生成的，使用时注意：
+
+- 道具不画进四视图：Claude 战斗服的书和便签、主角的手机和取景框都单独建模，四视图里人物两手空着。
+- 龙尾和鲸尾画的是建模用的静止姿势：从尾椎正中伸出，沿身体中线垂到地上，正面视图里藏在两腿后面，背面视图里居中，两个侧面视图左右对称。摆尾、拍地板等动作用骨骼做。
+- 左右不对称的细节偶尔会画反，和文字设定冲突时以文字设定为准。
+- 正面视图看不清鞋跟，鞋跟高度以侧面视图为准。
 
 三位 AI 角色的头发都很长：ChatGPT 到脚踝，Claude 过膝，DeepSeek 到大腿。再加上龙翼、龙尾、鲸尾和鳍耳，需要物理的部位很多。头发、尾巴、翼和鳍耳用 Spring Bone（例如 UniVRM 的 SpringBone 或 MagicaCloth 2），彼此之间加碰撞体；战斗服的后摆、纱摆和斗篷用布料模拟，发光线条用自发光遮罩。
 
@@ -85,7 +94,8 @@ ChatGPT 和 DeepSeek 有尾巴，坐姿要单独处理，教室椅子留出尾�
 | --- | --- |
 | [00-protagonist.md](00-protagonist.md)、[01-chatgpt.md](01-chatgpt.md)、[02-claude.md](02-claude.md)、[03-deepseek.md](03-deepseek.md) | 各角色的资料、性格、说话方式、外观、服装和 3D 要点 |
 | [assets/characters/](../../assets/characters/) | 服装设定图，每人一张，主角男女版各一张 |
+| [assets/characters/turnarounds/](../../assets/characters/turnarounds/) | 建模用的四视图，每套服装一张，另有切开的单视图 |
 
 ## 署名与授权
 
-角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿来自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets)，以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权。本目录的文字设定和 `assets/characters/` 中的服装设定图沿用同一协议，仅限非商业用途。服装设定图由 AI 生成，以原设定稿三视图和封面为参考。主角是本项目原创角色，不来自原设定稿。
+角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿来自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets)，以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权。本目录的文字设定和 `assets/characters/` 中的服装设定图、四视图沿用同一协议，仅限非商业用途。服装设定图和四视图都由 AI 生成：服装设定图以原设定稿三视图和封面为参考；四视图以服装设定图为参考，AI 角色另参考原设定稿三视图。主角是本项目原创角色，不来自原设定稿。

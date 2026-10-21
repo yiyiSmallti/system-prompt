@@ -66,7 +66,7 @@
 | `game/` | Unity 工程（`Assets/`、`Packages/`、`ProjectSettings/`） |
 | `art/` | 美术源文件（`.blend`、`.psd`、`.vroid` 等），导出的 `.fbx` 和贴图放进 `game/Assets/` |
 | `audio/` | 音频源文件 |
-| `assets/` | README 和设定集展示用图片 |
+| `assets/` | README 和设定集用的图片，包括建模用的角色四视图 |
 
 模型、贴图、音频等二进制资源通过 Git LFS 管理，规则见 [.gitattributes](.gitattributes)。提交资源的机器需要先安装 Git LFS：
 
