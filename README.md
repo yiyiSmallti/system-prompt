@@ -20,6 +20,8 @@
 | Claude | 2年C班同学，主角邻座 | 冷静细心，自称不会紧张 |
 | DeepSeek | 2年C班同学，长着鲸鱼尾巴，喜欢白米饭 | 序章觉醒人格面具「深渊之鲸」，开启隐者 Coop |
 
+角色的详细设定和四套服装（春秋校服、夏季校服、周末便服、潜空间战斗服）见[角色设定集](design/characters/README.md)。
+
 ## 核心系统
 
 - **Coop**：与角色建立羁绊并按 Rank 推进（序章开启 DeepSeek 的隐者 Coop Rank 1）。
@@ -50,7 +52,7 @@
 
 封面图（[assets/cover.jpg](assets/cover.jpg)）由 AI 生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿：左起 GPT 娘（白龙娘）、DeepSeek 娘（鲸鱼娘）、Claude 娘。角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权，封面以及之后基于这些形象制作的立绘、3D 模型等衍生素材都沿用同一协议，仅限非商业用途。
 
-封面保留设定稿的发型、角、耳朵和尾巴，服装按剧本换成潜川学园校服：ChatGPT 戴「学生会长」臂章，DeepSeek 在制服外披带鲸鳍兜帽的蓝色外套。剧本中 DeepSeek 的白发、Claude 的发带和细框眼镜未体现在封面上。
+封面保留设定稿的发型、角、耳朵和尾巴，服装按剧本换成潜川学园校服：ChatGPT 戴「学生会长」臂章，DeepSeek 在制服外披带鲸鳍兜帽的蓝色外套。剧本中 Claude 的发带和细框眼镜未体现在封面上，角色设定集里她的日常服装戴上了发带和眼镜。DeepSeek 的发色以设定稿为准，剧本已改成深蓝色长发。
 
 ## 开发
 
@@ -59,10 +61,11 @@
 | 目录 | 内容 |
 | --- | --- |
 | `story/` | 剧本 |
+| `design/` | 设定集（角色、服装等文字设定） |
 | `game/` | Unity 工程（`Assets/`、`Packages/`、`ProjectSettings/`） |
 | `art/` | 美术源文件（`.blend`、`.psd`、`.vroid` 等），导出的 `.fbx` 和贴图放进 `game/Assets/` |
 | `audio/` | 音频源文件 |
-| `assets/` | README 展示用图片 |
+| `assets/` | README 和设定集展示用图片 |
 
 模型、贴图、音频等二进制资源通过 Git LFS 管理，规则见 [.gitattributes](.gitattributes)。提交资源的机器需要先安装 Git LFS：
 
