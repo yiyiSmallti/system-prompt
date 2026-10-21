@@ -1,0 +1,251 @@
+[
+ {
+  "shot": "S11",
+  "take": 1,
+  "task": "cgt-20261022024915-t724h",
+  "duration": 6,
+  "status": "failed",
+  "submitted": "2026-10-21 11:49:16",
+  "error": "SetLimitExceeded"
+ },
+ {
+  "shot": "S11",
+  "take": 1,
+  "task": "cgt-20261022025204-6jytx",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 11:52:05",
+  "file": "S11.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S01",
+  "take": 1,
+  "task": "cgt-20261022030205-w4mk4",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:06",
+  "file": "S01.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S02",
+  "take": 1,
+  "task": "cgt-20261022030207-bf11n",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:09",
+  "file": "S02.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S03",
+  "take": 1,
+  "task": "cgt-20261022030210-zktgl",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:11",
+  "file": "S03.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S04",
+  "take": 1,
+  "task": "cgt-20261022030213-pa8h5",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:14",
+  "file": "S04.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S05",
+  "take": 1,
+  "task": "cgt-20261022030216-s3hqc",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:17",
+  "file": "S05.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S06",
+  "take": 1,
+  "task": "cgt-20261022030219-3szy7",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:20",
+  "file": "S06.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S07",
+  "take": 1,
+  "task": "cgt-20261022030221-kjx0x",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:22",
+  "file": "S07.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S08",
+  "take": 1,
+  "task": "cgt-20261022030223-skj9h",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:24",
+  "file": "S08.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S09",
+  "take": 1,
+  "task": "cgt-20261022030225-6mx6e",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:25",
+  "file": "S09.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S10",
+  "take": 1,
+  "task": "cgt-20261022030227-agvhm",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:28",
+  "file": "S10.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S11",
+  "take": 2,
+  "task": "cgt-20261022030231-772fa",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:32",
+  "file": "S11-2.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S12",
+  "take": 1,
+  "task": "cgt-20261022030234-3ukn5",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:35",
+  "file": "S12.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S13",
+  "take": 1,
+  "task": "cgt-20261022030236-dmurj",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:37",
+  "file": "S13.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S14",
+  "take": 1,
+  "task": "cgt-20261022030239-y9q7b",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:40",
+  "file": "S14.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S15",
+  "take": 1,
+  "task": "cgt-20261022030242-fl67v",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:43",
+  "file": "S15.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S16",
+  "take": 1,
+  "task": "cgt-20261022030245-sxzlc",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:46",
+  "file": "S16.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S17",
+  "take": 1,
+  "task": "cgt-20261022030247-agsc7",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:48",
+  "file": "S17.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S18",
+  "take": 1,
+  "task": "cgt-20261022030250-1h7ti",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:51",
+  "file": "S18.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S19",
+  "take": 1,
+  "task": "cgt-20261022030253-14goa",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:54",
+  "file": "S19.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S20",
+  "take": 1,
+  "task": "cgt-20261022030256-xeleb",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:02:57",
+  "file": "S20.mp4",
+  "tokens": 108900
+ },
+ {
+  "shot": "S21",
+  "take": 1,
+  "task": "cgt-20261022030259-bhl66",
+  "duration": 6,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:03:00",
+  "file": "S21.mp4",
+  "tokens": 130500
+ },
+ {
+  "shot": "S22",
+  "take": 1,
+  "task": "cgt-20261022030302-edfxl",
+  "duration": 4,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:03:03",
+  "file": "S22.mp4",
+  "tokens": 87300
+ },
+ {
+  "shot": "S23",
+  "take": 1,
+  "task": "cgt-20261022030305-jnl2p",
+  "duration": 5,
+  "status": "succeeded",
+  "submitted": "2026-10-21 12:03:05",
+  "file": "S23.mp4",
+  "tokens": 108900
+ }
+]

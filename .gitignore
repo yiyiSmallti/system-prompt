@@ -57,3 +57,7 @@ crashlytics-build.properties
 # Blender 自动备份
 *.blend[1-9]
 *.blend[1-9].meta
+
+# PV 中间音频：pv/scripts/group_mix.py 和 pv_track.py 能从 Suno 分轨逐位还原，不进仓库
+/pv/music/group-mix-*.wav
+/pv/music/pv-track.wav
