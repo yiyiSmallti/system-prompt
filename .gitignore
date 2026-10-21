@@ -1,1 +1,59 @@
+# macOS
 .DS_Store
+
+# Unity 自动生成的目录（工程位于 game/）
+/game/[Ll]ibrary/
+/game/[Tt]emp/
+/game/[Oo]bj/
+/game/[Bb]uild/
+/game/[Bb]uilds/
+/game/[Ll]ogs/
+/game/[Uu]ser[Ss]ettings/
+/game/[Mm]emoryCaptures/
+/game/[Rr]ecordings/
+
+# Rider 插件自动生成
+/game/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# IDE 与自动生成的解决方案文件
+.vs/
+.idea/
+.gradle/
+.consulo/
+ExportedObj/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# 崩溃报告与构建产物
+sysinfo.txt
+crashlytics-build.properties
+*.apk
+*.aab
+*.app
+*.unitypackage
+*.unitypackage.meta
+
+# Addressables 打包产物
+/game/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+/game/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/game/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Blender 自动备份
+*.blend[1-9]
+*.blend[1-9].meta

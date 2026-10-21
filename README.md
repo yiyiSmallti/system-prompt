@@ -41,6 +41,33 @@
 
 ## 封面与角色形象
 
-封面图（[assets/cover.jpg](assets/cover.jpg)）由 AI 生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿：左起 GPT 娘（白龙娘）、DeepSeek 娘（鲸鱼娘）、Claude 娘。角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权，封面作为衍生作品沿用同一协议，仅限非商业用途。
+封面图（[assets/cover.jpg](assets/cover.jpg)）由 AI 生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿：左起 GPT 娘（白龙娘）、DeepSeek 娘（鲸鱼娘）、Claude 娘。角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权，封面以及之后基于这些形象制作的立绘、3D 模型等衍生素材都沿用同一协议，仅限非商业用途。
 
 封面保留设定稿的发型、角、耳朵和尾巴，服装按剧本换成潜川学园校服：ChatGPT 戴「学生会长」臂章，DeepSeek 在制服外披带鲸鳍兜帽的蓝色外套。剧本中 DeepSeek 的白发、Claude 的发带和细框眼镜未体现在封面上。
+
+## 开发
+
+游戏使用 Unity 制作，目标是 P5R 式的 3D 校园 RPG，非商业同人项目。
+
+| 目录 | 内容 |
+| --- | --- |
+| `story/` | 剧本 |
+| `game/` | Unity 工程（`Assets/`、`Packages/`、`ProjectSettings/`） |
+| `art/` | 美术源文件（`.blend`、`.psd`、`.vroid` 等），导出的 `.fbx` 和贴图放进 `game/Assets/` |
+| `audio/` | 音频源文件 |
+| `assets/` | README 展示用图片 |
+
+模型、贴图、音频等二进制资源通过 Git LFS 管理，规则见 [.gitattributes](.gitattributes)。提交资源的机器需要先安装 Git LFS：
+
+```bash
+brew install git-lfs
+git lfs install
+```
+
+Unity 中保持 Asset Serialization 为 Force Text（默认值），场景和 Prefab 冲突交给 UnityYAMLMerge 合并。在仓库内配置一次，`<版本>` 换成本机 Unity 版本（Windows 下路径为 `C:\Program Files\Unity\Hub\Editor\<版本>\Editor\Data\Tools\UnityYAMLMerge.exe`）：
+
+```bash
+git config merge.unityyamlmerge.name "Unity SmartMerge"
+git config merge.unityyamlmerge.driver '"/Applications/Unity/Hub/Editor/<版本>/Unity.app/Contents/Tools/UnityYAMLMerge" merge -p %O %B %A %A'
+git config merge.unityyamlmerge.recursive binary
+```

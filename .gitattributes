@@ -1,0 +1,72 @@
+# 换行由 Git 统一处理，二进制文件自动识别
+* text=auto
+
+# Unity YAML 资源使用 UnityYAMLMerge 合并（驱动需在本机 git config 中配置，未配置时退回普通文本合并）
+*.unity              merge=unityyamlmerge
+*.prefab             merge=unityyamlmerge
+*.asset              merge=unityyamlmerge
+*.meta               merge=unityyamlmerge
+*.mat                merge=unityyamlmerge
+*.anim               merge=unityyamlmerge
+*.controller         merge=unityyamlmerge
+*.overrideController merge=unityyamlmerge
+*.playable           merge=unityyamlmerge
+*.mask               merge=unityyamlmerge
+*.physicMaterial     merge=unityyamlmerge
+*.lighting           merge=unityyamlmerge
+*.spriteatlas        merge=unityyamlmerge
+
+# 以下二进制资源走 Git LFS；方括号写法同时匹配大小写扩展名（Linux 上匹配区分大小写）
+
+# 3D 模型与源文件
+*.[fF][bB][xX]       filter=lfs diff=lfs merge=lfs -text
+*.[oO][bB][jJ]       filter=lfs diff=lfs merge=lfs -text
+*.[bB][lL][eE][nN][dD] filter=lfs diff=lfs merge=lfs -text
+*.[gG][lL][bB]       filter=lfs diff=lfs merge=lfs -text
+*.[dD][aA][eE]       filter=lfs diff=lfs merge=lfs -text
+*.[aA][bB][cC]       filter=lfs diff=lfs merge=lfs -text
+*.[vV][rR][mM]       filter=lfs diff=lfs merge=lfs -text
+*.[vV][rR][oO][iI][dD] filter=lfs diff=lfs merge=lfs -text
+
+# 贴图、图像与绘画源文件
+*.[pP][nN][gG]       filter=lfs diff=lfs merge=lfs -text
+*.[jJ][pP][gG]       filter=lfs diff=lfs merge=lfs -text
+*.[jJ][pP][eE][gG]   filter=lfs diff=lfs merge=lfs -text
+*.[tT][gG][aA]       filter=lfs diff=lfs merge=lfs -text
+*.[tT][iI][fF]       filter=lfs diff=lfs merge=lfs -text
+*.[tT][iI][fF][fF]   filter=lfs diff=lfs merge=lfs -text
+*.[bB][mM][pP]       filter=lfs diff=lfs merge=lfs -text
+*.[gG][iI][fF]       filter=lfs diff=lfs merge=lfs -text
+*.[wW][eE][bB][pP]   filter=lfs diff=lfs merge=lfs -text
+*.[eE][xX][rR]       filter=lfs diff=lfs merge=lfs -text
+*.[hH][dD][rR]       filter=lfs diff=lfs merge=lfs -text
+*.[pP][sS][dD]       filter=lfs diff=lfs merge=lfs -text
+*.[kK][rR][aA]       filter=lfs diff=lfs merge=lfs -text
+*.[cC][lL][iI][pP]   filter=lfs diff=lfs merge=lfs -text
+*.[sS][pP][pP]       filter=lfs diff=lfs merge=lfs -text
+*.[sS][bB][sS][aA][rR] filter=lfs diff=lfs merge=lfs -text
+
+# 音频与视频
+*.[wW][aA][vV]       filter=lfs diff=lfs merge=lfs -text
+*.[oO][gG][gG]       filter=lfs diff=lfs merge=lfs -text
+*.[mM][pP]3          filter=lfs diff=lfs merge=lfs -text
+*.[aA][iI][fF]       filter=lfs diff=lfs merge=lfs -text
+*.[aA][iI][fF][fF]   filter=lfs diff=lfs merge=lfs -text
+*.[fF][lL][aA][cC]   filter=lfs diff=lfs merge=lfs -text
+*.[mM][pP]4          filter=lfs diff=lfs merge=lfs -text
+*.[mM][oO][vV]       filter=lfs diff=lfs merge=lfs -text
+*.[wW][eE][bB][mM]   filter=lfs diff=lfs merge=lfs -text
+
+# 字体、文档、压缩包与插件
+*.[tT][tT][fF]       filter=lfs diff=lfs merge=lfs -text
+*.[oO][tT][fF]       filter=lfs diff=lfs merge=lfs -text
+*.[pP][dD][fF]       filter=lfs diff=lfs merge=lfs -text
+*.[zZ][iI][pP]       filter=lfs diff=lfs merge=lfs -text
+*.7[zZ]              filter=lfs diff=lfs merge=lfs -text
+*.[dD][lL][lL]       filter=lfs diff=lfs merge=lfs -text
+
+# Unity 烘焙光照数据是二进制 .asset，覆盖上面的 YAML 合并规则
+**/LightingData.asset filter=lfs diff=lfs merge=lfs -text
+
+# README 展示用图片保留为普通 Git 文件，GitHub 页面直接渲染，不占 LFS 流量
+assets/** !filter !diff !merge
