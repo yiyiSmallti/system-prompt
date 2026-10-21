@@ -1,6 +1,6 @@
 # 《System Prompt》序章：维护时刻
 
-Oct 21, 2026 · @liuliu
+2026-10-21 · @liuliu
 
 ## 概要
 

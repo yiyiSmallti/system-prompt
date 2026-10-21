@@ -1,5 +1,7 @@
 # System Prompt
 
+![System Prompt 封面](assets/cover.jpg)
+
 《System Prompt》是一部以 AI 拟人为主题的校园 RPG 剧本。白天，主角作为「陪伴生」在潜川学园和 AI 同学相处、推进 Coop；每天凌晨三点的「维护时刻」，主角进入潜空间，和觉醒人格面具的 AI 同学一起战斗。
 
 ## 世界观
@@ -36,3 +38,9 @@
 剧本格式：`【场景】`为舞台说明，`角色：`为台词，`▶`为玩家选项，`〔系统〕`为界面提示。
 
 序章导出自 [Claude 文档](https://claude.ai/artifact/47dydkGFjKgL5nwdy7tsXP)（2026-10-21 版本）。
+
+## 封面与角色形象
+
+封面图（[assets/cover.jpg](assets/cover.jpg)）由 AI 生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿：左起 GPT 娘（白龙娘）、DeepSeek 娘（鲸鱼娘）、Claude 娘。角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权，封面作为衍生作品沿用同一协议，仅限非商业用途。
+
+封面保留设定稿的发型、角、耳朵和尾巴，服装按剧本换成潜川学园校服：ChatGPT 戴「学生会长」臂章，DeepSeek 在制服外披带鲸鳍兜帽的蓝色外套。剧本中 DeepSeek 的白发、Claude 的发带和细框眼镜未体现在封面上。
