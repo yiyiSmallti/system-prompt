@@ -33,9 +33,16 @@
 
 | 章节 | 文件 | 预计时长 |
 | --- | --- | --- |
-| 序章：维护时刻 | [story/00-prologue.md](story/00-prologue.md) | 30–40 分钟 |
+| 序章：维护时刻 | [story/00-prologue.md](story/00-prologue.md)、[story/00-prologue.yarn](story/00-prologue.yarn) | 30–40 分钟 |
 
 剧本格式：`【场景】`为舞台说明，`角色：`为台词，`▶`为玩家选项，`〔系统〕`为界面提示。
+
+`.md` 是供阅读的剧本稿。`.yarn` 是给游戏用的 [Yarn Spinner 3](https://yarnspinner.dev) 脚本，在 Unity 中通过 Yarn Spinner for Unity 导入；改剧情时两份一起改。`.yarn` 的写法如下：
+
+- 舞台说明的说话人是 `旁白`，〔系统〕〔屏幕〕〔文件〕分别写作 `系统`、`屏幕`、`文件`，主角写作 `{$player_name}`。
+- 内心独白、DeepSeek 的思考对话框和小声说话分别用行标签 `#inner`、`#thinking`、`#whisper` 标出。
+- 切换场景、登记通讯录、人格面具觉醒、Coop 升级等事件写成命令，需要在 Unity 中实现。完整列表见文件开头的注释。
+- 教学战斗只写一个 `<<battle prologue_tutorial>>` 命令。各回合的提示和台词放在 `Prologue_Battle_*` 节点里，由战斗系统调用；敌人数值见 `.md`。
 
 序章导出自 [Claude 文档](https://claude.ai/artifact/47dydkGFjKgL5nwdy7tsXP)（2026-10-21 版本）。
 
