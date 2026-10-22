@@ -1,0 +1,36 @@
+{
+  "character": "chatgpt",
+  "review_status": "reviewed_with_limitations",
+  "reviewed_actual_renders": [
+    "front.png",
+    "quarter.png",
+    "back.png",
+    "face-front.png"
+  ],
+  "render_source": "Actual Blender Eevee rendering of the closed-shoulder Tripo mesh; no image repainting or generated substitute.",
+  "confirmed": [
+    "Full T-pose, hands, horns, feet, wings and single curved tail remain visible in the full-body views.",
+    "White blouse covers the shoulders and joins the sleeves; the previous exposed-shoulder openings have not returned.",
+    "Source colors are preserved with clear pale-lavender hair/wing shading, banded clothing shadows and fine muted outlines.",
+    "The face, eyes and mouth remain readable; no new large black outline-hull patches obscure the face.",
+    "Rear hair and tail are readable with fine contours rather than broad black silhouette fill."
+  ],
+  "remaining_limitations": [
+    "The source atlas retains baked gradients, highlights and eye-region irregularities; this is not a freshly painted flat-color texture set.",
+    "The pale stocking-top band and small fragment-like silhouettes beside the lower legs are inherited from the source asset.",
+    "Dense curls and wing/tail connections have not been retopologized or separated into animation-ready parts.",
+    "Face shadow reduction is a conservative color/position estimate; it is not semantic face segmentation or a deformation-tested facial shader.",
+    "The character is still unrigged. Eevee material effects are not preserved by ordinary GLB material export."
+  ],
+  "output_sizes": {
+    "full_body": [
+      1400,
+      1400
+    ],
+    "face_front": [
+      1100,
+      1100
+    ]
+  },
+  "new_tripo_credits_consumed": 0
+}

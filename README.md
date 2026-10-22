@@ -77,6 +77,8 @@
 | `audio/` | 音频源文件 |
 | `assets/` | README 和设定集用的图片，包括建模用的角色四视图 |
 
+已制作的角色模型及实际预览见[角色三渲二模型](art/characters/README.md)。
+
 模型、贴图、音频等二进制资源通过 Git LFS 管理，规则见 [.gitattributes](.gitattributes)。提交资源的机器需要先安装 Git LFS：
 
 ```bash

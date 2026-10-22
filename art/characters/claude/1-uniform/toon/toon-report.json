@@ -1,0 +1,52 @@
+{
+  "source": "Claude 春秋校服，T 字站姿版本；原 Tripo PBR 输入未重复收录。",
+  "source_sha256": "8dfba2fb1d72caf6cf75b4c47706d9ac89e64a5cd49931434ccc74de6cf0e365",
+  "character": "claude",
+  "source_geometry_modified": false,
+  "source_textures_modified": false,
+  "source_pbr_backup_materials": [
+    "tripo_material_11c4aa7e-3238-4085-ae32-86f2c3a91d17"
+  ],
+  "engine": "BLENDER_EEVEE_NEXT",
+  "outline_height_fraction": 0.00065,
+  "samples": 32,
+  "face_mask_scope": "Warm bright colors restricted to front head in mesh-following rest coordinates; reduces only added shade; not deformation-aware.",
+  "limitations": [
+    "Source atlas contains baked shading.",
+    "Hair/face/body remain one source mesh.",
+    "No rigging, retopology or portable engine shader conversion."
+  ],
+  "renders": [
+    {
+      "view": "front",
+      "path": "front.png",
+      "seconds": 84.9
+    },
+    {
+      "view": "quarter",
+      "path": "quarter.png",
+      "seconds": 77.39
+    },
+    {
+      "view": "back",
+      "path": "back.png",
+      "seconds": 67.32
+    },
+    {
+      "view": "face-front",
+      "path": "face-front.png",
+      "seconds": 65.11
+    }
+  ],
+  "source_file_unchanged": true,
+  "native_project_check": {
+    "reopened_successfully": true,
+    "packed_images": 3,
+    "source_mesh_coordinates_unchanged": true,
+    "rest_pose_mask_coordinates_unchanged": true,
+    "mask_and_outline_follow_rigid_transform": true,
+    "legacy_lights_disabled_for_render_and_viewport": true,
+    "active_camera": "Inspection_TOON_quarter",
+    "toon_blend_sha256": "d37603c990aac0a1f301bcb4c7eaa0d99bc3935283e47178c8d05db2c995229a"
+  }
+}

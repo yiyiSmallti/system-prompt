@@ -1,0 +1,52 @@
+{
+  "source": "ChatGPT 春秋校服，T 字站姿、完整肩袖版本；原 Tripo PBR 输入未重复收录。",
+  "source_sha256": "63c09f202e3d7ce9e7a6b91bf1ca21070f3ba69ccf8203b75d200c2492e6c4fc",
+  "character": "chatgpt",
+  "source_geometry_modified": false,
+  "source_textures_modified": false,
+  "source_pbr_backup_materials": [
+    "tripo_material_ed47bbc1-f8ac-494a-b067-7a9089dc0061"
+  ],
+  "engine": "BLENDER_EEVEE_NEXT",
+  "outline_height_fraction": 0.00065,
+  "samples": 32,
+  "face_mask_scope": "Warm bright colors restricted to front head in mesh-following rest coordinates; reduces only added shade; not deformation-aware.",
+  "limitations": [
+    "Source atlas contains baked shading.",
+    "Hair/face/body remain one source mesh.",
+    "No rigging, retopology or portable engine shader conversion."
+  ],
+  "renders": [
+    {
+      "view": "front",
+      "path": "front.png",
+      "seconds": 86.33
+    },
+    {
+      "view": "quarter",
+      "path": "quarter.png",
+      "seconds": 79.39
+    },
+    {
+      "view": "back",
+      "path": "back.png",
+      "seconds": 69.22
+    },
+    {
+      "view": "face-front",
+      "path": "face-front.png",
+      "seconds": 65.1
+    }
+  ],
+  "source_file_unchanged": true,
+  "native_project_check": {
+    "reopened_successfully": true,
+    "packed_images": 3,
+    "source_mesh_coordinates_unchanged": true,
+    "rest_pose_mask_coordinates_unchanged": true,
+    "mask_and_outline_follow_rigid_transform": true,
+    "legacy_lights_disabled_for_render_and_viewport": true,
+    "active_camera": "Inspection_TOON_quarter",
+    "toon_blend_sha256": "65e010a94ec6c46f72e23dd1edaf771f4e749a82056a21ca895dfe569fec91e2"
+  }
+}

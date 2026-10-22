@@ -1,0 +1,40 @@
+{
+  "character": "chatgpt",
+  "files": [
+    {
+      "path": "back.png",
+      "bytes": 1960433,
+      "sha256": "29a10e8095b55d0362de5a286bf51b7c8183f11058c26723862c969cf3acccf0"
+    },
+    {
+      "path": "face-front.png",
+      "bytes": 1471712,
+      "sha256": "244d1381f97df7486317e327d0915f01f5112c1369ad9d5d8b91d21b7c2d06d3"
+    },
+    {
+      "path": "front.png",
+      "bytes": 1931688,
+      "sha256": "0e62f5743f3f375770f560e70cd8f9659e84d51ed51472e2a366e1e4a46708a4"
+    },
+    {
+      "path": "quarter.png",
+      "bytes": 1857586,
+      "sha256": "219b02e07061d1a3a5eeffc41fcbd615efee8cb382b704c50677f3ef86fca865"
+    },
+    {
+      "path": "toon-report.json",
+      "bytes": 1672,
+      "sha256": "38dbde45db3838b7ba7fa35614a0c7cf11246b052bef87a72a0dadc658a15268"
+    },
+    {
+      "path": "toon.blend",
+      "bytes": 191256227,
+      "sha256": "65e010a94ec6c46f72e23dd1edaf771f4e749a82056a21ca895dfe569fec91e2"
+    },
+    {
+      "path": "visual-review.json",
+      "bytes": 1745,
+      "sha256": "d9d052c22016e006bdfbd4e1ff1304c150d6e8d2cde46629d7d5ebcb07604105"
+    }
+  ]
+}

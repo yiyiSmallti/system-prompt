@@ -1,0 +1,81 @@
+{
+  "character": "claude",
+  "status": "Four actual Eevee views reviewed; static appearance accepted for this lookdev sample.",
+  "source": "Claude 春秋校服，T 字站姿版本；原 Tripo PBR 输入未重复收录。",
+  "source_sha256": "8dfba2fb1d72caf6cf75b4c47706d9ac89e64a5cd49931434ccc74de6cf0e365",
+  "source_file_unchanged": true,
+  "renderer": "Blender 4.3.2 / BLENDER_EEVEE_NEXT / software Mesa-EGL",
+  "samples": 32,
+  "threads": 2,
+  "source_atlas_repainted": false,
+  "source_geometry_repaired": false,
+  "source_pbr_backup_materials": [
+    "tripo_material_11c4aa7e-3238-4085-ae32-86f2c3a91d17"
+  ],
+  "renders": [
+    {
+      "view": "front",
+      "path": "front.png",
+      "size": [
+        1400,
+        1400
+      ],
+      "bytes": 1930391,
+      "sha256": "bafc11865e342142120ccba8aea05a2d6b731384ed48657799660f701b302d61",
+      "actually_viewed": true
+    },
+    {
+      "view": "quarter",
+      "path": "quarter.png",
+      "size": [
+        1400,
+        1400
+      ],
+      "bytes": 1861668,
+      "sha256": "ca284b0d5cbeb57f6f052ac3cffcf774544c3a47fe6516804e048a78a55a3b03",
+      "actually_viewed": true
+    },
+    {
+      "view": "back",
+      "path": "back.png",
+      "size": [
+        1400,
+        1400
+      ],
+      "bytes": 1961843,
+      "sha256": "0847b9798aba4edc8617e393194d9fa5cbd848d330b483bed91b9d9241f8fa1e",
+      "actually_viewed": true
+    },
+    {
+      "view": "face-front",
+      "path": "face-front.png",
+      "size": [
+        1100,
+        1100
+      ],
+      "bytes": 1430747,
+      "sha256": "880c7310a03cd8a482d8598f3f764f123856a5a8256b100a1633f82375d06682",
+      "actually_viewed": true
+    }
+  ],
+  "findings": {
+    "front": "Complete T pose and feet in frame; visible discrete shade bands on white sleeves, face/neck and hair, with thin brown outline.",
+    "quarter": "Silhouette, clothing and long hair intact; no new large face-covering black shell seen. Original close bangs/glasses arrangement remains.",
+    "back": "Braided crown, long curls, clothing and both arms preserved; dense overlapping strands create thin interior contour lines, acceptable in the reviewed static image.",
+    "face_front": "Both eyes, glasses, mouth and neck readable; no broad black facial shadows or gross hull artifacts. Original atlas highlights and texture soft areas remain.",
+    "outline": "Conservative thin derived hull; not certified under animation or all angles."
+  },
+  "limitations": [
+    "Source mesh remains dense and unrigged; no retopology, clothing segmentation or game performance optimization performed.",
+    "Source atlas baked highlights and shadows remain despite live cel light bands.",
+    "Face shading mask is approximate and is not semantic facial segmentation; skeletal deformation not verified.",
+    "Native Eevee ShaderToRGB, mask and shadowless outline logic do not automatically transfer as GLB/FBX/Unity shader."
+  ],
+  "render_seconds": {
+    "front": 84.9,
+    "quarter": 77.39,
+    "back": 67.32,
+    "face-front": 65.11
+  },
+  "native_blend_hash_note": "Native scene editability finishing and final package hashes are handled by the final delivery verification; image hashes here describe reviewed renders."
+}

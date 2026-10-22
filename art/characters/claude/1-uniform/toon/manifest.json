@@ -1,0 +1,40 @@
+{
+  "character": "claude",
+  "files": [
+    {
+      "path": "back.png",
+      "bytes": 1961843,
+      "sha256": "0847b9798aba4edc8617e393194d9fa5cbd848d330b483bed91b9d9241f8fa1e"
+    },
+    {
+      "path": "face-front.png",
+      "bytes": 1430747,
+      "sha256": "880c7310a03cd8a482d8598f3f764f123856a5a8256b100a1633f82375d06682"
+    },
+    {
+      "path": "front.png",
+      "bytes": 1930391,
+      "sha256": "bafc11865e342142120ccba8aea05a2d6b731384ed48657799660f701b302d61"
+    },
+    {
+      "path": "quarter.png",
+      "bytes": 1861668,
+      "sha256": "ca284b0d5cbeb57f6f052ac3cffcf774544c3a47fe6516804e048a78a55a3b03"
+    },
+    {
+      "path": "toon-report.json",
+      "bytes": 1655,
+      "sha256": "1166c75469506e9c44a810b27cb866b496c1c06575f836e008803629de9cce1f"
+    },
+    {
+      "path": "toon.blend",
+      "bytes": 188269908,
+      "sha256": "d37603c990aac0a1f301bcb4c7eaa0d99bc3935283e47178c8d05db2c995229a"
+    },
+    {
+      "path": "visual-review.json",
+      "bytes": 3204,
+      "sha256": "3b486a0d67364a5853b28d168972dad1c8a01657ca55d90959f454c36feb4f09"
+    }
+  ]
+}
