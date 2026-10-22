@@ -34,7 +34,7 @@
 - **专属技能**：例如 DeepSeek 的「深度思考」，本回合不行动，下回合技能伤害大幅提升。
 - **噪声体**：潜空间的敌人，如标题党型、转发型。
 
-术语对照、日程、Coop、战斗规则和噪声体图鉴见[游戏系统](design/systems.md)。
+术语对照、日程、Coop、战斗规则和噪声体图鉴见[游戏系统](design/systems.md)；能力值、等级和伤害公式见[等级与数值](design/stats.md)，全部技能见[技能](design/skills.md)，道具、礼物和装备见[道具与装备](design/items.md)。
 
 ## 剧本
 
@@ -70,7 +70,7 @@
 | 目录 | 内容 |
 | --- | --- |
 | `story/` | 剧本 |
-| `design/` | 设定集（世界观、游戏系统、角色和服装） |
+| `design/` | 设定集（世界观、游戏系统、数值、技能、道具装备、角色和服装），目录见 [design/README.md](design/README.md) |
 | `pv/` | 序章宣传 PV：分镜、生成与渲染脚本、镜头素材和成片 |
 | `game/` | Unity 工程（`Assets/`、`Packages/`、`ProjectSettings/`） |
 | `art/` | 美术源文件（`.blend`、`.psd`、`.vroid` 等），导出的 `.fbx` 和贴图放进 `game/Assets/` |
