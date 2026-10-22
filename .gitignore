@@ -12,6 +12,14 @@
 /game/[Mm]emoryCaptures/
 /game/[Rr]ecordings/
 
+# Cubism SDK for Unity：Core 不允许再分发，各自从 live2d.com 导入（见 game/README.md 的 Live2D 一节）
+/game/[Aa]ssets/Live2D/
+/game/[Aa]ssets/Live2D.meta
+/game/[Aa]ssets/csc.rsp
+/game/[Aa]ssets/csc.rsp.meta
+/game/[Aa]ssets/mcs.rsp
+/game/[Aa]ssets/mcs.rsp.meta
+
 # Rider 插件自动生成
 /game/[Aa]ssets/Plugins/Editor/JetBrains*
 
@@ -61,3 +69,10 @@ crashlytics-build.properties
 # PV 中间音频：pv/scripts/group_mix.py 和 pv_track.py 能从 Suno 分轨逐位还原，不进仓库
 /pv/music/group-mix-*.wav
 /pv/music/pv-track.wav
+
+# 端到端验证的报告和截图：game/Tools/e2e.sh 每次运行重新生成，不进仓库
+/game/E2E/
+
+# 剧本同步副本：game/Assets/SystemPrompt/Editor/YarnStorySync.cs 每次打开编辑器时从 story/ 复制
+/game/Assets/SystemPrompt/Resources/Story/Synced/
+/game/Assets/SystemPrompt/Resources/Story/Synced.meta

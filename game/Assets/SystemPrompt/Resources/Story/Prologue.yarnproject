@@ -1,0 +1,9 @@
+{
+  "projectFileVersion": 3,
+  "sourceFiles": ["Synced/**/*.yarn"],
+  "excludeFiles": [],
+  "localisation": {},
+  "baseLanguage": "zh-Hans",
+  "definitions": null,
+  "compilerOptions": {}
+}

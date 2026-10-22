@@ -1,0 +1,1042 @@
+#if UNITY_EDITOR || SP_E2E
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using SystemPrompt.Dungeon;
+using SystemPrompt.UI;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.UIElements;
+
+namespace SystemPrompt.E2E
+{
+    // End-to-end run of the prologue in the E2E player build (game/Tools/e2e.sh): a virtual keyboard plays
+    // from the title screen to the chapter end through the real input path, a screenshot is saved at every
+    // checkpoint, and report.md lists the checkpoints, the state checks and every error in the log.
+    // In the latent-space maze it holds the movement keys along a shortest path of cells, goes after the
+    // noise bodies and fights them with the first command, pushes the cache blocks and turns the light plates.
+    // Screen transitions, a modal opening and the title portraits up close are filmed: a sheet of frames taken
+    // a fixed interval apart.
+    // Only starts when the player is launched with `-e2e <output dir>`; release builds don't contain it.
+    public sealed class PrologueRun : MonoBehaviour
+    {
+        const float RunTimeout = 1500f;
+        const float StepTimeout = 180f; // the tutorial battle alone takes ~130 s on a busy machine
+        const string PlayerName = "测试员";
+
+        sealed class Checkpoint
+        {
+            public string Id;
+            public string Title;
+            public bool Required = true;
+            public Func<bool> Reached; // null: taken by the scenario itself
+            public float Settle;
+            public int Frames;     // > 0: a film of this many frames instead of one screenshot
+            public float Interval; // seconds between film frames
+            public Rect Region = new Rect(0f, 0f, 1f, 1f); // part of the screen filmed, top-left origin, 0..1
+            public int FrameWidth = 384, FrameHeight = 216, Columns = 5;
+            public float At = -1f;
+            public string Shot;
+        }
+
+        string outDir;
+        Keyboard keyboard;
+        GameRoot game;
+        VisualElement ui;
+        readonly List<Checkpoint> checkpoints = new List<Checkpoint>();
+        readonly List<string> failures = new List<string>();
+        readonly List<string> passes = new List<string>();
+        readonly List<string> logErrors = new List<string>();
+        readonly List<string> logWarnings = new List<string>();
+        float started;
+        int shotCount;
+        int hold;
+        bool finished;
+
+        float Now => Time.realtimeSinceStartup - started;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void Boot()
+        {
+            var args = Environment.GetCommandLineArgs();
+            var i = Array.IndexOf(args, "-e2e");
+            if (i < 0 || i + 1 >= args.Length) return;
+            var go = new GameObject("E2E Prologue Run");
+            DontDestroyOnLoad(go);
+            go.AddComponent<PrologueRun>().outDir = args[i + 1];
+        }
+
+        IEnumerator Start()
+        {
+            Directory.CreateDirectory(outDir);
+            started = Time.realtimeSinceStartup;
+            Application.logMessageReceived += OnLog;
+            // Keep the virtual keyboard working when the window isn't focused, and keep the run quiet.
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            keyboard = InputSystem.AddDevice<Keyboard>("E2E Keyboard");
+            // The desktop's real mouse resting over the window would select whatever it hovers (a settings
+            // row, a menu item); the run drives the keyboard only.
+            foreach (var device in InputSystem.devices.OfType<Pointer>().ToList()) InputSystem.DisableDevice(device);
+            AudioListener.volume = 0f;
+
+            while (GameRoot.Instance == null) yield return null;
+            game = GameRoot.Instance;
+            ui = game.GetComponent<UIDocument>().rootVisualElement;
+            DefineCheckpoints();
+            StartCoroutine(WatchLoop());
+            yield return Scenario();
+            Finish();
+        }
+
+        void Update()
+        {
+            if (!finished && started > 0 && Now > RunTimeout)
+            {
+                Fail($"整体超时（{RunTimeout:0} 秒）");
+                Finish();
+            }
+        }
+
+        // ------------------------------------------------------------------ scenario
+
+        IEnumerator Scenario()
+        {
+            // 标题
+            yield return Until(() => TitleReady, "标题菜单出现");
+            yield return Snap("title", "标题画面");
+            // The faces up close at half size, 2 s: breathing, head sway, hair and (most likely) a blink.
+            yield return Clip("title-live", "标题立绘动态（胶片：呼吸、摆头、头发、眨眼）", 20, 0.1f,
+                new Rect(900f / 1920f, 90f / 1080f, 960f / 1920f, 500f / 1080f), 480, 250, 4);
+            // Every menu step below counts from 开始游戏, which is only selected when there is no save.
+            if (SaveSystem.MostRecent() != null)
+            {
+                Fail("已有存档：e2e.sh 没清掉上次的数据，菜单位置会错");
+                Finish();
+                yield break;
+            }
+            var heads = ui.Q(className: "sp-title").Query(className: "sp-touch__head").ToList();
+            if (heads.Count == 3)
+            {
+                // One after another: each new bubble replaces the last, above all three portraits.
+                Click(heads[0]); // ChatGPT
+                yield return Wait(0.5f);
+                yield return Snap("title-touch-chatgpt", "标题：点 ChatGPT 的头（气泡尾巴指向她）");
+                Click(heads[1]); // Claude
+                yield return Wait(0.5f);
+                yield return Snap("title-touch-claude", "标题：接着点 Claude 的头");
+                Click(heads[2]); // DeepSeek
+                yield return Wait(0.5f);
+                yield return Snap("title-touch", "标题：接着点 DeepSeek 的头");
+                var shown = ui.Q(className: "sp-title").Query(className: "sp-touch__bubble").ToList().Count(Visible);
+                Check(shown == 1, $"连点三人后只剩最后一个气泡（实际 {shown} 个）");
+            }
+            else Fail($"标题上应有 3 个可点的立绘，实际 {heads.Count} 个");
+
+            // 设置：开始游戏 → 读取存档 → 设置
+            yield return Press(Key.DownArrow);
+            yield return Press(Key.DownArrow);
+            yield return Press(Key.Enter);
+            yield return Until(() => game.SettingsModal.IsOpen, "设置打开");
+            yield return Wait(0.7f);
+            yield return Snap("settings-audio", "设置·音频");
+            yield return Press(Key.RightArrow); // 文本页
+            yield return Press(Key.DownArrow); // 文字速度
+            for (var i = 0; i < 3; i++) yield return Press(Key.RightArrow); // 标准 → 瞬间
+            yield return Wait(0.8f);
+            yield return Snap("settings-text", "设置·文本（文字速度调到「瞬间」）");
+            Check(game.Settings.textSpeed == GameSettings.TextSpeedLabels.Length - 1, "文字速度为「瞬间」");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.ModalOpen, "设置关闭");
+            yield return Press(Key.UpArrow);
+            yield return Press(Key.UpArrow);
+
+            // 陪伴生登记
+            yield return Press(Key.Enter);
+            yield return Until(() => game.NewGame.IsOpen, "登记界面打开");
+            yield return Wait(0.6f);
+            // Fill the name like a form filler: IME composition is outside this test.
+            ui.Q<TextField>(className: "sp-newgame__field").value = PlayerName;
+            yield return Snap("newgame", "陪伴生登记");
+            for (var i = 0; i < 4 && !game.Confirm.IsOpen; i++) yield return Press(Key.Enter);
+            yield return Until(() => game.Confirm.IsOpen, "登记确认");
+            yield return Wait(0.45f);
+            yield return Snap("newgame-confirm", "登记确认");
+            yield return Press(Key.Enter);
+            yield return Until(() => game.InStory, "进入序章");
+            Check(game.State.playerName == PlayerName, $"主角名为「{PlayerName}」");
+
+            // 序章前半，到 Claude 第一次说话时顺路打开手机、资料、菜单、回看，再快速存档
+            yield return Pump(() => SpeakerIs("Claude"), "Claude 第一次说话");
+            // The label reset at the top of the USS once outranked every label rule and zeroed their spacing.
+            // Read while Claude's name plate is on screen: it is laid out only then.
+            var role = ui.Q<Label>(className: "sp-nameplate__role").resolvedStyle;
+            Check(role.marginLeft > 0 && role.marginTop > 0, "文字的 USS 边距生效（名牌头衔）");
+            yield return SideTrips();
+
+            // 一路到教学战斗结束。到战斗前的剧情较长，分段推进，每段各算超时
+            yield return Pump(() => game.State.scene == "rooftop", "到达天台");
+            yield return Pump(() => game.State.scene == "cache_sea", "进入缓存海");
+            yield return Pump(() => Maze.Exploring, "进入缓存海·浅层探索");
+            yield return Shallows();
+            if (finished) yield break;
+            yield return Pump(() => game.InBattle, "进入教学战斗");
+            yield return Pump(() => !game.InBattle, "教学战斗结束");
+            var deepSeek = game.State.members.Find(m => m.id == "DeepSeek");
+            var player = game.State.members.Find(m => m.id == GameState.PlayerId);
+            Check(deepSeek != null && deepSeek.level >= 2, $"DeepSeek 升到 Lv2（实际 Lv{deepSeek?.level}）");
+            Check(player != null && player.level >= 2, $"主角升到 Lv2（实际 Lv{player?.level}）");
+            Check(game.State.inventory.Any(s => s.id == "white_rice" && s.count > 0), "获得白米饭");
+            Check(game.StoryString("$deepseek_calls_player") == "鱼片", "DeepSeek 称呼主角为「鱼片」");
+
+            yield return Pump(() => Maze.Exploring, "进入缓存海·深层探索");
+            yield return Deep();
+            if (finished) yield break;
+
+            // 深层探索后到章节结束
+            yield return Pump(() => StampShown("完"), "序章结束");
+            Check(game.State.coops.Any(c => c.character == "DeepSeek" && c.rank == 1), "隐者 Coop Rank 1");
+            Check(game.State.abilities.Contains("deep_dive"), "获得能力「深海潜行」");
+            Check(game.State.deadlines.Any(d => d.id == "deepseek_evaluation" && d.month == 5 && d.day == 6), "评测日设为 5/6");
+            Check(game.State.contacts.Contains("ChatGPT"), "通讯录里有 ChatGPT");
+
+            // 回到标题，看读档界面
+            yield return Pump(() => !game.InStory && Visible(ui.Q(className: "sp-title")), "回到标题");
+            yield return Until(() => TitleReady, "标题菜单出现");
+            yield return Snap("title-continue", "回到标题（「继续」可用）");
+            Check(SaveSystem.MostRecent() != null, "有可继续的存档");
+            yield return Press(Key.DownArrow);
+            yield return Press(Key.DownArrow);
+            yield return Press(Key.Enter);
+            yield return Until(() => game.SaveLoad.IsOpen, "读档界面打开");
+            yield return Wait(1.1f);
+            yield return Snap("load", "读档界面");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.ModalOpen, "读档界面关闭");
+        }
+
+        IEnumerator SideTrips()
+        {
+            yield return Press(Key.Tab);
+            yield return Until(() => game.Phone.IsOpen, "手机打开");
+            yield return Wait(0.6f);
+            yield return Snap("phone-contacts", "手机·通讯录（新联系人）");
+            yield return Press(Key.Enter);
+            yield return Until(() => game.Profile.IsOpen, "ChatGPT 资料打开");
+            yield return Wait(0.5f);
+            var head = ui.Q(className: "sp-profile").Q(className: "sp-touch__head");
+            if (head != null) Click(head);
+            yield return Wait(0.5f);
+            yield return Snap("profile", "ChatGPT 资料（点头）");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.Profile.IsOpen, "资料关闭");
+            yield return Press(Key.LeftArrow); // 日程
+            yield return Wait(0.2f);
+            yield return Snap("phone-calendar", "手机·日程");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.ModalOpen, "手机关闭");
+
+            yield return Press(Key.Escape);
+            yield return Until(() => game.Menu.IsOpen, "暂停菜单打开");
+            yield return Idle(); // the watcher films the menu opening
+            yield return Wait(0.2f);
+            yield return Snap("menu", "暂停菜单");
+            // 从菜单进回看再退回来。上移两格（循环）落在「回看」，不受「存档」是否可用影响。
+            yield return Press(Key.UpArrow);
+            yield return Press(Key.UpArrow);
+            yield return Press(Key.Enter);
+            yield return Until(() => game.Backlog.IsOpen, "菜单进入回看");
+            yield return Idle(); // the watcher films the dive
+            yield return Wait(0.3f);
+            yield return Snap("menu-page", "回看（从菜单进入）");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.Backlog.IsOpen && game.Menu.IsOpen, "回看关闭，回到菜单");
+            yield return Idle(); // films the pull-back
+            yield return Until(() => !game.Menu.Switching, "菜单重新落定");
+            // 回看 → 上四格到「存档」（快速存档之前已有检查点，存档可用）
+            for (var i = 0; i < 4; i++) yield return Press(Key.UpArrow);
+            yield return Press(Key.Enter);
+            yield return Until(() => game.SaveLoad.IsOpen, "菜单进入存档");
+            yield return Wait(0.8f);
+            yield return Snap("menu-save", "存档（从菜单进入）");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.SaveLoad.IsOpen && game.Menu.IsOpen, "存档关闭，回到菜单");
+            yield return Until(() => !game.Menu.Switching, "菜单再次落定");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.ModalOpen, "暂停菜单关闭");
+
+            yield return Press(Key.L);
+            yield return Until(() => game.Backlog.IsOpen, "回看打开");
+            yield return Wait(0.6f);
+            yield return Snap("backlog", "回看");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.ModalOpen, "回看关闭");
+
+            yield return Press(Key.F5);
+            yield return Wait(0.3f);
+            yield return Snap("quicksave", "快速存档提示");
+            Check(SaveSystem.Read(SaveSystem.QuickSlot).Data != null, "快速存档已写入");
+
+            // The corner icons up close with AUTO on (lit green, the icon turns ink); off again well before
+            // auto-advance would move on (1.5 s).
+            yield return Press(Key.Q);
+            yield return Wait(0.25f);
+            var keys = ui.Query(className: "sp-quick").ToList();
+            Check(keys.Count == 9 && keys[0].ClassListContains("is-on"), $"快捷栏是 9 个图标键，按 Q 后 AUTO 点亮（实际 {keys.Count} 个）");
+            yield return Clip("quickbar", "右上角图标（AUTO 开启）", 1, 0.1f,
+                new Rect(1200f / 1920f, 0f, 720f / 1920f, 140f / 1080f), 720, 140, 1);
+            yield return Press(Key.Q);
+            Check(keys.Count > 0 && !keys[0].ClassListContains("is-on"), "再按 Q 关闭自动");
+        }
+
+        // ------------------------------------------------------------------ the latent-space maze
+
+        DungeonScreen Maze => game.Dungeon;
+        DungeonWorld World => game.Dungeon.World;
+
+        // 缓存海·浅层: DeepSeek follows but can't fight yet, so the phone's screenshot fights alone. Jump the
+        // dozing one at the reef's mouth from behind, west into the coral (its beacon, its patrol), north
+        // through the graveyard (its patrol, the draft), the beacon behind the lighthouse, the canyon's
+        // patrol, then the maintenance room: eleven pushes put both cache blocks in their sockets, the gate
+        // opens, the terminal drops the firewalls, and back through them to the lighthouse.
+        IEnumerator Shallows()
+        {
+            var w = World;
+            Check(w.Def.Id == "cache_sea_shallows", $"浅层地图（实际 {w.Def.Id}）");
+            Check(Visible(ui.Q(className: "sp-dungeon__map")), "右上角地图显示");
+            Check(w.Companion != null, "DeepSeek 跟在主角身边");
+            Check(Maze.Zone?.Name == "气泡礁", $"从气泡礁出发（实际 {Maze.Zone?.Name}）");
+            SeaProp BeaconIn(string zone) => w.Props.Find(p => p.Kind == PropKind.Beacon && w.Def.ZoneAt(p.Cell)?.Name == zone);
+
+            yield return Jump(Noise('1'), "dungeon-first", "从背后接近礁石出口发呆的噪声体（提示「先制攻击！」）");
+            if (finished) yield break;
+            Check(Maze.Battles == 1 && Maze.Preemptive == 1, $"第一场战斗是先制攻击（{Maze.Battles} 场，先制 {Maze.Preemptive}）");
+            Check(game.State.party.Count == 1, $"觉醒前主角一个人战斗（队伍 {game.State.party.Count} 人）");
+
+            var coralBeacon = BeaconIn("表情包珊瑚林");
+            yield return Walk(coralBeacon.Cell, "沿手机南侧往西，进珊瑚林走到信标", 2.2f);
+            yield return Lurk(() => Maze.Exploring && coralBeacon.Used, "珊瑚林的信标点亮");
+            yield return Fight(Noise('2'), "和珊瑚林的噪声体战斗");
+            yield return Fight(Noise('3'), "往北进删帖墓地，和墓地的噪声体战斗");
+
+            var draft = w.Props.Find(p => p.Kind == PropKind.Fragment && w.Def.FragmentTitles[p.Index] == "未发送的草稿");
+            yield return Walk(draft.Cell, "走到碎片「未发送的草稿」", 2f);
+            yield return Press(Key.Enter);
+            yield return Pump(() => Maze.Exploring && draft.Used, "读完碎片");
+            Check(game.StoryBool("$sea_read_47s"), "读过「四十七秒」的草稿（$sea_read_47s）");
+
+            var ridgeBeacon = BeaconIn("灯塔背面");
+            yield return Walk(ridgeBeacon.Cell, "穿过墓地，到灯塔背面的信标", 2.2f);
+            yield return Lurk(() => Maze.Exploring && ridgeBeacon.Used, "灯塔背面的信标点亮");
+            yield return Fight(Noise('4'), "下到机柜峡谷，和峡谷的噪声体战斗");
+            if (finished) yield break;
+
+            // The maintenance room: the right-hand block down and round into the left socket, which takes
+            // it only from the east; the left-hand block across into the right one.
+            var pushes = new[]
+            {
+                (new Vector2Int(26, 12), Vector2Int.left), (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up),
+                (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(24, 14), Vector2Int.left),
+                (new Vector2Int(20, 11), Vector2Int.up), (new Vector2Int(19, 13), Vector2Int.right), (new Vector2Int(20, 13), Vector2Int.right),
+                (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
+            };
+            Check(!w.Map.GateOpen && w.Puzzles.Sockets.Count == 2 && w.Puzzles.Blocks.Count == 2, "维护间：两块缓存块、两个插槽，门关着");
+            for (var i = 0; i < pushes.Length && !finished; i++)
+            {
+                yield return Push(pushes[i].Item1, pushes[i].Item2, $"第 {i + 1} 推");
+                if (i == 3) yield return Snap("dungeon-push", "推缓存块（右边一块绕到左边插槽前）");
+            }
+            if (finished) yield break;
+            Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length, $"{Maze.Pushes} 推后两块缓存块都在插槽里，门打开");
+            Check(BeaconIn("维护间").Used, "维护间的信标点亮");
+
+            var terminal = w.Props.Find(p => p.Kind == PropKind.Terminal);
+            yield return Walk(terminal.Cell, "穿过打开的门，走到维护终端", 2f);
+            yield return Press(Key.Enter);
+            yield return Pump(() => Maze.Exploring && w.Map.FirewallOpen, "接入终端");
+            Check(w.Map.FirewallOpen, "防火墙全部解除");
+
+            yield return Walk(w.Map.Find('G')[0], "穿过两道防火墙走到灯塔", 0f, () => !game.InDungeon);
+            Check(Maze.Battles >= 4, $"浅层战斗 {Maze.Battles} 场（先制 {Maze.Preemptive}，被偷袭 {Maze.Ambushed}）");
+            Check(Maze.ZonesVisited >= 7, $"浅层走过 {Maze.ZonesVisited} 个区域");
+        }
+
+        // 缓存海·深层: with DeepSeek fighting. Jump the dozing one at the server room's door from behind, east
+        // through the long-context corridor (its fragment, the delay patch at the end), into the white-door
+        // hall, where four turns of plates walk the lighthouse's light round to the hidden exit.
+        IEnumerator Deep()
+        {
+            var w = World;
+            Check(w.Def.Id == "cache_sea_deep", $"深层地图（实际 {w.Def.Id}）");
+            Check(Visible(ui.Q(className: "sp-dungeon__meter")) && Visible(ui.Q(className: "sp-dungeon__party")), "维护进度与队伍状态显示");
+            Check(w.Companion != null, "DeepSeek 跟在身边");
+            Check(w.Puzzles.HasLight && !w.Puzzles.Lit && !w.GoalOpen, "出口一开始看不见（光照在白门上）");
+            yield return Jump(Noise('1'), "dungeon-sneak", "背后接近发呆的噪声体（提示「先制攻击！」）");
+            if (finished) yield break;
+            Check(Maze.Preemptive == 1, "先制攻击");
+
+            var help = w.Props.Find(p => p.Kind == PropKind.Fragment && w.Def.FragmentTitles[p.Index] == "从上面漂下来的话");
+            yield return Walk(help.Cell, "往东进长上下文回廊，走到碎片「从上面漂下来的话」", 2f);
+            yield return Pump(() => Maze.Exploring && w.EnemyInReach(2.6f) == null, "碎片旁没有噪声体");
+            yield return Press(Key.Enter);
+            yield return Pump(() => Maze.Exploring && help.Used, "读完碎片");
+
+            var patch = w.Props.Find(p => p.Kind == PropKind.Chest && w.Def.Chests[p.Index].Delay > 0f);
+            yield return Walk(patch.Cell, "沿回廊走到尽头的宝箱", 2f);
+            // With a noise body in reach, Enter jumps it instead of opening the chest: fight it first.
+            yield return Pump(() => Maze.Exploring && w.EnemyInReach(2.6f) == null, "宝箱旁没有噪声体");
+            var before = Maze.Meter;
+            yield return Press(Key.Enter);
+            yield return Pump(() => Maze.Exploring && patch.Used, "打开宝箱");
+            yield return Wait(0.3f);
+            yield return Snap("dungeon-chest", "打开宝箱（延时补丁）");
+            Check(Maze.ChestsOpened == 1 && Maze.Meter < before, $"延时补丁让维护进度下降（{before:0.0}% → {Maze.Meter:0.0}%）");
+
+            yield return Walk(new Vector2Int(19, 4), "从东边进白门大厅", 1.2f);
+            if (Noise('6').Active) yield return Fight(Noise('6'), "和大厅里巡逻的噪声体战斗");
+            yield return Walk(new Vector2Int(19, 5), "退到大厅东侧看光路", 1.2f);
+            yield return Face(w.Map.World(new Vector2Int(14, 4)));
+            yield return Snap("dungeon-beam", "白门大厅：光照在白门上");
+            // Plates (14,6) | → /, (17,6) \ → /, (17,3) / → \, (11,3) | → \: north, east, north, west, north.
+            var turns = new[] { (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), 2),
+                                (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), 3) };
+            foreach (var (plate, stand, times) in turns)
+            {
+                yield return Turn(plate, stand, times);
+                if (finished) yield break;
+            }
+            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 8, $"转了 {Maze.Turns} 次，光照到出口，出口出现");
+            yield return Pump(() => Maze.Exploring, "出口出现的对话");
+            yield return Walk(new Vector2Int(9, 6), "退到大厅西南角看光路", 1.2f);
+            yield return Face(w.Map.World(new Vector2Int(14, 3)));
+            yield return Snap("dungeon-light", "光绕过大厅照到出口");
+
+            yield return Walk(w.Map.Find('G')[0], "走进出口的光柱（白门在旁边）", 0f, () => !game.InDungeon);
+            Check(Seen("dungeon-gate"), "在维护结束前走到出口（白门在旁边）");
+            Check(Maze.Battles >= 2, $"深层战斗 {Maze.Battles} 场");
+            Check(Maze.ZonesVisited >= 4, $"深层走过 {Maze.ZonesVisited} 个区域");
+        }
+
+        SeaNoise Noise(char mark) => World.Enemies.Find(e => e.Spawn.Mark == mark);
+
+        // Creeps up on a dozing one from behind and jumps it: a preemptive battle, fought through.
+        IEnumerator Jump(SeaNoise dozing, string shot, string title)
+        {
+            var w = World;
+            Check(dozing.State == NoiseState.Doze && Vector3.Dot(dozing.Forward, w.PlayerPosition - dozing.Position) < 0f, "发呆的噪声体背对起点");
+            // Let go 3 m out: braking carries the avatar to about 2.3 m, inside the 2.6 m reach and outside
+            // the 1.8 m where even a dozing one notices.
+            var t0 = Now;
+            while (!finished && Vector3.Distance(w.PlayerPosition, dozing.Position) > 3f && Now - t0 < StepTimeout)
+            {
+                if (!Maze.Exploring)
+                {
+                    Release();
+                    yield return Press(Key.Enter);
+                    continue;
+                }
+                var path = w.Map.Path(w.PlayerCell, w.Map.CellAt(dozing.Position));
+                Steer(path.Count > 2 ? w.Map.World(path[1]) : dozing.Position, false);
+                yield return null;
+            }
+            Release();
+            yield return Wait(0.6f);
+            Check(dozing.State == NoiseState.Doze && w.EnemyInReach(2.6f) == dozing,
+                $"走到背后没被发现（{dozing.State}，距离 {Vector3.Distance(w.PlayerPosition, dozing.Position):0.00} 米）");
+            yield return Snap(shot, title);
+            yield return Press(Key.Enter);
+            yield return Pump(() => game.InBattle, "先制攻击进入战斗");
+            yield return Pump(() => !game.InBattle && Maze.Exploring, "先制战斗结束，回到迷宫");
+            Check(!dozing.Active, "打倒的噪声体从迷宫里消失");
+        }
+
+        // Goes after a patrolling one and attacks it as soon as it is in reach; if it notices first and
+        // runs into the avatar, that starts the battle too. Fought through with the first command.
+        IEnumerator Fight(SeaNoise enemy, string what)
+        {
+            var driven = 0f;
+            var last = Now;
+            while (!finished && (enemy.Active || !Maze.Exploring))
+            {
+                if (StampShown("掉线……"))
+                {
+                    Release();
+                    Fail("战斗失败（掉线），回到标题");
+                    yield return Snap("lost", "战斗失败");
+                    Finish();
+                    yield break;
+                }
+                if (hold == 0 && Maze.Exploring) driven += Now - last;
+                last = Now;
+                if (driven > StepTimeout)
+                {
+                    Release();
+                    Fail($"「{what}」超时（{StepTimeout:0} 秒）");
+                    yield return Snap("timeout", $"超时：{what}");
+                    Finish();
+                    yield break;
+                }
+                if (!Maze.Exploring)
+                {
+                    Release();
+                    if (hold == 0) yield return Press(Key.Enter);
+                    else yield return null;
+                    continue;
+                }
+                var w = World;
+                if (w.EnemyInReach(2.6f) == enemy)
+                {
+                    Release();
+                    yield return Press(Key.Enter);
+                    continue;
+                }
+                var path = w.Map.Path(w.PlayerCell, w.Map.CellAt(enemy.Position));
+                var far = Vector3.Distance(w.PlayerPosition, enemy.Position);
+                Steer(path.Count > 2 ? w.Map.World(path[1]) : enemy.Position, far > 10f);
+                yield return null;
+            }
+            Release();
+            if (!finished) passes.Add($"{Now:0.0}s　{what}");
+        }
+
+        // Stands in `from`, leans on the block in `direction` and pushes it a cell on.
+        IEnumerator Push(Vector2Int from, Vector2Int direction, string what)
+        {
+            var w = World;
+            var at = from + direction;
+            if (!w.Map.Blocks.Contains(at))
+            {
+                Fail($"{what}：{at} 没有缓存块（缓存块在 {string.Join(" ", w.Map.Blocks)}）");
+                Finish();
+                yield break;
+            }
+            yield return Walk(from, $"{what}：走到 {from}", 1.2f);
+            yield return Lean(from, w.Map.World(at), 2.9f, what);
+            if (finished) yield break;
+            var block = w.BlockInReach(out var d);
+            Check(block != null && d == direction, $"{what}：站在 {from} 推得到 {at} 的缓存块（方向 {d}）");
+            var pushes = Maze.Pushes;
+            yield return Press(Key.Enter);
+            yield return Wait(0.45f);
+            Check(Maze.Pushes == pushes + 1 && w.Map.Blocks.Contains(at + direction), $"{what}：缓存块 {at} → {at + direction}");
+        }
+
+        // Stands by a light plate and turns it `times` eighths of a turn.
+        IEnumerator Turn(Vector2Int plate, Vector2Int stand, int times)
+        {
+            var w = World;
+            var what = $"转动 {plate} 的反射板";
+            yield return Walk(stand, $"{what}：走到 {stand}", 1.2f);
+            yield return Lean(stand, w.Map.World(plate), 3f, what);
+            if (finished) yield break;
+            for (var i = 0; i < times && !finished; i++)
+            {
+                if (!Maze.Exploring) yield return Pump(() => Maze.Exploring, "出口出现的对话");
+                var turns = Maze.Turns;
+                yield return Press(Key.Enter);
+                yield return Wait(0.45f);
+                Check(Maze.Turns == turns + 1, $"{what}（第 {i + 1} 次）");
+            }
+        }
+
+        // Walks on from the middle of `cell` toward `target` until within `metres` of it, staying in the
+        // cell: the reach of blocks and plates is shorter than a cell.
+        IEnumerator Lean(Vector2Int cell, Vector3 target, float metres, string what)
+        {
+            var w = World;
+            var t0 = Now;
+            while (!finished && (w.PlayerCell != cell || Vector3.Distance(Flat(w.PlayerPosition), Flat(target)) > metres))
+            {
+                if (Now - t0 > 6f)
+                {
+                    Release();
+                    Fail($"{what}：靠不到 {cell} 的那一侧（在 {w.PlayerCell}，距离 {Vector3.Distance(Flat(w.PlayerPosition), Flat(target)):0.00} 米）");
+                    yield return Snap("timeout", $"靠不过去：{what}");
+                    Finish();
+                    yield break;
+                }
+                if (!Maze.Exploring)
+                {
+                    Release();
+                    yield return Press(Key.Enter);
+                    continue;
+                }
+                Steer(w.PlayerCell != cell ? w.Map.World(cell) : target, false);
+                yield return null;
+            }
+            Release();
+            yield return Wait(0.25f);
+        }
+
+        // Swings the camera with Q/E until it looks at `target`, for a screenshot of what is there.
+        IEnumerator Face(Vector3 target)
+        {
+            var t0 = Now;
+            while (!finished && Now - t0 < 4f)
+            {
+                var w = World;
+                var yaw = w.CameraYaw * Mathf.Deg2Rad;
+                var forward = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+                var off = Vector3.SignedAngle(forward, Flat(target - w.PlayerPosition), Vector3.up);
+                if (Mathf.Abs(off) < 10f) break;
+                keyboard.MakeCurrent();
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(off > 0f ? Key.E : Key.Q));
+                yield return null;
+            }
+            Release();
+            yield return Wait(0.4f);
+        }
+
+        static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        // Walks the shortest path of cells to `goal` until within `near` metres of its centre (or `done`).
+        // Lines and battles on the way are pressed through like Pump, and the time they hold the controls
+        // does not count toward the timeout.
+        IEnumerator Walk(Vector2Int goal, string what, float near, Func<bool> done = null)
+        {
+            var driven = 0f;
+            var last = Now;
+            while (!finished)
+            {
+                if (StampShown("掉线……")) // lost: the title's Enter would load the last checkpoint and replay
+                {
+                    Release();
+                    Fail("战斗失败（掉线），回到标题");
+                    yield return Snap("lost", "战斗失败");
+                    Finish();
+                    yield break;
+                }
+                if (hold == 0 && Maze.Exploring) driven += Now - last;
+                last = Now;
+                if (done != null && done()) break;
+                if (!game.InDungeon && done == null) break;
+                if (driven > StepTimeout)
+                {
+                    Release();
+                    Fail($"「{what}」超时（{StepTimeout:0} 秒）");
+                    yield return Snap("timeout", $"超时：{what}");
+                    Finish();
+                    yield break;
+                }
+                if (!Maze.Exploring)
+                {
+                    Release();
+                    if (hold == 0) yield return Press(Key.Enter);
+                    else yield return null;
+                    continue;
+                }
+                var w = World;
+                var to = w.Map.World(goal) - w.PlayerPosition;
+                to.y = 0f;
+                if (to.magnitude < near) break;
+                var path = w.Map.Path(w.PlayerCell, goal);
+                if (path.Count == 0)
+                {
+                    Release();
+                    Fail($"「{what}」找不到路：{w.PlayerCell} → {goal}");
+                    yield break;
+                }
+                Steer(path.Count > 1 ? w.Map.World(path[1]) : w.Map.World(goal), true);
+                yield return null;
+            }
+            Release();
+            if (!finished) passes.Add($"{Now:0.0}s　{what}");
+        }
+
+        // Holds the movement keys toward a point, relative to where the camera looks; Q/E swing the camera
+        // round when the way is off to the side, so the screenshots look where the avatar runs.
+        void Steer(Vector3 target, bool sprint)
+        {
+            var w = World;
+            var to = target - w.PlayerPosition;
+            to.y = 0f;
+            var keys = new List<Key>();
+            if (to.magnitude > 0.05f)
+            {
+                var d = to.normalized;
+                var yaw = w.CameraYaw * Mathf.Deg2Rad;
+                var forward = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+                var right = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw));
+                var f = Vector3.Dot(d, forward);
+                var r = Vector3.Dot(d, right);
+                if (f > 0.38f) keys.Add(Key.W);
+                else if (f < -0.38f) keys.Add(Key.S);
+                if (r > 0.38f) keys.Add(Key.D);
+                else if (r < -0.38f) keys.Add(Key.A);
+                var off = Vector3.SignedAngle(forward, d, Vector3.up);
+                if (off > 50f) keys.Add(Key.E);
+                else if (off < -50f) keys.Add(Key.Q);
+                if (sprint) keys.Add(Key.LeftShift);
+            }
+            keyboard.MakeCurrent();
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys.ToArray()));
+        }
+
+        void Release()
+        {
+            keyboard.MakeCurrent();
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+        }
+
+        void DefineCheckpoints()
+        {
+            // Films first: the watcher takes the first checkpoint that is due, and a transition doesn't wait.
+            var wipes = game.Transitions;
+            Film("wipe-newgame", "转场：开始游戏（斜切）", () => wipes.Busy && wipes.Style == Wipe.Slash, 10, 0.1f);
+            Film("wipe-location", "转场：换场景（地点卡）", () => wipes.Busy && wipes.Style == Wipe.Location, 10, 0.13f);
+            Film("wipe-battle", "转场：进入战斗", () => wipes.Busy && wipes.Style == Wipe.Battle, 10, 0.13f);
+            Film("wipe-return", "转场：战斗结束回剧情", () => Seen("battle-results") && wipes.Busy && wipes.Style == Wipe.Slash, 10, 0.1f);
+            Film("menu-open", "暂停菜单展开", () => game.Menu.IsOpen, 10, 0.06f);
+            Film("menu-dive", "菜单进入回看（俯冲、扫屏）", () => game.Menu.Switching, 12, 0.05f);
+            Film("menu-surface", "回看退回菜单", () => Seen("menu-page") && game.Menu.Switching, 12, 0.05f);
+            Film("settings-open", "设置打开（CRT 开机）", () => game.SettingsModal.IsOpen, 10, 0.04f);
+            Film("save-open", "存档打开（快门）", () => game.SaveLoad.IsOpen, 10, 0.045f);
+            Film("results-open", "战斗结算演出", () => Exists("sp-results"), 12, 0.15f);
+
+            var box = ui.Q(className: "sp-box");
+            Watch("calendar", "日期卡", () => Exists("fx-calendar"), 0.35f);
+            Watch("narration", "旁白", () => Visible(box) && box.ClassListContains("is-narration"), 0.3f);
+            Watch("speech", "ChatGPT 说话", () => SpeakerIs("ChatGPT"), 0.3f);
+            Watch("options", "选项", () => ui.Query(className: "sp-option").ToList().Count >= 2, 0.5f);
+            Watch("toast", "系统提示", () => Visible(ui.Q(className: "sp-toast")), 0.3f);
+            Watch("inner", "内心独白", () => Visible(box) && box.ClassListContains("is-inner"), 0.3f);
+            Watch("thinking", "DeepSeek 思考框", () => Visible(ui.Q(className: "sp-think")) && ui.Q<Label>(className: "sp-think__text").text.Length > 0, 0.3f);
+            // Early in the line, while a Live2D portrait still has its mouth moving.
+            Watch("deepseek-speech", "DeepSeek 说话", () => SpeakerIs("DeepSeek"), 0.12f);
+            Watch("whisper", "小声说话", () => Visible(box) && box.ClassListContains("is-whisper"), 0.3f);
+            Watch("phone-screen", "手机屏幕（维护时刻）", () => Visible(ui.Q(className: "sp-phone-screen")), 0.4f);
+            Watch("glitch", "房间被删除", () => Exists("fx-blocks"), 0.35f, false);
+            Watch("shadow", "影子 DeepSeek", () => Visible(box) && box.ClassListContains("is-shadow"), 0.3f);
+            Watch("effort-max", "思考强度 Max", () => StampShown("强度 Max"), 0.25f);
+            Watch("dungeon-explore", "潜空间探索：缓存海·浅层", () => Maze.Exploring && World.Def.Id == "cache_sea_shallows", 1.2f);
+            Watch("dungeon-talk", "探索中的对话框", () => Maze.Talking && Visible(ui.Q(className: "sp-dungeon__talk")), 0.4f);
+            Watch("dungeon-prompt", "调查提示", () => Maze.Exploring && Visible(ui.Q(className: "sp-dungeon__prompt")), 0.3f);
+            Watch("dungeon-alert", "噪声体发现主角（!）", () => Maze.Exploring && World.Enemies.Any(e => e.Alerted), 0.25f, false);
+            Watch("dungeon-ambush", "被噪声体偷袭", () => StampShown("被偷袭！"), 0.15f, false);
+            Watch("dungeon-zone", "进入新区域（区域名横幅）", () => Visible(ui.Q(className: "sp-dungeon__zone")) && ui.Q(className: "sp-dungeon__zone").resolvedStyle.opacity > 0.95f, 0.15f);
+            Watch("dungeon-zone-maintenance", "维护间（缓存块与插槽）", () => Maze.Talking && Maze.Zone?.Name == "维护间", 0.4f);
+            Watch("dungeon-gate-open", "缓存块推进插槽，门开了", () => StampShown("门开了！"), 0.2f);
+            Watch("dungeon-light-found", "光照到出口", () => StampShown("出口出现了！"), 0.2f);
+            Watch("dungeon-deep", "潜空间探索：缓存海·深层（维护进度、队伍）", () => Maze.Exploring && World.Def.Id == "cache_sea_deep", 1.2f);
+            Watch("dungeon-preemptive", "先制攻击", () => StampShown("先制攻击！"), 0.15f);
+            Watch("dungeon-gate", "出口旁的白色的门", () => Maze.Talking && ui.Q<Label>(className: "sp-dungeon__talk-text").text.Contains("有什么可以帮") /* the rest is wrapped in <nobr> */, 0.3f);
+            Watch("awakening", "觉醒「深渊之鲸」", () => ui.Q(className: "fx-awaken__hero") is VisualElement h && h.resolvedStyle.opacity > 0.95f, 0.2f);
+            Watch("battle", "教学战斗开始", () => game.InBattle && Exists("sp-enemy"), 1.2f);
+            Watch("battle-hint", "战斗提示", () => Visible(ui.Q(className: "sp-battle__tutorial")), 0.2f);
+            Watch("battle-command", "指令菜单", () => Visible(ui.Q(className: "sp-battle__menu")), 0.3f);
+            Watch("battle-target", "选择目标", () => ui.Query(className: "sp-enemy__cursor").ToList().Any(Visible), 0.15f);
+            Watch("battle-screenshot", "截图攻击", () => Exists("sp-viewfinder"), 0.15f, false);
+            Watch("battle-skill", "技能列表", () => Visible(ui.Q(className: "sp-battle__skills")), 0.2f);
+            Watch("battle-cutin", "技能特写", () => Exists("sp-cutin"), 0.2f, false);
+            Watch("battle-weak", "对抗样本", () => StampShown("对抗样本！"), 0.15f, false);
+            Watch("battle-onemore", "One More", () => StampShown("ONE MORE!"), 0.25f);
+            Watch("battle-think", "深度思考", () => Visible(ui.Q(className: "sp-battle__think")), 0.25f);
+            Watch("battle-down", "全员倒地", () => StampShown("全员倒地！"), 0.2f);
+            Watch("battle-prompt", "集成确认", () => Visible(ui.Q(className: "sp-battle__prompt")), 0.2f);
+            Watch("battle-allout", "集成", () => Exists("sp-allout__whale"), 0.45f);
+            Watch("battle-finish", "收尾特写", () => Exists("sp-allout__finish"), 0.4f);
+            Watch("battle-results", "战斗结算", () => Exists("sp-results"), 2.6f);
+            Watch("coop", "Coop 卡片", () => Exists("fx-coop"), 0.6f);
+            Watch("file", "评测文件", () => Visible(ui.Q(className: "sp-file")), 0.4f);
+            Watch("deadline", "评测倒计时", () => Visible(ui.Q(className: "sp-deadline")), 0.4f);
+            Watch("chapter-end", "序章结束", () => StampShown("完"), 0.3f);
+        }
+
+        // ------------------------------------------------------------------ helpers
+
+        void Watch(string id, string title, Func<bool> reached, float settle, bool required = true) =>
+            checkpoints.Add(new Checkpoint { Id = id, Title = title, Reached = reached, Settle = settle, Required = required });
+
+        void Film(string id, string title, Func<bool> reached, int frames, float interval) =>
+            checkpoints.Add(new Checkpoint { Id = id, Title = title + "（胶片）", Reached = reached, Frames = frames, Interval = interval });
+
+        bool Seen(string id) => checkpoints.Any(c => c.Id == id && c.At >= 0);
+
+        // Lets the watcher notice what just happened, then waits until it has finished capturing.
+        IEnumerator Idle()
+        {
+            yield return null;
+            yield return null;
+            while (hold > 0) yield return null;
+        }
+
+        IEnumerator WatchLoop()
+        {
+            while (!finished)
+            {
+                Checkpoint hit = null;
+                foreach (var c in checkpoints)
+                {
+                    if (c.At >= 0 || c.Reached == null) continue;
+                    bool reached;
+                    try { reached = c.Reached(); }
+                    catch (Exception) { reached = false; }
+                    if (!reached) continue;
+                    hit = c;
+                    break;
+                }
+                if (hit == null)
+                {
+                    yield return null;
+                    continue;
+                }
+                hit.At = Now;
+                hold++;
+                yield return Wait(hit.Settle);
+                yield return Capture(hit);
+                hold--;
+            }
+        }
+
+        // Presses Enter until the condition holds; watcher screenshots pause the presses, and the time
+        // they hold doesn't count toward the step's timeout (the tutorial battle stops for a dozen).
+        IEnumerator Pump(Func<bool> until, string what)
+        {
+            var driven = 0f;
+            var last = Now;
+            while (!finished && !until())
+            {
+                if (StampShown("掉线……")) // lost: the title's Enter would load the last checkpoint and replay
+                {
+                    Release();
+                    Fail("战斗失败（掉线），回到标题");
+                    yield return Snap("lost", "战斗失败");
+                    Finish();
+                    yield break;
+                }
+                if (hold == 0) driven += Now - last;
+                last = Now;
+                if (driven > StepTimeout)
+                {
+                    Fail($"等待「{what}」超时（{StepTimeout:0} 秒）");
+                    yield return Snap("timeout", $"超时：{what}");
+                    Finish();
+                    yield break;
+                }
+                if (hold == 0) yield return Press(Key.Enter);
+                else yield return null;
+                yield return Wait(0.06f);
+            }
+            if (!finished) passes.Add($"{Now:0.0}s　{what}");
+        }
+
+        // Stands still in the maze until `condition`, reading on through whatever talks meanwhile.
+        IEnumerator Lurk(Func<bool> condition, string what)
+        {
+            Release();
+            var t0 = Now;
+            while (!finished && !condition())
+            {
+                if (Now - t0 > StepTimeout)
+                {
+                    Fail($"等待「{what}」超时（{StepTimeout:0} 秒）");
+                    yield return Snap("timeout", $"超时：{what}");
+                    Finish();
+                    yield break;
+                }
+                if (!Maze.Exploring && hold == 0) yield return Press(Key.Enter);
+                else yield return null;
+            }
+            if (!finished) passes.Add($"{Now:0.0}s　{what}");
+        }
+
+        IEnumerator Until(Func<bool> condition, string what)
+        {
+            var t0 = Now;
+            while (!finished && !condition())
+            {
+                if (Now - t0 > StepTimeout)
+                {
+                    Fail($"等待「{what}」超时（{StepTimeout:0} 秒）");
+                    yield return Snap("timeout", $"超时：{what}");
+                    Finish();
+                    yield break;
+                }
+                yield return null;
+            }
+            if (!finished) passes.Add($"{Now:0.0}s　{what}");
+        }
+
+        // One key press through the Input System: down for two frames, then up.
+        IEnumerator Press(Key key)
+        {
+            keyboard.MakeCurrent();
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(key));
+            yield return null;
+            yield return null;
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+            yield return null;
+            yield return Wait(0.1f);
+        }
+
+        static IEnumerator Wait(float seconds)
+        {
+            var end = Time.realtimeSinceStartup + seconds;
+            while (Time.realtimeSinceStartup < end) yield return null;
+        }
+
+        IEnumerator Snap(string id, string title)
+        {
+            var c = new Checkpoint { Id = id, Title = title, At = Now };
+            checkpoints.Add(c);
+            yield return Capture(c);
+        }
+
+        IEnumerator Clip(string id, string title, int frames, float interval, Rect region, int width, int height, int columns)
+        {
+            var c = new Checkpoint
+            {
+                Id = id, Title = title, At = Now, Frames = frames, Interval = interval,
+                Region = region, FrameWidth = width, FrameHeight = height, Columns = columns,
+            };
+            checkpoints.Add(c);
+            yield return Capture(c);
+        }
+
+        IEnumerator Capture(Checkpoint c)
+        {
+            c.Shot = $"{++shotCount:00}-{c.Id}.png";
+            var path = Path.Combine(outDir, c.Shot);
+            if (c.Frames > 0)
+            {
+                yield return Film(c, path);
+                yield break;
+            }
+            yield return new WaitForEndOfFrame();
+            var tex = ScreenCapture.CaptureScreenshotAsTexture();
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Destroy(tex);
+        }
+
+        // One sheet, five 384×216 frames per row, read left to right. Nearest-pixel downscale: enough to
+        // see where every panel is.
+        IEnumerator Film(Checkpoint c, string path)
+        {
+            int W = c.FrameWidth, H = c.FrameHeight, Columns = c.Columns;
+            var rows = (c.Frames + Columns - 1) / Columns;
+            var sheet = new Texture2D(W * Columns, H * rows, TextureFormat.RGB24, false);
+            sheet.SetPixels32(new Color32[W * Columns * H * rows]);
+            var cell = new Color32[W * H];
+            for (var i = 0; i < c.Frames; i++)
+            {
+                var next = Time.realtimeSinceStartup + c.Interval;
+                yield return new WaitForEndOfFrame();
+                var shot = ScreenCapture.CaptureScreenshotAsTexture();
+                var src = shot.GetPixels32();
+                int sw = shot.width, sh = shot.height;
+                Destroy(shot);
+                // Screenshot rows run bottom-up too: the region's bottom edge is row sh * (1 - yMax).
+                var r = c.Region;
+                for (var y = 0; y < H; y++)
+                {
+                    var row = Mathf.Min(sh - 1, (int)(sh * (1f - r.yMax) + y * sh * r.height / H)) * sw;
+                    for (var x = 0; x < W; x++) cell[y * W + x] = src[row + Mathf.Min(sw - 1, (int)(sw * r.x + x * sw * r.width / W))];
+                }
+                // Texture rows run bottom-up: the first frame lands top-left.
+                sheet.SetPixels32(i % Columns * W, (rows - 1 - i / Columns) * H, W, H, cell);
+                while (Time.realtimeSinceStartup < next) yield return null;
+            }
+            sheet.Apply();
+            File.WriteAllBytes(path, sheet.EncodeToPNG());
+            Destroy(sheet);
+        }
+
+        static void Click(VisualElement target)
+        {
+            using (var e = ClickEvent.GetPooled())
+            {
+                e.target = target;
+                target.SendEvent(e);
+            }
+        }
+
+        // Not the menu's opacity: the eased fade passes 0.99 a few frames before the menu takes input.
+        bool TitleReady => game.Title.Ready && !game.ModalOpen && !game.Transitions.Busy;
+
+        bool Exists(string className) => ui.Q(className: className) != null;
+
+        bool StampShown(string text) => ui.Query<Label>(className: "fx-stamp__text").ToList().Any(l => l.text == text);
+
+        bool SpeakerIs(string name)
+        {
+            var box = ui.Q(className: "sp-box");
+            var label = ui.Q<Label>(className: "sp-nameplate__name");
+            return Visible(box) && Visible(label) && label.text == name;
+        }
+
+        static bool Visible(VisualElement e)
+        {
+            if (e == null || e.panel == null) return false;
+            for (var p = e; p != null; p = p.parent)
+                if (p.resolvedStyle.display == DisplayStyle.None) return false;
+            return true;
+        }
+
+        void Check(bool ok, string what)
+        {
+            if (ok) passes.Add($"{Now:0.0}s　{what}");
+            else Fail(what);
+        }
+
+        void Fail(string what) => failures.Add($"{Now:0.0}s　{what}");
+
+        void OnLog(string message, string stack, LogType type)
+        {
+            var line = $"{Now:0.0}s [{type}] {message}";
+            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) logErrors.Add(line + "\n" + stack);
+            else if (type == LogType.Warning) logWarnings.Add(line);
+        }
+
+        // ------------------------------------------------------------------ report
+
+        void Finish()
+        {
+            if (finished) return;
+            finished = true;
+            Application.logMessageReceived -= OnLog;
+            var missed = checkpoints.Where(c => c.Reached != null && c.At < 0).ToList();
+            var ok = failures.Count == 0 && logErrors.Count == 0 && missed.All(c => !c.Required);
+
+            var md = new StringBuilder();
+            md.AppendLine("# 序章端到端验证");
+            md.AppendLine();
+            md.AppendLine($"- 结果：**{(ok ? "通过" : "未通过")}**");
+            md.AppendLine($"- 时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}，用时 {Now:0.0} 秒");
+            md.AppendLine($"- 环境：Unity {Application.unityVersion}，{SystemInfo.operatingSystem}，{SystemInfo.graphicsDeviceName}，窗口 {Screen.width}×{Screen.height}");
+            md.AppendLine("- 方式：虚拟键盘经 Input System 按键，从标题画面玩到序章结束；登记姓名用填值代替输入法");
+            md.AppendLine();
+            md.AppendLine("## 检查点");
+            md.AppendLine();
+            md.AppendLine("| 时间 | 检查点 | 截图 |");
+            md.AppendLine("| --- | --- | --- |");
+            foreach (var c in checkpoints.Where(c => c.At >= 0).OrderBy(c => c.At))
+                md.AppendLine($"| {c.At:0.0}s | {c.Title} | {(c.Shot != null ? $"[{c.Shot}]({c.Shot})" : "—")} |");
+            if (missed.Count > 0)
+            {
+                md.AppendLine();
+                md.AppendLine("未到达：" + string.Join("、", missed.Select(c => c.Title + (c.Required ? "（必需）" : "（瞬时画面，可缺）"))));
+            }
+            md.AppendLine();
+            md.AppendLine("## 状态检查与流程步骤");
+            md.AppendLine();
+            foreach (var p in passes) md.AppendLine($"- ✅ {p}");
+            foreach (var f in failures) md.AppendLine($"- ❌ {f}");
+            md.AppendLine();
+            md.AppendLine($"## 日志：{logErrors.Count} 个错误，{logWarnings.Count} 个警告");
+            md.AppendLine();
+            if (logErrors.Count + logWarnings.Count > 0)
+            {
+                md.AppendLine("```");
+                foreach (var e in logErrors.Take(30)) md.AppendLine(e.TrimEnd());
+                foreach (var w in logWarnings.Take(30)) md.AppendLine(w);
+                md.AppendLine("```");
+            }
+            File.WriteAllText(Path.Combine(outDir, "report.md"), md.ToString());
+            Application.Quit(ok ? 0 : 1);
+        }
+    }
+}
+#endif
