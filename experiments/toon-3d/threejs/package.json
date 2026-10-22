@@ -1,0 +1,13 @@
+{
+  "name": "toon-3d-threejs",
+  "private": true,
+  "type": "module",
+  "description": "Render the exported glb with MeshToonMaterial + OutlineEffect in headless Chromium",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1",
+    "three": "0.186.1"
+  }
+}

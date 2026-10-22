@@ -1,0 +1,6 @@
+# 生成这批文件的云端会话里，网络策略拦截了 lfs.github.com，LFS 对象推不上去。
+# 所以本目录的二进制产物（对比图、贴图、.blend、.glb）暂时作为普通 Git 文件提交；
+# 合并前若要遵守根目录的 LFS 规则，放开该域名后删掉本文件并重新 git add 即可迁回 LFS。
+*.png   !filter !diff !merge
+*.blend !filter !diff !merge
+*.glb   !filter !diff !merge

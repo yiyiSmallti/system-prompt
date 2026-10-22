@@ -1,0 +1,5 @@
+threejs/node_modules/
+out/cache/
+__pycache__/
+# 原始渲染体积大且可由 run_all.sh 重新生成，不提交
+out/renders/

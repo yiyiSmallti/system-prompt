@@ -1,0 +1,84 @@
+{
+ "blender": "5.2.3 LTS",
+ "build_seconds": 1.0,
+ "parts": {
+  "Head": {
+   "verts": 2114,
+   "tris": 4224,
+   "tris_with_outline": 8448
+  },
+  "Torso": {
+   "verts": 4028,
+   "tris": 8032,
+   "tris_with_outline": 16064
+  },
+  "CollarBow": {
+   "verts": 1139,
+   "tris": 2256,
+   "tris_with_outline": 4512
+  },
+  "Sleeves": {
+   "verts": 3270,
+   "tris": 6520,
+   "tris_with_outline": 13040
+  },
+  "Hands": {
+   "verts": 1612,
+   "tris": 3160,
+   "tris_with_outline": 6320
+  },
+  "Legs": {
+   "verts": 4100,
+   "tris": 8192,
+   "tris_with_outline": 16384
+  },
+  "Shoes": {
+   "verts": 2124,
+   "tris": 4224,
+   "tris_with_outline": 8448
+  },
+  "Skirt": {
+   "verts": 5772,
+   "tris": 11232,
+   "tris_with_outline": 46176
+  },
+  "Ears": {
+   "verts": 304,
+   "tris": 592,
+   "tris_with_outline": 1184
+  },
+  "Horns": {
+   "verts": 1604,
+   "tris": 3200,
+   "tris_with_outline": 6400
+  },
+  "Rose": {
+   "verts": 870,
+   "tris": 1728,
+   "tris_with_outline": 3456
+  },
+  "Hair": {
+   "verts": 48329,
+   "tris": 95776,
+   "tris_with_outline": 191552
+  },
+  "Wings": {
+   "verts": 1138,
+   "tris": 2210,
+   "tris_with_outline": 9056
+  },
+  "Tail": {
+   "verts": 3644,
+   "tris": 7216,
+   "tris_with_outline": 14432
+  }
+ },
+ "render_seconds": {
+  "front": 23.5,
+  "left": 21.5,
+  "right": 20.5,
+  "back": 22.7,
+  "bust": 17.6
+ },
+ "gpu": "Mesa / llvmpipe (LLVM 20.1.2, 256 bits) / 4.5 (Core Profile) Mesa 25.2.8-0ubuntu0.24.04.4"
+}
