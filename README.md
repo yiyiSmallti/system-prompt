@@ -59,13 +59,13 @@
 
 ## 封面与角色形象
 
-封面图（[assets/cover.jpg](assets/cover.jpg)）由 AI 生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿：左起 GPT 娘（白龙娘）、DeepSeek 娘（鲸鱼娘）、Claude 娘。角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权，封面以及之后基于这些形象制作的立绘、3D 模型等衍生素材都沿用同一协议，仅限非商业用途。
+封面图（[assets/cover.jpg](assets/cover.jpg)）由 AI 生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿：左起 GPT 娘（白龙娘）、DeepSeek 娘（鲸鱼娘）、Claude 娘。角色原创者为 [ZipZipPipe（胖次狐）](https://space.bilibili.com/4168597)，原设定稿以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 授权，封面以及之后基于这些形象制作的立绘、Live2D 模型等衍生素材都沿用同一协议，仅限非商业用途。
 
 封面保留设定稿的发型、角、耳朵和尾巴，服装按剧本换成潜川学园校服：ChatGPT 戴「学生会长」臂章，DeepSeek 在制服外披带鲸鳍兜帽的蓝色外套。剧本中 Claude 的发带和细框眼镜未体现在封面上，角色设定集里她的日常服装戴上了发带和眼镜。DeepSeek 的发色以设定稿为准，剧本已改成深蓝色长发。
 
 ## 开发
 
-游戏使用 Unity 制作，目标是 P5R 式的 3D 校园 RPG，非商业同人项目。
+游戏使用 Unity 制作，目标是 P5R 式的校园 RPG，非商业同人项目。这个分支试验用 Live2D 代替人物的 3D 模型：背景用固定机位，人物是 Live2D，战斗改成侧视，潜空间探索改成横版卷轴，方案见 [Live2D 方案](design/live2d.md)。
 
 | 目录 | 内容 |
 | --- | --- |
@@ -73,9 +73,9 @@
 | `design/` | 设定集（世界观、游戏系统、数值、技能、道具装备、角色和服装），目录见 [design/README.md](design/README.md) |
 | `pv/` | 序章宣传 PV：分镜、生成与渲染脚本、镜头素材和成片 |
 | `game/` | Unity 工程（`Assets/`、`Packages/`、`ProjectSettings/`） |
-| `art/` | 美术源文件（`.blend`、`.psd`、`.vroid` 等），导出的 `.fbx` 和贴图放进 `game/Assets/` |
+| `art/` | 美术源文件：Live2D 原画 `.psd` 和 Cubism 工程 `.cmo3`、`.can3` 放在 `art/live2d/`，背景用的 `.blend` 等；导出的运行时文件和贴图放进 `game/Assets/` |
 | `audio/` | 音频源文件 |
-| `assets/` | README 和设定集用的图片，包括建模用的角色四视图 |
+| `assets/` | README 和设定集用的图片，包括画原画用的角色四视图 |
 
 模型、贴图、音频等二进制资源通过 Git LFS 管理，规则见 [.gitattributes](.gitattributes)。提交资源的机器需要先安装 Git LFS：
 
