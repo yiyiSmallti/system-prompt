@@ -70,3 +70,6 @@
 
 # README 和设定集展示用图片保留为普通 Git 文件，GitHub 页面直接渲染，不占 LFS 流量
 assets/** !filter !diff !merge
+
+# 角色高模体积大，覆盖上一条规则，仍走 Git LFS
+assets/characters/highpoly/** filter=lfs diff=lfs merge=lfs -text
