@@ -1,10 +1,13 @@
-"""Rebuild the Tripo 2M-triangle DeepSeek battle-suit model as game-ready low-poly meshes.
+"""Rebuild a Tripo 2M-triangle DeepSeek battle-suit model as game-ready low-poly meshes.
 
 Runs on the bpy wheel (pip install bpy==5.2.3 on Python 3.13) or inside Blender:
-    python process.py [stage ...] [--work DIR]
-    blender -b --python process.py -- [stage ...] [--work DIR]
+    python process.py [stage ...] [--model 8k|mv] [--src GLB] [--work DIR]
+    blender -b --python process.py -- [stage ...] [--model 8k|mv] [--src GLB] [--work DIR]
 
-Stages (default: all, in this order):
+--model picks the measured layout of one source mesh (joint positions, regions, cameras)
+and the output prefix; --src overrides the GLB it reads (default: that model's file).
+
+Stages (default: all but cross, in this order):
     import    load the GLB, report size / triangles / materials / UVs
     baseline  Cycles renders of the high-poly model (front, side, face)
     decimate  clean up + region-weighted decimation to ~40k and ~100k triangles,
@@ -14,8 +17,10 @@ Stages (default: all, in this order):
     bake      Cycles selected-to-active bakes (base color, normal, metallic/roughness)
     export    one GLB per tier with embedded textures
     compare   same-camera renders: high poly vs both tiers, base color only / + normal map
-    rig       Mixamo-named humanoid + 4 tail bones, automatic weights on the 100k tier,
+    rig       Mixamo-named humanoid + tail bones, automatic weights on the 100k tier,
               test poses, FBX for Unity Humanoid
+    cross     40k tier of every model side by side (needs each model's decimate/uv/bake
+              in the same --work)
 
 Also uses xatlas (pip install xatlas) for UVs when present and Pillow for the comparison
 sheets. Intermediate .blend files go to --work (default: <tmp>/deepseek-blender-work).
@@ -37,45 +42,150 @@ from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.normpath(os.path.join(HERE, '..', 'deepseek-4-battle-2m-8k.glb'))
 MODELS = os.path.join(HERE, 'models')
 TEXTURES = os.path.join(HERE, 'textures')
 RENDERS = os.path.join(HERE, 'renders')
 STATS = os.path.join(HERE, 'stats.json')
 WORK = None  # set from --work
 
-# After glTF axis conversion the Tripo mesh faces +X. Turn it to face -Y like Mixamo
+# After glTF axis conversion the Tripo meshes face +X. Turn them to face -Y like Mixamo
 # characters, so the FBX arrives in Unity facing +Z.
 FACE_MINUS_Y = Matrix.Rotation(math.radians(-90), 4, 'Z')
 
 # Triangle budgets. "face" covers face + bangs, "hands" both hands up to the wrist cuffs.
-TIERS = {
+TIER_BUDGETS = {
     'lp40k': dict(total=40_000, face=6_000, hands=1_600),
     'lp100k': dict(total=100_000, face=14_000, hands=4_000),
 }
-# Uniform decimation with no density control: stands in for Tripo's own 40k export,
-# which is not available in this repository.
-REFERENCE = ('uni40k', 40_000)
 
 # Extra linear texel density for face and hands islands before packing.
 UV_SCALE = {'face': 2.0, 'hands': 1.5}
 UV_PADDING = 6  # texels between xatlas charts at its ~4-5k working resolution
 UV_MARGIN = 0.0015  # island margin for the Smart UV fallback, fraction of the texture
 
-BAKES = {
-    'lp40k': [('basecolor', 4096), ('normal', 4096), ('mr', 2048), ('basecolor', 8192)],
-    'lp100k': [('basecolor', 4096), ('normal', 4096), ('mr', 2048), ('basecolor', 8192)],
+ARMS_UP = [('LeftArm', 'Y', -75), ('RightArm', 'Y', 75),
+           ('LeftForeArm', 'Y', -15), ('RightForeArm', 'Y', 15)]
+STEP = [('LeftUpLeg', 'X', -40), ('LeftLeg', 'X', 55), ('LeftFoot', 'X', -10),
+        ('RightUpLeg', 'X', 18), ('RightLeg', 'X', 10)]
+
+
+class Model:
+    """One source mesh: where it is, what its outputs are called, and coordinates measured on it.
+
+    All coordinates are metres in the turned frame: +X is the character's left, -Y front, Z up.
+    Joint lists hold the character's left side and the centre line.
+    """
+
+    def __init__(self, key, src, prefix, stats_key, label, **measured):
+        self.key, self.src, self.prefix, self.stats_key, self.label = key, src, prefix, stats_key, label
+        self.__dict__.update(measured)
+        self.tiers = {prefix + k: v for k, v in TIER_BUDGETS.items()}
+        # Uniform decimation with no density control: stands in for Tripo's own 40k export,
+        # which is not available in this repository.
+        self.reference = (prefix + 'uni40k', 40_000)
+        self.rig_tier = prefix + 'lp100k'
+        self.bakes = {t: self.bake_maps for t in self.tiers}
+        self.poses = {'arms_up': ARMS_UP, 'step': STEP, 'tail_swing': self.tail_swing}
+
+    @property
+    def tail_bones(self):
+        return [f'Tail{i}' for i in range(1, len(self.tail))]
+
+
+PRESETS = {
+    # Tripo H3.1 from one 4K T-pose picture, 8K base colour. Tail hangs to the floor behind the
+    # heels and ends in a fin standing up behind the feet.
+    '8k': Model(
+        '8k', os.path.join(HERE, '..', 'deepseek-4-battle-2m-8k.glb'), '', None, '2m-8k',
+        face_box=dict(z=(0.765, 0.90), y_max=-0.02, x_max=0.075), hands_x=0.335,
+        bake_maps=[('basecolor', 4096), ('normal', 4096), ('mr', 2048), ('basecolor', 8192)],
+        views={
+            'face': ((0, -0.04, 0.825), (0, -1, 0.04), 0.17, (800, 800)),
+            'face34': ((0, -0.04, 0.825), (-0.75, -1, 0.08), 0.17, (800, 800)),
+            'eyes': ((0, -0.08, 0.832), (0, -1, 0.02), 0.06, (800, 480)),
+            # left hand: the right one faces the key light and the white glove clips
+            'hand': ((0.395, -0.05, 0.70), (0.35, -1, 0.45), 0.13, (800, 800)),
+            'cape': ((0.12, -0.01, 0.69), (0.8, -0.9, 0.35), 0.22, (800, 800)),
+            'tailfin': ((0, 0.07, 0.08), (0.35, 1, 0.75), 0.36, (800, 800)),
+        },
+        spine=[('Hips', (0, -0.035, 0.475)), ('Spine', (0, -0.035, 0.53)), ('Spine1', (0, -0.035, 0.59)),
+               ('Spine2', (0, -0.035, 0.65)), ('Neck', (0, -0.035, 0.725)), ('Head', (0, -0.03, 0.765))],
+        head_top=(0, -0.025, 0.93),
+        arm=[('Shoulder', (0.015, -0.04, 0.715)), ('Arm', (0.075, -0.045, 0.707)),
+             ('ForeArm', (0.21, -0.045, 0.708)), ('Hand', (0.345, -0.048, 0.705))],
+        hand_end=(0.435, -0.052, 0.697),
+        leg=[('UpLeg', (0.045, -0.045, 0.455)), ('Leg', (0.04, -0.055, 0.255)),
+             ('Foot', (0.037, -0.035, 0.07)), ('ToeBase', (0.037, -0.095, 0.022))],
+        toe_end=(0.037, -0.13, 0.022),
+        # The tail leaves the body under the skirt behind the hips and ends in the fin behind the feet.
+        tail=[(0, 0.03, 0.45), (0, 0.03, 0.34), (0, 0.035, 0.22), (0, 0.07, 0.12), (0, 0.15, 0.065)],
+        tail_radius=0.025, tail_z_max=0.47,
+        # Cutting out and refilling the 5 pinched spots works here and is what the committed
+        # 8k outputs were made with; 'mv' needs 'separate' (refilling diverges on its spots).
+        fold_repair='refill',
+        hair_bones=('Head', 'Neck'),  # bone heat gives the long hair to the head
+        fin=dict(z_max=0.14, y_min=0.015),  # the fin behind the heels
+        z_hem=0.35,  # lowest point of the skirt frills
+        leg_reach=None,  # below the hem everything that is not tail belongs to a leg
+        skirt_z=(0.30, 0.60),
+        tail_swing=[('Tail1', 'Z', 12), ('Tail2', 'Z', 18), ('Tail3', 'Z', 24), ('Tail4', 'Z', 28),
+                    ('Tail2', 'X', -8), ('Tail3', 'X', -10)],
+    ),
+    # Tripo H3.1 multi-view (front, left, back T-pose renders), 4K textures. Tripo centres the
+    # bounding box, and the tail lies along the floor behind, so the body sits ~13 cm further
+    # forward than in '8k'. Apron ribbons hang behind the legs down to the calves.
+    'mv': Model(
+        'mv', os.path.join(HERE, '..', 'deepseek-4-battle-2m-mv3d.glb'), 'mv_', 'mv3d', '2m-mv3d',
+        face_box=dict(z=(0.765, 0.90), y_max=-0.16, x_max=0.075), hands_x=0.335,
+        # The source base colour is 4K; an 8K bake would only resample it.
+        bake_maps=[('basecolor', 4096), ('normal', 4096), ('mr', 2048)],
+        views={
+            'face': ((0, -0.175, 0.825), (0, -1, 0.04), 0.17, (800, 800)),
+            'face34': ((0, -0.175, 0.825), (-0.75, -1, 0.08), 0.17, (800, 800)),
+            'eyes': ((0, -0.215, 0.846), (0, -1, 0.02), 0.06, (800, 480)),
+            'hand': ((0.395, -0.17, 0.70), (0.35, -1, 0.45), 0.13, (800, 800)),
+            'cape': ((0.12, -0.13, 0.69), (0.8, -0.9, 0.35), 0.22, (800, 800)),
+            'tailfin': ((0, 0.22, 0.02), (0.3, 0.9, 1.0), 0.5, (800, 800)),
+        },
+        spine=[('Hips', (0, -0.16, 0.48)), ('Spine', (0, -0.16, 0.535)), ('Spine1', (0, -0.16, 0.595)),
+               ('Spine2', (0, -0.16, 0.655)), ('Neck', (0, -0.155, 0.725)), ('Head', (0, -0.15, 0.765))],
+        head_top=(0, -0.145, 0.93),
+        arm=[('Shoulder', (0.015, -0.165, 0.715)), ('Arm', (0.075, -0.167, 0.708)),
+             ('ForeArm', (0.21, -0.166, 0.711)), ('Hand', (0.345, -0.169, 0.708))],
+        hand_end=(0.435, -0.172, 0.698),
+        leg=[('UpLeg', (0.042, -0.19, 0.455)), ('Leg', (0.038, -0.178, 0.265)),
+             ('Foot', (0.034, -0.17, 0.075)), ('ToeBase', (0.033, -0.225, 0.022))],
+        toe_end=(0.033, -0.26, 0.022),
+        # Down from the back of the waist, a near right-angle bend just above the floor, then
+        # along the floor to the flat two-lobed fin: three bones upright, two along the floor
+        # up to the fin and one for the fin.
+        tail=[(0, -0.07, 0.48), (0, -0.045, 0.34), (0, -0.037, 0.20), (0, -0.03, 0.07),
+              (0, 0.04, 0.03), (0, 0.14, 0.021), (0, 0.30, 0.013)],
+        tail_radius=0.035, tail_z_max=0.50,
+        fold_repair='separate',
+        # The hair hangs further off the back and bone heat gives its lower half to Spine2;
+        # every Spine2-led vertex sits behind the back or out at the sides, i.e. is hair.
+        hair_bones=('Head', 'Neck', 'Spine2'),
+        fin=dict(z_max=0.045, y_min=-0.02),  # the tail and fin lying on the floor
+        z_hem=0.375,
+        leg_reach=0.075,  # the ribbons hang below the hem too: only what is close to a leg is leg
+        foot_box=dict(z_max=0.12, y_max=-0.10),  # boots, heels and soles
+        skirt_z=(0.12, 0.60),  # skirt plus the ribbons down to the calves
+        tail_swing=[('Tail4', 'Z', 20), ('Tail5', 'Z', 18), ('Tail6', 'Z', 15),
+                    ('Tail4', 'X', 15), ('Tail5', 'X', 10)],
+    ),
 }
+M = PRESETS['8k']  # set from --model
 
 
-# Regions, in the turned frame: +X is the character's left, -Y is front, Z up, metres.
 def region_face(p):
     x, y, z = p[:, 0], p[:, 1], p[:, 2]
-    return (z > 0.765) & (z < 0.90) & (y < -0.02) & (np.abs(x) < 0.075)
+    box = M.face_box
+    return (z > box['z'][0]) & (z < box['z'][1]) & (y < box['y_max']) & (np.abs(x) < box['x_max'])
 
 
 def region_hands(p):
-    return (np.abs(p[:, 0]) > 0.335) & (p[:, 2] > 0.62)
+    return (np.abs(p[:, 0]) > M.hands_x) & (p[:, 2] > 0.62)
 
 
 def region_rest(p):
@@ -91,12 +201,19 @@ def log(*args):
     print('[process]', *args, flush=True)
 
 
-def update_stats(key, value):
+def read_stats(model=None):
+    """stats.json section of a model: the top level for '8k', a sub-dict for the others."""
+    model = model or M
     stats = {}
     if os.path.exists(STATS):
         with open(STATS, encoding='utf-8') as f:
             stats = json.load(f)
-    stats[key] = value
+    return stats, (stats.setdefault(model.stats_key, {}) if model.stats_key else stats)
+
+
+def update_stats(key, value):
+    stats, section = read_stats()
+    section[key] = value
     with open(STATS, 'w', encoding='utf-8') as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
         f.write('\n')
@@ -124,7 +241,7 @@ def new_material(name):
 
 def import_highpoly():
     reset()
-    bpy.ops.import_scene.gltf(filepath=SRC)
+    bpy.ops.import_scene.gltf(filepath=M.src)
     ob = next(o for o in bpy.data.objects if o.type == 'MESH')
     ob.data.transform(FACE_MINUS_Y @ ob.matrix_world)
     ob.matrix_world = Matrix()
@@ -265,18 +382,17 @@ def region_counts(me):
 
 # ---------------------------------------------------------------- render setup
 
+# Full-body cameras shared by every model; close-ups come from the model's own layout.
 VIEWS = {
     # name: (target, direction to camera, frame height in m, resolution)
     'front': ((0, 0, 0.49), (0, -1, 0), 1.04, (900, 1000)),
     'side': ((0, 0, 0.49), (1, 0, 0), 1.04, (900, 1000)),
     'back': ((0, 0, 0.49), (0, 1, 0), 1.04, (900, 1000)),
-    'face': ((0, -0.04, 0.825), (0, -1, 0.04), 0.17, (800, 800)),
-    'face34': ((0, -0.04, 0.825), (-0.75, -1, 0.08), 0.17, (800, 800)),
-    'eyes': ((0, -0.08, 0.832), (0, -1, 0.02), 0.06, (800, 480)),
-    'hand': ((0.395, -0.05, 0.70), (0.35, -1, 0.45), 0.13, (800, 800)),  # left hand: off the key light
-    'cape': ((0.12, -0.01, 0.69), (0.8, -0.9, 0.35), 0.22, (800, 800)),
-    'tailfin': ((0, 0.07, 0.08), (0.35, 1, 0.75), 0.36, (800, 800)),
 }
+
+
+def view_spec(name):
+    return M.views.get(name) or VIEWS[name]
 
 
 def look_at(ob, loc, target):
@@ -322,7 +438,7 @@ def setup_studio(samples=64):
 
 
 def render_view(cam, view, path):
-    target, direction, height, res = VIEWS[view]
+    target, direction, height, res = view_spec(view)
     sc = bpy.context.scene
     sc.render.resolution_x, sc.render.resolution_y = res
     dist = height / 2 * cam.data.lens / (cam.data.sensor_height / 2)
@@ -375,7 +491,7 @@ def stage_import():
     bm.free()
     stats = dict(
         blender=bpy.app.version_string,
-        source=os.path.relpath(SRC, HERE),
+        source=os.path.relpath(M.src, HERE),
         import_seconds=round(load_s, 1),
         height_m=round(float(mx[2] - mn[2]), 4),
         size_xyz_m=[round(float(v), 4) for v in (mx - mn)],
@@ -400,7 +516,66 @@ def stage_baseline():
     cam = setup_studio(samples=96)
     os.makedirs(RENDERS, exist_ok=True)
     for view in ('front', 'side', 'face'):
-        render_view(cam, view, os.path.join(RENDERS, f'baseline_highpoly_{view}.png'))
+        render_view(cam, view, os.path.join(RENDERS, f'{M.prefix}baseline_highpoly_{view}.png'))
+
+
+def separate_pinches(bm):
+    """Give each sheet its own copy of the vertices where two sheets touch; returns how many."""
+    bad = [v for v in bm.verts if not v.is_manifold]
+    for v in bad:
+        if v.is_valid and not v.is_manifold:
+            bmesh.utils.vert_separate(v, [e for e in v.link_edges if len(e.link_faces) != 2])
+    return len(bad)
+
+
+def loop_edges(me):
+    """Each loop's directed edge (from, to) and its face."""
+    lv = np.empty(len(me.loops), np.int32)
+    me.loops.foreach_get('vertex_index', lv)
+    start = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get('loop_start', start)
+    total = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get('loop_total', total)
+    nxt = np.arange(len(lv)) + 1
+    nxt[start + total - 1] = start
+    return lv, lv[nxt], np.repeat(np.arange(len(me.polygons)), total)
+
+
+def rewind(me):
+    """Flip the patches wound against the rest of the surface, then collapse any twisted
+    sub-millimetre sliver that no flip can fix. A global normal recalculation is no use here:
+    on this self-intersecting surface it turns 90% of the faces inside out."""
+    nf, nv = len(me.polygons), len(me.vertices)
+    a, b, face = loop_edges(me)
+    key = np.minimum(a, b).astype(np.int64) * nv + np.maximum(a, b)
+    order = np.argsort(key, kind='stable')
+    same = key[order][1:] == key[order][:-1]
+    i0, i1 = order[:-1][same], order[1:][same]
+    agree = a[i0] != a[i1]  # neighbours walk the shared edge in opposite directions
+    patch = components(nf, np.stack([face[i0][agree], face[i1][agree]], 1).astype(np.int64))
+    flip = np.flatnonzero(patch != np.bincount(patch).argmax())
+    for i in flip:
+        me.polygons[int(i)].flip()
+    me.update()
+    a, b, _ = loop_edges(me)
+    _, inv, counts = np.unique(a.astype(np.int64) * nv + b, return_inverse=True, return_counts=True)
+    clash = counts[inv] > 1
+    groups = []
+    if clash.any():
+        pairs = np.stack([a[clash], b[clash]], 1).astype(np.int64)
+        verts = np.unique(pairs)
+        label = components(nv, pairs)[verts]
+        groups = [verts[label == g] for g in np.unique(label)]
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.verts.ensure_lookup_table()
+        for group in groups:
+            vs = [bm.verts[int(i)] for i in group]
+            bmesh.ops.pointmerge(bm, verts=vs, merge_co=sum((v.co for v in vs), Vector()) / len(vs))
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-7, edges=bm.edges)
+        bm.to_mesh(me)
+        bm.free()
+    return dict(faces_flipped=int(len(flip)), slivers_collapsed=len(groups))
 
 
 def clean_copy(hp):
@@ -419,10 +594,14 @@ def clean_copy(hp):
     floating = sizes[labels] < 0.01 * len(bm.verts)
     n_floaters = len(np.unique(labels[floating]))
     bmesh.ops.delete(bm, geom=[v for v, f in zip(bm.verts, floating) if f], context='VERTS')
-    # The Tripo surface has a few tiny folds (non-manifold edges / bow-tie vertices).
-    # Cut two rings of faces around each one and fill the holes again.
+    # The Tripo surface has a few spots where two sheets are pinched together along an edge
+    # or at a vertex (non-manifold edges / bow-tie vertices).
     repaired = 0
-    for _ in range(3):
+    if M.fold_repair == 'separate':
+        # Give each sheet its own copy of the shared vertices: nothing removed, no hole opened.
+        repaired = separate_pinches(bm)
+    for _ in range(3 if M.fold_repair == 'refill' else 0):
+        # Cut two rings of faces around each spot and fill the holes again.
         bad = {v for v in bm.verts if not v.is_manifold}
         bad |= {v for e in bm.edges if len(e.link_faces) != 2 for v in e.verts}
         if not bad:
@@ -437,6 +616,15 @@ def clean_copy(hp):
         bmesh.ops.triangulate(bm, faces=holes['faces'])
     bm.to_mesh(me)
     bm.free()
+    winding = None
+    if M.fold_repair == 'separate':
+        # The 'mv' surface also has a few triangles wound against their neighbours.
+        winding = rewind(me)
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        winding['pinches_after_collapse'] = separate_pinches(bm)
+        bm.to_mesh(me)
+        bm.free()
     while me.uv_layers:
         me.uv_layers.remove(me.uv_layers[0])
     me.materials.clear()
@@ -446,7 +634,9 @@ def clean_copy(hp):
     me.shade_smooth()
     info = dict(floating_fragments_removed=int(n_floaters),
                 floating_verts_removed=int(floating.sum()),
-                nonmanifold_verts_repaired=repaired)
+                fold_repair=M.fold_repair, nonmanifold_verts_repaired=repaired)
+    if winding:
+        info['winding'] = winding
     return ob, info
 
 
@@ -530,8 +720,8 @@ def stage_decimate():
     info['regions_tris'] = region_counts(clean.data)
     log('clean', info)
     results = {'clean_highpoly': info}
-    tiers = dict(TIERS)
-    tiers[REFERENCE[0]] = REFERENCE[1]
+    tiers = dict(M.tiers)
+    tiers[M.reference[0]] = M.reference[1]
     for name, budget in tiers.items():
         t = time.time()
         ob = decimate_tier(clean, budget)
@@ -651,7 +841,7 @@ def texel_density(me):
 
 def stage_uv():
     results = {}
-    for name in TIERS:
+    for name in M.tiers:
         reset()
         ob = load_lowpoly(name)
         t = time.time()
@@ -690,8 +880,7 @@ def highpoly_bake_source(hp):
 
 def cage_distance(tier):
     """Cage extrusion from the decimation's 99th-percentile distance to the high poly."""
-    with open(STATS, encoding='utf-8') as f:
-        p99 = json.load(f)['decimate'][tier]['vertex_distance_mm']['p99'] / 1000
+    p99 = read_stats()[1]['decimate'][tier]['vertex_distance_mm']['p99'] / 1000
     return min(max(2 * p99, 0.0015), 0.005)
 
 
@@ -754,7 +943,7 @@ def bake_image(lp, node, kind, size, extrusion):
 def stage_bake():
     os.makedirs(TEXTURES, exist_ok=True)
     results = {}
-    for tier, maps in BAKES.items():
+    for tier, maps in M.bakes.items():
         hp = import_highpoly()
         lp = load_lowpoly(tier)
         source = highpoly_bake_source(hp)
@@ -837,7 +1026,7 @@ def unity_metallic_smoothness(tier):
 def stage_export():
     os.makedirs(MODELS, exist_ok=True)
     results = {}
-    for tier in TIERS:
+    for tier in M.tiers:
         results[unity_metallic_smoothness(tier)] = 'R = metallic, A = smoothness'
         reset()
         lp = load_lowpoly(tier)
@@ -864,35 +1053,39 @@ def clay_material():
     return mat
 
 
-# (variant, label, views)
 COMPARE_TEXTURED = ['face', 'face34', 'eyes', 'hand', 'cape', 'tailfin', 'front']
 COMPARE_CLAY = ['face34', 'hand']
+# (name, caption, tier without prefix or None for the high poly, look, views); looks: 'bc' base
+# colour only, 'bcn' + normal map, 'bcn8k' + normal map with the 8K base colour, 'clay' untextured
 VARIANTS = [
-    ('highpoly', 'High poly 1.97M (Tripo)', COMPARE_TEXTURED),
-    ('lp40k_bc', '40k  base color only', COMPARE_TEXTURED),
-    ('lp40k_bcn', '40k  + normal map', COMPARE_TEXTURED),
-    ('lp100k_bc', '100k  base color only', COMPARE_TEXTURED),
-    ('lp100k_bcn', '100k  + normal map', COMPARE_TEXTURED),
-    ('lp40k_bcn8k', '40k  + normal, 8K base color', ['face', 'eyes']),
-    ('highpoly_clay', 'High poly, no textures', COMPARE_CLAY),
-    ('uni40k_clay', 'Uniform 40k (no density control)', COMPARE_CLAY),
-    ('lp40k_clay', '40k  weighted', COMPARE_CLAY),
-    ('lp100k_clay', '100k  weighted', COMPARE_CLAY),
+    ('highpoly', 'High poly (Tripo)', None, 'source', COMPARE_TEXTURED),
+    ('lp40k_bc', '40k  base color only', 'lp40k', 'bc', COMPARE_TEXTURED),
+    ('lp40k_bcn', '40k  + normal map', 'lp40k', 'bcn', COMPARE_TEXTURED),
+    ('lp100k_bc', '100k  base color only', 'lp100k', 'bc', COMPARE_TEXTURED),
+    ('lp100k_bcn', '100k  + normal map', 'lp100k', 'bcn', COMPARE_TEXTURED),
+    ('lp40k_bcn8k', '40k  + normal, 8K base color', 'lp40k', 'bcn8k', ['face', 'eyes']),
+    ('highpoly_clay', 'High poly, no textures', None, 'clay', COMPARE_CLAY),
+    ('uni40k_clay', 'Uniform 40k (no density control)', 'uni40k', 'clay', COMPARE_CLAY),
+    ('lp40k_clay', '40k  weighted', 'lp40k', 'clay', COMPARE_CLAY),
+    ('lp100k_clay', '100k  weighted', 'lp100k', 'clay', COMPARE_CLAY),
 ]
 
 
-def load_variant(variant):
+def has_8k_bake():
+    return ('basecolor', 8192) in M.bake_maps
+
+
+def load_variant(tier, look):
     reset()
-    if variant.startswith('highpoly'):
+    if tier is None:
         ob = import_highpoly()
     else:
-        tier = variant.split('_')[0]
-        ob = load_lowpoly(tier)
+        ob = load_lowpoly(M.prefix + tier)
         ob.data.materials.clear()
-        if not variant.endswith('clay'):
+        if look != 'clay':
             ob.data.materials.append(lowpoly_material(
-                tier, normal='bcn' in variant, bc_size=8192 if variant.endswith('8k') else 4096))
-    if variant.endswith('clay'):
+                M.prefix + tier, normal=look != 'bc', bc_size=8192 if look == 'bcn8k' else 4096))
+    if look == 'clay':
         ob.data.materials.clear()
         ob.data.materials.append(clay_material())
     return ob
@@ -935,14 +1128,22 @@ def contact_sheet(grid, path, tile=640, legend=None):
 
 
 def stage_compare():
-    shots = os.path.join(WORK, 'compare')
+    shots = os.path.join(WORK, M.prefix + 'compare')
     os.makedirs(shots, exist_ok=True)
     os.makedirs(RENDERS, exist_ok=True)
-    for variant, _, views in VARIANTS:
-        load_variant(variant)
+    tris = read_stats()[1].get('highpoly', {}).get('triangles')
+    variants = []
+    for name, label, tier, look, views in VARIANTS:
+        if look == 'bcn8k' and not has_8k_bake():
+            continue
+        if name == 'highpoly' and tris:
+            label = label.replace('High poly', f'High poly {tris / 1e6:.2f}M')
+        variants.append((name, label, tier, look, views))
+    for name, _, tier, look, views in variants:
+        load_variant(tier, look)
         cam = setup_studio(samples=64)
         for view in views:
-            render_view(cam, view, os.path.join(shots, f'{variant}_{view}.png'))
+            render_view(cam, view, os.path.join(shots, f'{name}_{view}.png'))
     try:
         import PIL  # noqa: F401
     except ImportError:
@@ -951,37 +1152,50 @@ def stage_compare():
     for view in COMPARE_TEXTURED + ['clay_' + v for v in COMPARE_CLAY]:
         clay = view.startswith('clay_')
         v = view[5:] if clay else view
-        rows = [(label, os.path.join(shots, f'{variant}_{v}.png')) for variant, label, views in VARIANTS
-                if v in views and variant.endswith('clay') == clay]
-        contact_sheet([rows], os.path.join(RENDERS, f'compare_{view}.png'))
+        rows = [(label, os.path.join(shots, f'{name}_{v}.png')) for name, label, _, look, views in variants
+                if v in views and (look == 'clay') == clay]
+        contact_sheet([rows], os.path.join(RENDERS, f'{M.prefix}compare_{view}.png'))
+
+
+CROSS_VIEWS = ['front', 'side', 'back', 'face34', 'tailfin']
+
+
+def stage_cross():
+    """The 40k tier of every model, textured and untextured, one row per view.
+
+    Full-body cameras are shared; the 3/4 face and the fin use each model's own close-up
+    camera, since faces and fins sit in different places.
+    """
+    global M
+    current = M
+    shots = os.path.join(WORK, 'cross')
+    os.makedirs(shots, exist_ok=True)
+    os.makedirs(RENDERS, exist_ok=True)
+    columns = []
+    for model in PRESETS.values():
+        M = model
+        for look, caption in (('bcn', '40k, textured'), ('clay', '40k, no textures')):
+            load_variant('lp40k', look)
+            cam = setup_studio(samples=64)
+            for view in CROSS_VIEWS:
+                render_view(cam, view, os.path.join(shots, f'{model.key}_{look}_{view}.png'))
+            columns.append((f'{model.label} {caption}', model.key, look))
+    M = current
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        log('Pillow missing: individual renders are in', shots)
+        return
+    contact_sheet([[(f'{caption}, {view}', os.path.join(shots, f'{key}_{look}_{view}.png'))
+                    for caption, key, look in columns] for view in CROSS_VIEWS],
+                  os.path.join(RENDERS, 'cross_lp40k_' + '_vs_'.join(PRESETS) + '.png'), tile=480)
+    update_stats('cross', dict(sheet='renders/cross_lp40k_' + '_vs_'.join(PRESETS) + '.png',
+                               columns=[c[0] for c in columns], views=CROSS_VIEWS))
 
 
 # ---------------------------------------------------------------- rig
 
-RIG_TIER = 'lp100k'
 PREFIX = 'mixamorig:'
-# Joint positions in metres for the character's left side (+X) and the centre line,
-# measured from vertex slices and cut-away renders of the T-posed high poly.
-SPINE = [('Hips', (0, -0.035, 0.475)), ('Spine', (0, -0.035, 0.53)), ('Spine1', (0, -0.035, 0.59)),
-         ('Spine2', (0, -0.035, 0.65)), ('Neck', (0, -0.035, 0.725)), ('Head', (0, -0.03, 0.765))]
-HEAD_TOP = (0, -0.025, 0.93)
-ARM = [('Shoulder', (0.015, -0.04, 0.715)), ('Arm', (0.075, -0.045, 0.707)),
-       ('ForeArm', (0.21, -0.045, 0.708)), ('Hand', (0.345, -0.048, 0.705))]
-HAND_END = (0.435, -0.052, 0.697)
-LEG = [('UpLeg', (0.045, -0.045, 0.455)), ('Leg', (0.04, -0.055, 0.255)),
-       ('Foot', (0.037, -0.035, 0.07)), ('ToeBase', (0.037, -0.095, 0.022))]
-TOE_END = (0.037, -0.13, 0.022)
-# The tail leaves the body under the skirt behind the hips and ends in the fin behind the feet.
-TAIL = [(0, 0.03, 0.45), (0, 0.03, 0.34), (0, 0.035, 0.22), (0, 0.07, 0.12), (0, 0.15, 0.065)]
-
-POSES = {
-    'arms_up': [('LeftArm', 'Y', -75), ('RightArm', 'Y', 75),
-                ('LeftForeArm', 'Y', -15), ('RightForeArm', 'Y', 15)],
-    'step': [('LeftUpLeg', 'X', -40), ('LeftLeg', 'X', 55), ('LeftFoot', 'X', -10),
-             ('RightUpLeg', 'X', 18), ('RightLeg', 'X', 10)],
-    'tail_swing': [('Tail1', 'Z', 12), ('Tail2', 'Z', 18), ('Tail3', 'Z', 24), ('Tail4', 'Z', 28),
-                   ('Tail2', 'X', -8), ('Tail3', 'X', -10)],
-}
 
 
 def build_armature():
@@ -1003,11 +1217,11 @@ def build_armature():
             b.use_connect = i > 0
             prev = b
 
-    chain(SPINE, HEAD_TOP, None)
+    chain(M.spine, M.head_top, None)
     for side, mirror in (('Left', 1), ('Right', -1)):
-        chain([(side + n, h) for n, h in ARM], HAND_END, 'Spine2', mirror)
-        chain([(side + n, h) for n, h in LEG], TOE_END, 'Hips', mirror)
-    chain([(f'Tail{i + 1}', h) for i, h in enumerate(TAIL[:-1])], TAIL[-1], 'Hips')
+        chain([(side + n, h) for n, h in M.arm], M.hand_end, 'Spine2', mirror)
+        chain([(side + n, h) for n, h in M.leg], M.toe_end, 'Hips', mirror)
+    chain(list(zip(M.tail_bones, M.tail[:-1])), M.tail[-1], 'Hips')
     bpy.ops.armature.select_all(action='SELECT')
     bpy.ops.armature.calculate_roll(type='GLOBAL_NEG_Y')
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -1042,6 +1256,7 @@ BONE_COLORS = {
     'LeftUpLeg': '#f032e6', 'LeftLeg': '#911eb4', 'LeftFoot': '#4363d8', 'LeftToeBase': '#42d4f4',
     'RightUpLeg': '#ff9896', 'RightLeg': '#dbdb8d', 'RightFoot': '#9edae5', 'RightToeBase': '#c7c7c7',
     'Tail1': '#7f7f7f', 'Tail2': '#3cb44b', 'Tail3': '#ffd8b1', 'Tail4': '#aaffc3',
+    'Tail5': '#e6beff', 'Tail6': '#808000',
 }
 
 
@@ -1092,8 +1307,6 @@ def smoothstep(e0, e1, x):
     return t * t * (3 - 2 * t)
 
 
-Z_HEM = 0.35  # lowest point of the skirt frills
-TAIL_RADIUS = 0.025
 SKIRT_LEG_SHARE = 0.5  # at the hem the skirt follows its side's thigh this much
 
 
@@ -1108,26 +1321,34 @@ def classify_vertices(mesh):
     p = vert_co(mesh.data)
     x, y, z = p[:, 0], p[:, 1], p[:, 2]
     dominant = w.argmax(1)
-    hair = np.isin(dominant, [bone('Head'), bone('Neck')])
+    hair = np.isin(dominant, [bone(b) for b in M.hair_bones])
     arms = np.isin(dominant, [bone(s + n) for s in ('Left', 'Right') for n in ('Arm', 'ForeArm', 'Hand')])
     keep = hair | arms
 
-    # Tail: close to the tail chain, the fin behind the heels, or already given to the lower
-    # tail bones by bone heat (the tail flattens and widens towards the fin). Tail1 alone is
-    # no evidence: bone heat also hands it the back of the skirt.
-    d = np.stack([seg_distance(p, TAIL[i], TAIL[i + 1])[0] for i in range(4)], 1)
-    t = np.stack([seg_distance(p, TAIL[i], TAIL[i + 1])[1] for i in range(4)], 1)
+    # Tail: close to the tail chain, the fin, or already given to the lower tail bones by bone
+    # heat (the tail flattens and widens towards the fin). Tail1 alone is no evidence: bone
+    # heat also hands it the back of the skirt.
+    n = len(M.tail) - 1
+    d = np.stack([seg_distance(p, M.tail[i], M.tail[i + 1])[0] for i in range(n)], 1)
+    t = np.stack([seg_distance(p, M.tail[i], M.tail[i + 1])[1] for i in range(n)], 1)
     seg = d.argmin(1)
-    lower_tail = np.isin(dominant, [bone(f'Tail{i}') for i in (2, 3, 4)])
-    tail = ~keep & (z < 0.47) & ((d.min(1) < TAIL_RADIUS) | ((z < 0.14) & (y > 0.015)) | lower_tail)
+    lower_tail = np.isin(dominant, [bone(b) for b in M.tail_bones[1:]])
+    fin = (z < M.fin['z_max']) & (y > M.fin['y_min'])
+    tail = ~keep & (z < M.tail_z_max) & ((d.min(1) < M.tail_radius) | fin | lower_tail)
 
     parts = dict(hair=hair, arms=arms, tail=tail)
     for side, sx in (('Left', 1), ('Right', -1)):
-        up, knee = [(h[0] * sx, h[1], h[2]) for _, h in LEG[:2]]
-        thigh = seg_distance(p, up, knee)[0] < 0.045
-        parts[side + '_leg'] = ~keep & ~tail & (sx * x >= 0) & ((z < Z_HEM) | ((z < 0.47) & thigh))
+        joints = [(h[0] * sx, h[1], h[2]) for _, h in M.leg] + [(M.toe_end[0] * sx,) + M.toe_end[1:]]
+        thigh = seg_distance(p, joints[0], joints[1])[0] < 0.045
+        if M.leg_reach is None:
+            below = z < M.z_hem
+        else:  # ribbons hang below the hem as well: only what is near the leg chain or the boot
+            near = np.min([seg_distance(p, a, b)[0] for a, b in zip(joints, joints[1:])], 0) < M.leg_reach
+            foot = (z < M.foot_box['z_max']) & (y < M.foot_box['y_max'])
+            below = (z < M.z_hem) & (near | foot)
+        parts[side + '_leg'] = ~keep & ~tail & (sx * x >= 0) & (below | ((z < 0.47) & thigh))
     parts['skirt'] = (~keep & ~tail & ~parts['Left_leg'] & ~parts['Right_leg']
-                      & (z > 0.30) & (z < 0.60))
+                      & (z > M.skirt_z[0]) & (z < M.skirt_z[1]))
     parts['tail_segment'] = seg
     parts['tail_t'] = t[np.arange(len(p)), seg]
     return parts
@@ -1162,20 +1383,20 @@ def clean_weights(mesh, parts):
                                  'LeftShoulder', 'RightShoulder')]
     new[np.ix_(hair, np.setdiff1d(np.arange(len(names)), allowed))] = 0
     # Tail: each bone owns its segment, blending half-and-half at the joints (Hips at the root).
-    chain = [bone('Hips')] + [bone(f'Tail{i}') for i in range(1, 5)]
+    chain = [bone('Hips')] + [bone(b) for b in M.tail_bones]
     new[tail] = 0
     rows = np.flatnonzero(tail)
     for r in rows:
         b, f = seg[r] + 1, frac[r]
         if f < 0.25:
             new[r, chain[b - 1]], new[r, chain[b]] = 0.5 - 2 * f, 0.5 + 2 * f
-        elif f > 0.75 and b < 4:
+        elif f > 0.75 and b < len(chain) - 1:
             new[r, chain[b + 1]], new[r, chain[b]] = 2 * (f - 0.75), 1 - 2 * (f - 0.75)
         else:
             new[r, chain[b]] = 1
     # Legs and boots: only the same side's leg chain (and Hips) may pull.
     for side, mask in legs.items():
-        allowed = [bone('Hips')] + [bone(side + n) for n, _ in LEG]
+        allowed = [bone('Hips')] + [bone(side + n) for n, _ in M.leg]
         drop = np.setdiff1d(np.arange(len(names)), allowed)
         new[np.ix_(mask, drop)] = 0
     # Skirt: Hips, sharing more with the thigh on its side towards the hem, blended across
@@ -1228,7 +1449,7 @@ def pose_leaks(mesh, rig, parts):
     rest = vert_co(mesh.data)
     out = {}
     for pose, names in LEAK_CHECKS.items():
-        set_pose(rig, POSES[pose])
+        set_pose(rig, M.poses[pose])
         ev = mesh.evaluated_get(bpy.context.evaluated_depsgraph_get())
         me = ev.to_mesh()
         d = np.linalg.norm(vert_co(me) - rest, axis=1) * 1000
@@ -1261,7 +1482,7 @@ def render_rig(cam, mesh, rig, textured, tag, poses, shots):
         render_view(cam, view, os.path.join(shots, f'{tag}_weights_{view}.png'))
     mesh.data.materials[0] = textured
     for pose in poses:
-        set_pose(rig, POSES[pose])
+        set_pose(rig, M.poses[pose])
         for view in ('front', 'back', 'side'):
             render_view(cam, view, os.path.join(shots, f'{tag}_{pose}_{view}.png'))
     set_pose(rig, [])
@@ -1277,14 +1498,16 @@ def check_fbx(path):
     mesh = next(o for o in bpy.data.objects if o.type == 'MESH')
     rig.data.pose_position = 'REST'
     bpy.context.view_layer.update()
-    expected = {PREFIX + 'Hips': SPINE[0][1], PREFIX + 'LeftHand': ARM[3][1],
-                PREFIX + 'RightFoot': (-LEG[2][1][0],) + LEG[2][1][1:], PREFIX + 'Tail4': TAIL[3]}
+    expected = {PREFIX + 'Hips': M.spine[0][1], PREFIX + 'LeftHand': M.arm[3][1],
+                PREFIX + 'RightFoot': (-M.leg[2][1][0],) + M.leg[2][1][1:],
+                PREFIX + M.tail_bones[-1]: M.tail[-2]}
     error = max((rig.matrix_world @ rig.data.bones[n].head_local - Vector(h)).length
                 for n, h in expected.items())
     co = vert_co(mesh.data)
     co = co @ np.array(mesh.matrix_world)[:3, :3].T + np.array(mesh.matrix_world)[:3, 3]
     return dict(bones=len(rig.data.bones),
                 root=[b.name for b in rig.data.bones if b.parent is None],
+                tail_bones=len(M.tail_bones),
                 tail_parent=rig.data.bones[PREFIX + 'Tail1'].parent.name,
                 vertices=len(mesh.data.vertices), vertex_groups=len(mesh.vertex_groups),
                 armature_modifier=any(m.type == 'ARMATURE' for m in mesh.modifiers),
@@ -1294,18 +1517,18 @@ def check_fbx(path):
 
 def stage_rig():
     reset()
-    mesh = load_lowpoly(RIG_TIER)
-    mesh.name = f'DeepSeek_{RIG_TIER}'
+    mesh = load_lowpoly(M.rig_tier)
+    mesh.name = f'DeepSeek_{M.rig_tier}'
     rig = build_armature()
     activate(rig, select=[mesh])
     t = time.time()
     bpy.ops.object.parent_set(type='ARMATURE_AUTO')
     report = dict(auto_weight_seconds=round(time.time() - t, 1), auto=weight_report(mesh))
 
-    shots = os.path.join(WORK, 'rig')
+    shots = os.path.join(WORK, M.prefix + 'rig')
     os.makedirs(shots, exist_ok=True)
     cam = setup_studio(samples=48)
-    textured = lowpoly_material(RIG_TIER)
+    textured = lowpoly_material(M.rig_tier)
     mesh.data.materials.clear()
     mesh.data.materials.append(textured)
     render_rig(cam, mesh, rig, textured, 'auto', ['step'], shots)
@@ -1315,10 +1538,10 @@ def stage_rig():
     report['final'] = weight_report(mesh)
     report['leaks_final'] = pose_leaks(mesh, rig, parts)
     log('weights', report)
-    colors = render_rig(cam, mesh, rig, textured, 'final', list(POSES), shots)
+    colors = render_rig(cam, mesh, rig, textured, 'final', list(M.poses), shots)
 
     os.makedirs(MODELS, exist_ok=True)
-    fbx = os.path.join(MODELS, f'ds_{RIG_TIER}_rigged.fbx')
+    fbx = os.path.join(MODELS, f'ds_{M.rig_tier}_rigged.fbx')
     activate(rig, select=[mesh])
     bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={'ARMATURE', 'MESH'},
                              apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL',
@@ -1330,7 +1553,7 @@ def stage_rig():
     for ob in [o for o in bpy.data.objects if o.type in ('CAMERA', 'LIGHT')]:
         bpy.data.objects.remove(ob)
     bpy.context.preferences.filepaths.save_version = 0  # no .blend1 backup next to it
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(MODELS, f'ds_{RIG_TIER}_rigged.blend'),
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(MODELS, f'ds_{M.rig_tier}_rigged.blend'),
                                 relative_remap=True, compress=True)
     report['fbx'] = dict(file=os.path.basename(fbx), megabytes=round(os.path.getsize(fbx) / 2**20, 1))
     report['fbx'].update(check_fbx(fbx))
@@ -1341,16 +1564,17 @@ def stage_rig():
         import PIL  # noqa: F401
     except ImportError:
         return
+    os.makedirs(RENDERS, exist_ok=True)
     views = ('front', 'back', 'side')
     contact_sheet([[(f'{tag} weights, {v}', os.path.join(shots, f'{tag}_weights_{v}.png')) for v in views]
                    for tag in ('auto', 'final')],
-                  os.path.join(RENDERS, 'rig_weights.png'), tile=540, legend=colors)
+                  os.path.join(RENDERS, f'{M.prefix}rig_weights.png'), tile=540, legend=colors)
     contact_sheet([[(f'{tag}: step, {v}', os.path.join(shots, f'{tag}_step_{v}.png')) for v in views]
                    for tag in ('auto', 'final')],
-                  os.path.join(RENDERS, 'rig_step_auto_vs_final.png'), tile=540)
+                  os.path.join(RENDERS, f'{M.prefix}rig_step_auto_vs_final.png'), tile=540)
     contact_sheet([[(f'{pose}, {v}', os.path.join(shots, f'final_{pose}_{v}.png')) for v in views]
-                   for pose in POSES],
-                  os.path.join(RENDERS, 'rig_poses.png'), tile=540)
+                   for pose in M.poses],
+                  os.path.join(RENDERS, f'{M.prefix}rig_poses.png'), tile=540)
 
 
 STAGES = {
@@ -1362,21 +1586,32 @@ STAGES = {
     'export': stage_export,
     'compare': stage_compare,
     'rig': stage_rig,
+    'cross': stage_cross,
 }
+DEFAULT_STAGES = [name for name in STAGES if name != 'cross']
 
 
 def main():
-    global WORK
+    global WORK, M
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('stages', nargs='*', metavar='stage', help=' '.join(STAGES))
+    parser.add_argument('--model', choices=list(PRESETS), default='8k',
+                        help='measured layout and output prefix of the source mesh')
+    parser.add_argument('--src', help="source GLB (default: the model's own file)")
     parser.add_argument('--work', default=os.path.join(tempfile.gettempdir(), 'deepseek-blender-work'))
     args = parser.parse_args(argv)
     unknown = set(args.stages) - set(STAGES)
     if unknown:
         parser.error(f'unknown stage(s): {" ".join(sorted(unknown))}')
     WORK = args.work
-    for name in args.stages or list(STAGES):
+    M = PRESETS[args.model]
+    if args.src:
+        M.src = os.path.abspath(args.src)
+    if not os.path.exists(M.src):
+        parser.error(f'source not found: {M.src}')
+    log(f'model {M.key}: {os.path.relpath(M.src, HERE)}')
+    for name in args.stages or DEFAULT_STAGES:
         t = time.time()
         log(f'=== {name}')
         STAGES[name]()

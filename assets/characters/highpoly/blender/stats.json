@@ -492,5 +492,518 @@
       "vertices": 48815,
       "megabytes": 29.0
     }
+  },
+  "mv3d": {
+    "highpoly": {
+      "blender": "5.2.3 LTS",
+      "source": "../deepseek-4-battle-2m-mv3d.glb",
+      "import_seconds": 6.6,
+      "height_m": 0.9787,
+      "size_xyz_m": [
+        0.8976,
+        0.6425,
+        0.9787
+      ],
+      "note_axes": "turned to face -Y; X = arm span (T-pose), Y = depth incl. tail fin",
+      "triangles": 1845108,
+      "vertices_as_imported": 1034585,
+      "materials": [
+        "tripo_mat_8b9b3d6c-e646-4b63-bf32-975ea2d0106d"
+      ],
+      "textures": {
+        "basecolor": {
+          "name": "deepseek-4-battle-2m-mv3d_basecolor",
+          "size": [
+            4096,
+            4096
+          ],
+          "format": "JPEG",
+          "colorspace": "sRGB"
+        },
+        "rm": {
+          "name": "deepseek-4-battle-2m-mv3d_rm",
+          "size": [
+            4096,
+            4096
+          ],
+          "format": "JPEG",
+          "colorspace": "Non-Color"
+        },
+        "normal": {
+          "name": "deepseek-4-battle-2m-mv3d_normal",
+          "size": [
+            4096,
+            4096
+          ],
+          "format": "PNG",
+          "colorspace": "Non-Color"
+        }
+      },
+      "uv_layers": [
+        "UVMap"
+      ],
+      "uv_range": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          1.0
+        ]
+      ],
+      "basecolor_texels_per_m": {
+        "face": 2484,
+        "hands": 1691,
+        "rest": 2215,
+        "uv_coverage_pct": 50.1
+      },
+      "topology_as_imported": {
+        "verts": 1034585,
+        "tris": 1845108,
+        "boundary_edges": 278214,
+        "nonmanifold_edges": 0,
+        "components": 2656,
+        "largest_component_verts": 11819,
+        "winding_conflicts": 0,
+        "degenerate_faces": 0
+      },
+      "topology_welded": {
+        "verts": 922334,
+        "tris": 1845108,
+        "boundary_edges": 0,
+        "nonmanifold_edges": 7,
+        "components": 1,
+        "largest_component_verts": 922334,
+        "winding_conflicts": 44,
+        "degenerate_faces": 0
+      },
+      "weld_distance_m": 1e-06
+    },
+    "decimate": {
+      "clean_highpoly": {
+        "floating_fragments_removed": 0,
+        "floating_verts_removed": 0,
+        "fold_repair": "separate",
+        "nonmanifold_verts_repaired": 30,
+        "winding": {
+          "faces_flipped": 13,
+          "slivers_collapsed": 1,
+          "pinches_after_collapse": 1
+        },
+        "seconds": 19.6,
+        "topology": {
+          "verts": 922363,
+          "tris": 1845102,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "largest_component_verts": 922363,
+          "winding_conflicts": 0,
+          "degenerate_faces": 0
+        },
+        "nonmanifold_verts": 0,
+        "regions_tris": {
+          "face": 89211,
+          "hands": 39288,
+          "rest": 1716603
+        }
+      },
+      "mv_lp40k": {
+        "seconds": 19.1,
+        "budget": {
+          "total": 40000,
+          "face": 6000,
+          "hands": 1600
+        },
+        "topology": {
+          "verts": 19329,
+          "tris": 39034,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "largest_component_verts": 19329,
+          "winding_conflicts": 0,
+          "degenerate_faces": 0
+        },
+        "nonmanifold_verts": 0,
+        "regions_tris": {
+          "face": 6002,
+          "hands": 1600,
+          "rest": 31432
+        },
+        "faces_against_highpoly": 264,
+        "faces_against_highpoly_area_pct": 0.151,
+        "vertex_distance_mm": {
+          "p50": 0.168,
+          "p95": 0.526,
+          "p99": 0.677,
+          "max": 1.096
+        }
+      },
+      "mv_lp100k": {
+        "seconds": 18.2,
+        "budget": {
+          "total": 100000,
+          "face": 14000,
+          "hands": 4000
+        },
+        "topology": {
+          "verts": 48917,
+          "tris": 98210,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "largest_component_verts": 48917,
+          "winding_conflicts": 0,
+          "degenerate_faces": 0
+        },
+        "nonmanifold_verts": 0,
+        "regions_tris": {
+          "face": 14255,
+          "hands": 4050,
+          "rest": 79905
+        },
+        "faces_against_highpoly": 210,
+        "faces_against_highpoly_area_pct": 0.032,
+        "vertex_distance_mm": {
+          "p50": 0.077,
+          "p95": 0.235,
+          "p99": 0.302,
+          "max": 0.633
+        }
+      },
+      "mv_uni40k": {
+        "seconds": 18.3,
+        "budget": 40000,
+        "topology": {
+          "verts": 19812,
+          "tris": 40000,
+          "boundary_edges": 0,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "largest_component_verts": 19812,
+          "winding_conflicts": 0,
+          "degenerate_faces": 0
+        },
+        "nonmanifold_verts": 0,
+        "regions_tris": {
+          "face": 2296,
+          "hands": 986,
+          "rest": 36718
+        },
+        "faces_against_highpoly": 318,
+        "faces_against_highpoly_area_pct": 0.16,
+        "vertex_distance_mm": {
+          "p50": 0.182,
+          "p95": 0.504,
+          "p99": 0.636,
+          "max": 1.096
+        }
+      }
+    },
+    "uv": {
+      "mv_lp40k": {
+        "method": "xatlas",
+        "seconds": 10.0,
+        "texels_per_m_at_4k": {
+          "face": 3892,
+          "hands": 2915,
+          "rest": 1946,
+          "uv_coverage_pct": 43.4
+        }
+      },
+      "mv_lp100k": {
+        "method": "xatlas",
+        "seconds": 26.0,
+        "texels_per_m_at_4k": {
+          "face": 3767,
+          "hands": 2824,
+          "rest": 1884,
+          "uv_coverage_pct": 40.9
+        }
+      }
+    },
+    "bake": {
+      "mv_lp40k": {
+        "cage_extrusion_mm": 1.5,
+        "max_ray_distance_mm": 3.0,
+        "maps": {
+          "ds_mv_lp40k_basecolor_4k.jpg": {
+            "seconds": 34,
+            "size": 4096,
+            "megabytes": 3.8
+          },
+          "ds_mv_lp40k_normal_4k.png": {
+            "seconds": 42,
+            "size": 4096,
+            "megabytes": 20.4
+          },
+          "ds_mv_lp40k_mr_2k.jpg": {
+            "seconds": 9,
+            "size": 2048,
+            "megabytes": 1.2
+          }
+        }
+      },
+      "mv_lp100k": {
+        "cage_extrusion_mm": 1.5,
+        "max_ray_distance_mm": 3.0,
+        "maps": {
+          "ds_mv_lp100k_basecolor_4k.jpg": {
+            "seconds": 33,
+            "size": 4096,
+            "megabytes": 3.9
+          },
+          "ds_mv_lp100k_normal_4k.png": {
+            "seconds": 41,
+            "size": 4096,
+            "megabytes": 20.4
+          },
+          "ds_mv_lp100k_mr_2k.jpg": {
+            "seconds": 9,
+            "size": 2048,
+            "megabytes": 1.1
+          }
+        }
+      }
+    },
+    "export": {
+      "ds_mv_lp40k_metallicsmoothness_2k_unity.png": "R = metallic, A = smoothness",
+      "ds_mv_lp40k.glb": {
+        "triangles": 39034,
+        "vertices": 19329,
+        "megabytes": 27.4
+      },
+      "ds_mv_lp100k_metallicsmoothness_2k_unity.png": "R = metallic, A = smoothness",
+      "ds_mv_lp100k.glb": {
+        "triangles": 98210,
+        "vertices": 48917,
+        "megabytes": 30.3
+      }
+    },
+    "rig": {
+      "auto_weight_seconds": 4.0,
+      "auto": {
+        "unweighted_verts": 0,
+        "max_influences": 8,
+        "dominant_verts": {
+          "mixamorig:Hips": 199,
+          "mixamorig:Spine": 1323,
+          "mixamorig:Spine1": 921,
+          "mixamorig:Spine2": 9641,
+          "mixamorig:Neck": 518,
+          "mixamorig:Head": 11066,
+          "mixamorig:LeftShoulder": 1296,
+          "mixamorig:LeftArm": 1186,
+          "mixamorig:LeftForeArm": 695,
+          "mixamorig:LeftHand": 851,
+          "mixamorig:RightShoulder": 1369,
+          "mixamorig:RightArm": 1264,
+          "mixamorig:RightForeArm": 704,
+          "mixamorig:RightHand": 856,
+          "mixamorig:LeftUpLeg": 4710,
+          "mixamorig:LeftLeg": 1026,
+          "mixamorig:LeftFoot": 537,
+          "mixamorig:LeftToeBase": 96,
+          "mixamorig:RightUpLeg": 4517,
+          "mixamorig:RightLeg": 1035,
+          "mixamorig:RightFoot": 536,
+          "mixamorig:RightToeBase": 98,
+          "mixamorig:Tail1": 3225,
+          "mixamorig:Tail2": 96,
+          "mixamorig:Tail3": 110,
+          "mixamorig:Tail4": 201,
+          "mixamorig:Tail5": 147,
+          "mixamorig:Tail6": 694
+        }
+      },
+      "leaks_auto": {
+        "step": {
+          "tail": {
+            "mean_mm": 0.02,
+            "max_mm": 4.5,
+            "verts_over_5mm": 0,
+            "verts": 1333
+          },
+          "hair": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 21225
+          }
+        },
+        "arms_up": {
+          "hair": {
+            "mean_mm": 6.89,
+            "max_mm": 30.3,
+            "verts_over_5mm": 9707,
+            "verts": 21225
+          },
+          "skirt": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 12605
+          },
+          "tail": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 1333
+          }
+        },
+        "tail_swing": {
+          "Left_leg": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 2109
+          },
+          "Right_leg": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 2135
+          },
+          "skirt": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 12605
+          }
+        }
+      },
+      "cleanup": {
+        "head_and_hair": 21225,
+        "arms": 5556,
+        "tail": 1333,
+        "left_leg": 2109,
+        "right_leg": 2135,
+        "skirt": 12605,
+        "chest_verts_shifted": 3361
+      },
+      "final": {
+        "unweighted_verts": 0,
+        "max_influences": 4,
+        "dominant_verts": {
+          "mixamorig:Hips": 12234,
+          "mixamorig:Spine": 756,
+          "mixamorig:Spine1": 830,
+          "mixamorig:Spine2": 11525,
+          "mixamorig:Neck": 518,
+          "mixamorig:Head": 11187,
+          "mixamorig:LeftShoulder": 361,
+          "mixamorig:LeftArm": 1189,
+          "mixamorig:LeftForeArm": 695,
+          "mixamorig:LeftHand": 851,
+          "mixamorig:RightShoulder": 365,
+          "mixamorig:RightArm": 1286,
+          "mixamorig:RightForeArm": 704,
+          "mixamorig:RightHand": 856,
+          "mixamorig:LeftUpLeg": 450,
+          "mixamorig:LeftLeg": 1026,
+          "mixamorig:LeftFoot": 537,
+          "mixamorig:LeftToeBase": 96,
+          "mixamorig:RightUpLeg": 466,
+          "mixamorig:RightLeg": 1035,
+          "mixamorig:RightFoot": 536,
+          "mixamorig:RightToeBase": 98,
+          "mixamorig:Tail1": 68,
+          "mixamorig:Tail2": 96,
+          "mixamorig:Tail3": 122,
+          "mixamorig:Tail4": 191,
+          "mixamorig:Tail5": 166,
+          "mixamorig:Tail6": 673
+        }
+      },
+      "leaks_final": {
+        "step": {
+          "tail": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 1333
+          },
+          "hair": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 21225
+          }
+        },
+        "arms_up": {
+          "hair": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 21225
+          },
+          "skirt": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 12605
+          },
+          "tail": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 1333
+          }
+        },
+        "tail_swing": {
+          "Left_leg": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 2109
+          },
+          "Right_leg": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 2135
+          },
+          "skirt": {
+            "mean_mm": 0.0,
+            "max_mm": 0.0,
+            "verts_over_5mm": 0,
+            "verts": 12605
+          }
+        }
+      },
+      "fbx": {
+        "file": "ds_mv_lp100k_rigged.fbx",
+        "megabytes": 7.7,
+        "bones": 28,
+        "root": [
+          "mixamorig:Hips"
+        ],
+        "tail_bones": 6,
+        "tail_parent": "mixamorig:Hips",
+        "vertices": 48917,
+        "vertex_groups": 28,
+        "armature_modifier": true,
+        "height_m": 0.9787,
+        "joint_position_error_mm": 0.0
+      }
+    },
+    "cross": {
+      "sheet": "renders/cross_lp40k_8k_vs_mv.png",
+      "columns": [
+        "2m-8k 40k, textured",
+        "2m-8k 40k, no textures",
+        "2m-mv3d 40k, textured",
+        "2m-mv3d 40k, no textures"
+      ],
+      "views": [
+        "front",
+        "side",
+        "back",
+        "face34",
+        "tailfin"
+      ]
+    }
   }
 }
