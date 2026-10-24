@@ -1,0 +1,108 @@
+{
+ "skin_rgb": [
+  251.0,
+  232.0,
+  221.0
+ ],
+ "pieces": {
+  "eye-R": {
+   "source": "eyes.png",
+   "crop": [
+    258,
+    186,
+    669,
+    438
+   ],
+   "size_px": [
+    411,
+    252
+   ],
+   "iris_px": [
+    270,
+    160
+   ]
+  },
+  "eye-L": {
+   "source": "eyes.png",
+   "crop": [
+    866,
+    186,
+    1278,
+    438
+   ],
+   "size_px": [
+    412,
+    252
+   ],
+   "iris_px": [
+    139,
+    159
+   ]
+  },
+  "brow-R": {
+   "source": "eyes.png",
+   "crop": [
+    330,
+    79,
+    667,
+    173
+   ],
+   "size_px": [
+    337,
+    94
+   ]
+  },
+  "brow-L": {
+   "source": "eyes.png",
+   "crop": [
+    868,
+    79,
+    1206,
+    173
+   ],
+   "size_px": [
+    338,
+    94
+   ]
+  },
+  "mouth": {
+   "source": "face.png",
+   "crop": [
+    360,
+    640,
+    566,
+    712
+   ],
+   "size_px": [
+    206,
+    72
+   ]
+  },
+  "blush-R": {
+   "source": "face.png",
+   "crop": [
+    90,
+    470,
+    360,
+    670
+   ],
+   "size_px": [
+    270,
+    200
+   ]
+  },
+  "blush-L": {
+   "source": "face.png",
+   "crop": [
+    590,
+    470,
+    860,
+    670
+   ],
+   "size_px": [
+    270,
+    200
+   ]
+  }
+ }
+}

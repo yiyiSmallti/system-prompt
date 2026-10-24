@@ -1,0 +1,601 @@
+{
+ "character": "DeepSeek, battle outfit (4-battle), T-pose",
+ "units": "body GLB units, floor at y = 0 (boot soles), character faces +Z, her left is +X",
+ "compose": "world = translate(position) * rotateX(tiltX) * scale(scale) * rotateYXZ(rotYXZ) * (mirrorX ? scale(-1, 1, 1) : 1) * rotateY(yaw) * the GLB scene as exported by Tripo; angles in degrees",
+ "clip": "mask rules: hide the surface outside each half-space, e.g. [\"y>\", 0.48] keeps y > 0.48; they stop the body poking through the gloves, stockings and boots",
+ "mat": "material changes on top of the Tripo PBR material, in three.js MeshStandardMaterial terms: color multiplies the base colour texture (linear), metalness/roughness replace the metallic-roughness texture, emissive is a colour times the base colour texture, env scales the environment reflections (envMapIntensity)",
+ "decal": "face decals (eyes, brows, mouth, blush) are projected onto the head: a box of `size` (width, height, depth) centred at `centre`, turned `yaw` degrees about Y from facing +Z, maps the image onto the head surface inside it; the images were cut from deepseek/base/eyes.png and face.png, see face-decals/decals.json",
+ "files": "the full Tripo GLBs named here (Downloads), see README 转 3D; the renders used the full GLBs for head, hair and apron and decimated copies with the same coordinates for the rest",
+ "landmarks": {
+  "crown": 1.1655016692229805,
+  "chin": 0.9948699111977799,
+  "armY": 0.8825385938792807,
+  "crotch": 0.5943190893928598,
+  "lift": 0.024919039387541295,
+  "headScale": 0.24743427842278476,
+  "armsX": [
+   -0.488923096184051,
+   0.48850514646658577
+  ]
+ },
+ "parts": {
+  "body": {
+   "file": "deepseek-base-body.glb",
+   "yaw": -90.7,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    1,
+    1,
+    1
+   ],
+   "clip": [
+    [
+     "y>",
+     0.48
+    ],
+    [
+     "x<",
+     0.372
+    ],
+    [
+     "x>",
+     -0.372
+    ]
+   ],
+   "mat": {
+    "roughness": 0.7,
+    "env": 0.5,
+    "emissive": [
+     0.3,
+     0.28,
+     0.27
+    ]
+   },
+   "position": [
+    0,
+    0.02492,
+    0
+   ]
+  },
+  "head": {
+   "file": "deepseek-base-head.glb",
+   "yaw": -91.1,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.24737,
+    0.24737,
+    0.24737
+   ],
+   "mat": {
+    "roughness": 0.7,
+    "env": 0.5,
+    "emissive": [
+     0.3,
+     0.28,
+     0.27
+    ]
+   },
+   "position": [
+    -0.00705,
+    0.94811,
+    -0.01948
+   ]
+  },
+  "hair": {
+   "file": "deepseek-base-hair.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.75464,
+    0.64899,
+    0.75464
+   ],
+   "mat": {
+    "roughness": 0.55
+   },
+   "position": [
+    -0.0106,
+    0.61927,
+    -0.07061
+   ]
+  },
+  "headband": {
+   "file": "deepseek-4-battle-headband.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.21445,
+    0.15011,
+    0.21445
+   ],
+   "position": [
+    -0.00709,
+    1.09335,
+    0.00961
+   ]
+  },
+  "fin-ear-R": {
+   "file": "deepseek-base-fin-ear.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.13572,
+    0.13572,
+    0.13572
+   ],
+   "position": [
+    -0.13606,
+    0.99677,
+    -0.02605
+   ]
+  },
+  "fin-ear-L": {
+   "file": "deepseek-base-fin-ear.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": true,
+   "tiltX": 0,
+   "scale": [
+    0.13572,
+    0.13572,
+    0.13572
+   ],
+   "position": [
+    0.12251,
+    0.99677,
+    -0.02605
+   ]
+  },
+  "neck-bow": {
+   "file": "deepseek-4-battle-neck-bow.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.09437,
+    0.09437,
+    0.09437
+   ],
+   "position": [
+    -0.00612,
+    0.91361,
+    -0.02962
+   ]
+  },
+  "blouse": {
+   "file": "deepseek-4-battle-blouse.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.43111,
+    0.43111,
+    0.43111
+   ],
+   "position": [
+    -0.0032,
+    0.75463,
+    0.01103
+   ]
+  },
+  "capelet": {
+   "file": "deepseek-4-battle-capelet.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.42327,
+    0.35978,
+    0.42327
+   ],
+   "position": [
+    0.0004,
+    0.77979,
+    -0.01989
+   ]
+  },
+  "corset": {
+   "file": "deepseek-4-battle-corset.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.24206,
+    0.19365,
+    0.24206
+   ],
+   "position": [
+    -0.00627,
+    0.69205,
+    0.01005
+   ]
+  },
+  "apron": {
+   "file": "deepseek-4-battle-apron.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": -9,
+   "scale": [
+    0.25013,
+    0.25013,
+    0.25013
+   ],
+   "mat": {
+    "color": [
+     1.3,
+     1.3,
+     1.3
+    ],
+    "roughness": 0.95
+   },
+   "position": [
+    -0.01244,
+    0.61913,
+    0.04757
+   ]
+  },
+  "skirt": {
+   "file": "deepseek-4-battle-skirt.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.39299,
+    0.39299,
+    0.39299
+   ],
+   "position": [
+    -0.00614,
+    0.54846,
+    0.00055
+   ]
+  },
+  "stockings": {
+   "file": "deepseek-4-battle-stockings.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.49897,
+    0.49897,
+    0.49897
+   ],
+   "clip": [
+    [
+     "y>",
+     0.28
+    ]
+   ],
+   "position": [
+    -0.00654,
+    0.02473,
+    -0.00692
+   ]
+  },
+  "garter-L": {
+   "file": "deepseek-4-battle-garter.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.10654,
+    0.10654,
+    0.10654
+   ],
+   "position": [
+    0.04995,
+    0.4653,
+    -0.01034
+   ]
+  },
+  "garter-R": {
+   "file": "deepseek-4-battle-garter.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": true,
+   "tiltX": 0,
+   "scale": [
+    0.1062,
+    0.1062,
+    0.1062
+   ],
+   "position": [
+    -0.06143,
+    0.46546,
+    -0.01168
+   ]
+  },
+  "boots": {
+   "file": "deepseek-4-battle-boots.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.32822,
+    0.32822,
+    0.32822
+   ],
+   "position": [
+    -0.00649,
+    -1e-05,
+    0.00169
+   ]
+  },
+  "glove-L": {
+   "file": "deepseek-4-battle-glove.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    -90,
+    -90,
+    0
+   ],
+   "mirrorX": true,
+   "tiltX": 0,
+   "scale": [
+    0.15335,
+    0.15335,
+    0.15335
+   ],
+   "position": [
+    0.34425,
+    0.90736,
+    -0.04634
+   ]
+  },
+  "glove-R": {
+   "file": "deepseek-4-battle-glove.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    -90,
+    90,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.15335,
+    0.15335,
+    0.15335
+   ],
+   "position": [
+    -0.34467,
+    0.90736,
+    -0.05801
+   ]
+  },
+  "wrist-terminal": {
+   "file": "deepseek-base-wrist-terminal.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    90,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.05104,
+    0.05104,
+    0.05104
+   ],
+   "position": [
+    0.33601,
+    0.89,
+    -0.04204
+   ]
+  },
+  "tail-glow": {
+   "file": "deepseek-4-battle-tail-glow.glb",
+   "yaw": -90,
+   "rotYXZ": [
+    0,
+    0,
+    0
+   ],
+   "mirrorX": false,
+   "tiltX": 0,
+   "scale": [
+    0.63453,
+    0.63453,
+    0.63453
+   ],
+   "mat": {
+    "metalness": 0.05,
+    "roughness": 0.35,
+    "emissive": [
+     0.25,
+     0.33,
+     0.45
+    ]
+   },
+   "position": [
+    -1e-05,
+    -0.00086,
+    -0.31425
+   ]
+  }
+ },
+ "decals": {
+  "blush-R": {
+   "image": "deepseek/base/face-decals/blush-R.png",
+   "centre": [
+    -0.0475,
+    1.05,
+    0.0388
+   ],
+   "yaw": -19.86,
+   "size": [
+    0.03908,
+    0.02895,
+    0.06
+   ]
+  },
+  "blush-L": {
+   "image": "deepseek/base/face-decals/blush-L.png",
+   "centre": [
+    0.0325,
+    1.05,
+    0.03955
+   ],
+   "yaw": 20.12,
+   "size": [
+    0.03908,
+    0.02895,
+    0.06
+   ]
+  },
+  "mouth": {
+   "image": "deepseek/base/face-decals/mouth.png",
+   "centre": [
+    -0.0075,
+    1.0325,
+    0.05742
+   ],
+   "yaw": 0,
+   "size": [
+    0.02982,
+    0.01042,
+    0.02
+   ]
+  },
+  "brow-R": {
+   "image": "deepseek/base/face-decals/brow-R.png",
+   "centre": [
+    -0.0512,
+    1.121,
+    0.04517
+   ],
+   "yaw": -21.59,
+   "size": [
+    0.0474,
+    0.01322,
+    0.06
+   ]
+  },
+  "brow-L": {
+   "image": "deepseek/base/face-decals/brow-L.png",
+   "centre": [
+    0.0362,
+    1.121,
+    0.04573
+   ],
+   "yaw": 21.14,
+   "size": [
+    0.04754,
+    0.01322,
+    0.06
+   ]
+  },
+  "eye-R": {
+   "image": "deepseek/base/face-decals/eye-R.png",
+   "centre": [
+    -0.05591,
+    1.08638,
+    0.03457
+   ],
+   "yaw": -16.3,
+   "size": [
+    0.05781,
+    0.03545,
+    0.06
+   ]
+  },
+  "eye-L": {
+   "image": "deepseek/base/face-decals/eye-L.png",
+   "centre": [
+    0.04128,
+    1.08624,
+    0.03554
+   ],
+   "yaw": 15.45,
+   "size": [
+    0.05795,
+    0.03545,
+    0.06
+   ]
+  }
+ }
+}
