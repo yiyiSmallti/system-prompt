@@ -40,6 +40,7 @@ import numpy as np
 from bpy_extras.bmesh_utils import bmesh_linked_uv_islands
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
+from mathutils.kdtree import KDTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, 'models')
@@ -107,6 +108,8 @@ PRESETS = {
             'hand': ((0.395, -0.05, 0.70), (0.35, -1, 0.45), 0.13, (800, 800)),
             'cape': ((0.12, -0.01, 0.69), (0.8, -0.9, 0.35), 0.22, (800, 800)),
             'tailfin': ((0, 0.07, 0.08), (0.35, 1, 0.75), 0.36, (800, 800)),
+            'hips_back': ((0, 0.0, 0.37), (0.2, 1, 0.25), 0.42, (800, 800)),
+            'hips_side': ((0, 0.0, 0.37), (1, 0.3, 0.1), 0.42, (800, 800)),
         },
         spine=[('Hips', (0, -0.035, 0.475)), ('Spine', (0, -0.035, 0.53)), ('Spine1', (0, -0.035, 0.59)),
                ('Spine2', (0, -0.035, 0.65)), ('Neck', (0, -0.035, 0.725)), ('Head', (0, -0.03, 0.765))],
@@ -124,6 +127,7 @@ PRESETS = {
         # 8k outputs were made with; 'mv' needs 'separate' (refilling diverges on its spots).
         fold_repair='refill',
         hair_bones=('Head', 'Neck'),  # bone heat gives the long hair to the head
+        tail_tube=None, hip_soften=None,
         fin=dict(z_max=0.14, y_min=0.015),  # the fin behind the heels
         z_hem=0.35,  # lowest point of the skirt frills
         leg_reach=None,  # below the hem everything that is not tail belongs to a leg
@@ -146,6 +150,8 @@ PRESETS = {
             'hand': ((0.395, -0.17, 0.70), (0.35, -1, 0.45), 0.13, (800, 800)),
             'cape': ((0.12, -0.13, 0.69), (0.8, -0.9, 0.35), 0.22, (800, 800)),
             'tailfin': ((0, 0.22, 0.02), (0.3, 0.9, 1.0), 0.5, (800, 800)),
+            'hips_back': ((0, -0.10, 0.37), (0.2, 1, 0.25), 0.42, (800, 800)),
+            'hips_side': ((0, -0.10, 0.37), (1, 0.3, 0.1), 0.42, (800, 800)),
         },
         spine=[('Hips', (0, -0.16, 0.48)), ('Spine', (0, -0.16, 0.535)), ('Spine1', (0, -0.16, 0.595)),
                ('Spine2', (0, -0.16, 0.655)), ('Neck', (0, -0.155, 0.725)), ('Head', (0, -0.15, 0.765))],
@@ -166,6 +172,12 @@ PRESETS = {
         # The hair hangs further off the back and bone heat gives its lower half to Spine2;
         # every Spine2-led vertex sits behind the back or out at the sides, i.e. is hair.
         hair_bones=('Head', 'Neck', 'Spine2'),
+        # The tail is thicker near the root than tail_radius; its outer wall within 5 cm of the
+        # chain is tail too (the ribbons start 7 cm out, so |x| stays under 5.5 cm).
+        tail_tube=dict(radius=0.05, x_max=0.055, y_min=-0.12),
+        # Running strides stretched the faces between thighs, buttocks and tail root by up to
+        # 7.5 cm in Unity: soften the thigh seam and fade the thighs out towards the tail.
+        hip_soften=dict(band=0.06, iterations=60, tail_falloff=0.08),
         fin=dict(z_max=0.045, y_min=-0.02),  # the tail and fin lying on the floor
         z_hem=0.375,
         leg_reach=0.075,  # the ribbons hang below the hem too: only what is close to a leg is leg
@@ -1335,6 +1347,20 @@ def classify_vertices(mesh):
     lower_tail = np.isin(dominant, [bone(b) for b in M.tail_bones[1:]])
     fin = (z < M.fin['z_max']) & (y > M.fin['y_min'])
     tail = ~keep & (z < M.tail_z_max) & ((d.min(1) < M.tail_radius) | fin | lower_tail)
+    if M.tail_tube:
+        # The tail's wall a little further out: vertices whose normal points away from the
+        # chain. The skirt's inner layers and the backs of the thighs face towards it.
+        cfg = M.tail_tube
+        normal = np.empty(len(p) * 3, np.float32)
+        mesh.data.vertices.foreach_get('normal', normal)
+        a = np.asarray(M.tail[:-1], np.float32)[seg]
+        b = np.asarray(M.tail[1:], np.float32)[seg]
+        tt = t[np.arange(len(p)), seg][:, None]
+        radial = p - (a + tt * (b - a))
+        radial /= np.maximum(np.linalg.norm(radial, axis=1), 1e-6)[:, None]
+        outward = (normal.reshape(-1, 3) * radial).sum(1) > 0.3
+        tail |= (~keep & (z < M.tail_z_max) & (d.min(1) < cfg['radius']) & outward
+                 & (np.abs(x) < cfg['x_max']) & (y > cfg['y_min']))
 
     parts = dict(hair=hair, arms=arms, tail=tail)
     for side, sx in (('Left', 1), ('Right', -1)):
@@ -1424,19 +1450,91 @@ def clean_weights(mesh, parts):
         new[:, bone('Spine2')] += moved
         shifted |= moved > 0.01
 
-    # Unity skins with 4 bones per vertex by default.
-    order = np.argsort(-new, 1)
-    new[np.arange(len(p))[:, None], order[:, 4:]] = 0
-    total = new.sum(1, keepdims=True)
-    empty = total[:, 0] < 1e-6
-    new = np.where(empty[:, None], w, new / np.maximum(total, 1e-6))
-    for g in mesh.vertex_groups:
-        g.remove(list(range(len(p))))
-    for v, g in zip(*np.nonzero(new > 1e-4)):
-        mesh.vertex_groups[g].add([int(v)], float(new[v, g]), 'REPLACE')
+    write_weights(mesh, new, fallback=w)
     return dict(head_and_hair=int(hair.sum()), arms=int(parts['arms'].sum()), tail=int(tail.sum()),
                 left_leg=int(legs['Left'].sum()), right_leg=int(legs['Right'].sum()),
                 skirt=int(skirt.sum()), chest_verts_shifted=int(shifted.sum()))
+
+
+def write_weights(mesh, w, fallback):
+    """Keep the 4 strongest bones per vertex (Unity's default), normalise and write the groups.
+    Vertices left with nothing fall back to the given weights."""
+    w = w.copy()
+    order = np.argsort(-w, 1)
+    w[np.arange(len(w))[:, None], order[:, 4:]] = 0
+    total = w.sum(1, keepdims=True)
+    w = np.where(total < 1e-6, fallback, w / np.maximum(total, 1e-6))
+    for g in mesh.vertex_groups:
+        g.remove(list(range(len(w))))
+    for v, g in zip(*np.nonzero(w > 1e-4)):
+        mesh.vertex_groups[g].add([int(v)], float(w[v, g]), 'REPLACE')
+
+
+def nearest_distance(p, mask):
+    """Distance from every point to the nearest masked point."""
+    tree = KDTree(int(mask.sum()))
+    for v in np.flatnonzero(mask):
+        tree.insert(p[v], int(v))
+    tree.balance()
+    return np.array([tree.find(q)[2] for q in p])
+
+
+def soften_hips(mesh, parts):
+    """Smooth the thighs' weights into the body under the skirt, and fade the thighs out
+    towards the tail root, so a running stride spreads the motion over many faces instead of
+    tearing the few between a thigh-bound and a hip- or tail-bound vertex."""
+    cfg = M.hip_soften
+    w, names = weight_arrays(mesh)
+    col = {n: i for i, n in enumerate(names)}
+    p, ev = vert_co(mesh.data), edge_verts(mesh.data)
+    thighs = [col[PREFIX + 'LeftUpLeg'], col[PREFIX + 'RightUpLeg']]
+    legs = parts['Left_leg'] | parts['Right_leg']
+    free = parts['skirt'] & (nearest_distance(p, legs) < cfg['band']) & (p[:, 2] < 0.55)
+    for _ in range(cfg['iterations']):
+        acc, count = np.zeros_like(w), np.zeros(len(p))
+        np.add.at(acc, ev[:, 0], w[ev[:, 1]])
+        np.add.at(acc, ev[:, 1], w[ev[:, 0]])
+        np.add.at(count, ev[:, 0], 1)
+        np.add.at(count, ev[:, 1], 1)
+        w[free] = (acc / np.maximum(count, 1)[:, None])[free]
+    w[np.ix_(free, [col[PREFIX + b] for b in M.tail_bones])] = 0  # the body never follows the tail
+    to_tail = nearest_distance(p, parts['tail'])
+    fading = parts['skirt'] & (to_tail < cfg['tail_falloff'])
+    moved = w[:, thighs] * (1 - np.clip(to_tail / cfg['tail_falloff'], 0, 1))[:, None] * fading[:, None]
+    w[:, thighs] -= moved
+    w[:, col[PREFIX + 'Hips']] += moved.sum(1)
+    write_weights(mesh, w, fallback=w)
+    return dict(smoothed_verts=int(free.sum()), faded_verts=int(fading.sum()))
+
+
+RUN_STRIDES = {
+    'run_left_forward': [('LeftUpLeg', 'X', -45), ('LeftLeg', 'X', 60), ('RightUpLeg', 'X', 30)],
+    'run_right_forward': [('RightUpLeg', 'X', -45), ('RightLeg', 'X', 60), ('LeftUpLeg', 'X', 30)],
+}
+STRIDE_REGION = dict(x_max=0.12, z=(0.28, 0.55))  # thighs, buttocks and tail root under the skirt
+
+
+def stride_stretch(mesh, rig):
+    """How much longer than at rest the edges get in a running stride (absolute, in cm)."""
+    ev, rest = edge_verts(mesh.data), vert_co(mesh.data)
+    length = np.linalg.norm(rest[ev[:, 0]] - rest[ev[:, 1]], axis=1)
+    mid = (rest[ev[:, 0]] + rest[ev[:, 1]]) / 2
+    region = ((np.abs(mid[:, 0]) < STRIDE_REGION['x_max'])
+              & (mid[:, 2] > STRIDE_REGION['z'][0]) & (mid[:, 2] < STRIDE_REGION['z'][1]))
+    out = {}
+    for pose, moves in RUN_STRIDES.items():
+        set_pose(rig, moves)
+        posed = mesh.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        co = vert_co(posed.to_mesh())
+        posed.to_mesh_clear()
+        grow = (np.linalg.norm(co[ev[:, 0]] - co[ev[:, 1]], axis=1) - length) * 100
+        out[pose] = dict(region_max_cm=round(float(grow[region].max()), 2),
+                         region_edges_over_3cm=int((grow[region] > 3).sum()),
+                         region_edges_over_1_5cm=int((grow[region] > 1.5).sum()),
+                         region_edges_over_1cm=int((grow[region] > 1).sum()),
+                         whole_mesh_max_cm=round(float(grow.max()), 2))
+    set_pose(rig, [])
+    return out
 
 
 # Parts that a pose must leave where they are: none of their bones move.
@@ -1490,6 +1588,17 @@ def render_rig(cam, mesh, rig, textured, tag, poses, shots):
     return colors
 
 
+RUN_VIEWS = ('back', 'side', 'hips_back', 'hips_side')
+
+
+def render_run(cam, mesh, rig, tag, shots):
+    for pose, moves in RUN_STRIDES.items():
+        set_pose(rig, moves)
+        for view in RUN_VIEWS:
+            render_view(cam, view, os.path.join(shots, f'{tag}_{pose}_{view}.png'))
+    set_pose(rig, [])
+
+
 def check_fbx(path):
     """Re-import the FBX and compare its skeleton with the one we built."""
     reset()
@@ -1534,11 +1643,20 @@ def stage_rig():
     render_rig(cam, mesh, rig, textured, 'auto', ['step'], shots)
     parts = classify_vertices(mesh)
     report['leaks_auto'] = pose_leaks(mesh, rig, parts)
+    report['stride_auto'] = stride_stretch(mesh, rig)
     report['cleanup'] = clean_weights(mesh, parts)
+    run_tags = [('final', 'final')]
+    if M.hip_soften:
+        report['stride_before_soften'] = stride_stretch(mesh, rig)
+        render_run(cam, mesh, rig, 'before', shots)
+        run_tags.insert(0, ('before', 'before hip softening'))
+        report['hip_soften'] = soften_hips(mesh, parts)
     report['final'] = weight_report(mesh)
     report['leaks_final'] = pose_leaks(mesh, rig, parts)
+    report['stride_final'] = stride_stretch(mesh, rig)
     log('weights', report)
     colors = render_rig(cam, mesh, rig, textured, 'final', list(M.poses), shots)
+    render_run(cam, mesh, rig, 'final', shots)
 
     os.makedirs(MODELS, exist_ok=True)
     fbx = os.path.join(MODELS, f'ds_{M.rig_tier}_rigged.fbx')
@@ -1575,6 +1693,9 @@ def stage_rig():
     contact_sheet([[(f'{pose}, {v}', os.path.join(shots, f'final_{pose}_{v}.png')) for v in views]
                    for pose in M.poses],
                   os.path.join(RENDERS, f'{M.prefix}rig_poses.png'), tile=540)
+    contact_sheet([[(f'{caption}: {pose}, {v}', os.path.join(shots, f'{tag}_{pose}_{v}.png'))
+                    for v in RUN_VIEWS] for tag, caption in run_tags for pose in RUN_STRIDES],
+                  os.path.join(RENDERS, f'{M.prefix}rig_run.png'), tile=480)
 
 
 STAGES = {

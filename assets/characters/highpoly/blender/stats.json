@@ -783,7 +783,7 @@
       }
     },
     "rig": {
-      "auto_weight_seconds": 4.0,
+      "auto_weight_seconds": 3.9,
       "auto": {
         "unweighted_verts": 0,
         "max_influences": 8,
@@ -821,10 +821,10 @@
       "leaks_auto": {
         "step": {
           "tail": {
-            "mean_mm": 0.02,
-            "max_mm": 4.5,
-            "verts_over_5mm": 0,
-            "verts": 1333
+            "mean_mm": 0.2,
+            "max_mm": 7.6,
+            "verts_over_5mm": 21,
+            "verts": 1467
           },
           "hair": {
             "mean_mm": 0.0,
@@ -844,13 +844,13 @@
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 12605
+            "verts": 12471
           },
           "tail": {
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 1333
+            "verts": 1467
           }
         },
         "tail_swing": {
@@ -870,24 +870,60 @@
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 12605
+            "verts": 12471
           }
+        }
+      },
+      "stride_auto": {
+        "run_left_forward": {
+          "region_max_cm": 0.84,
+          "region_edges_over_3cm": 0,
+          "region_edges_over_1_5cm": 0,
+          "region_edges_over_1cm": 0,
+          "whole_mesh_max_cm": 1.37
+        },
+        "run_right_forward": {
+          "region_max_cm": 1.01,
+          "region_edges_over_3cm": 0,
+          "region_edges_over_1_5cm": 0,
+          "region_edges_over_1cm": 1,
+          "whole_mesh_max_cm": 1.08
         }
       },
       "cleanup": {
         "head_and_hair": 21225,
         "arms": 5556,
-        "tail": 1333,
+        "tail": 1467,
         "left_leg": 2109,
         "right_leg": 2135,
-        "skirt": 12605,
+        "skirt": 12471,
         "chest_verts_shifted": 3361
+      },
+      "stride_before_soften": {
+        "run_left_forward": {
+          "region_max_cm": 3.63,
+          "region_edges_over_3cm": 6,
+          "region_edges_over_1_5cm": 218,
+          "region_edges_over_1cm": 273,
+          "whole_mesh_max_cm": 3.63
+        },
+        "run_right_forward": {
+          "region_max_cm": 3.97,
+          "region_edges_over_3cm": 10,
+          "region_edges_over_1_5cm": 207,
+          "region_edges_over_1cm": 268,
+          "whole_mesh_max_cm": 3.97
+        }
+      },
+      "hip_soften": {
+        "smoothed_verts": 1451,
+        "faded_verts": 3251
       },
       "final": {
         "unweighted_verts": 0,
         "max_influences": 4,
         "dominant_verts": {
-          "mixamorig:Hips": 12234,
+          "mixamorig:Hips": 11783,
           "mixamorig:Spine": 756,
           "mixamorig:Spine1": 830,
           "mixamorig:Spine2": 11525,
@@ -901,15 +937,15 @@
           "mixamorig:RightArm": 1286,
           "mixamorig:RightForeArm": 704,
           "mixamorig:RightHand": 856,
-          "mixamorig:LeftUpLeg": 450,
+          "mixamorig:LeftUpLeg": 629,
           "mixamorig:LeftLeg": 1026,
           "mixamorig:LeftFoot": 537,
           "mixamorig:LeftToeBase": 96,
-          "mixamorig:RightUpLeg": 466,
+          "mixamorig:RightUpLeg": 628,
           "mixamorig:RightLeg": 1035,
           "mixamorig:RightFoot": 536,
           "mixamorig:RightToeBase": 98,
-          "mixamorig:Tail1": 68,
+          "mixamorig:Tail1": 178,
           "mixamorig:Tail2": 96,
           "mixamorig:Tail3": 122,
           "mixamorig:Tail4": 191,
@@ -923,7 +959,7 @@
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 1333
+            "verts": 1467
           },
           "hair": {
             "mean_mm": 0.0,
@@ -943,13 +979,13 @@
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 12605
+            "verts": 12471
           },
           "tail": {
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 1333
+            "verts": 1467
           }
         },
         "tail_swing": {
@@ -969,8 +1005,24 @@
             "mean_mm": 0.0,
             "max_mm": 0.0,
             "verts_over_5mm": 0,
-            "verts": 12605
+            "verts": 12471
           }
+        }
+      },
+      "stride_final": {
+        "run_left_forward": {
+          "region_max_cm": 1.28,
+          "region_edges_over_3cm": 0,
+          "region_edges_over_1_5cm": 0,
+          "region_edges_over_1cm": 7,
+          "whole_mesh_max_cm": 1.53
+        },
+        "run_right_forward": {
+          "region_max_cm": 1.16,
+          "region_edges_over_3cm": 0,
+          "region_edges_over_1_5cm": 0,
+          "region_edges_over_1cm": 9,
+          "whole_mesh_max_cm": 1.8
         }
       },
       "fbx": {
