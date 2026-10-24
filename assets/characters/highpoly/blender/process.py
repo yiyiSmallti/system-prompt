@@ -127,7 +127,12 @@ PRESETS = {
         # 8k outputs were made with; 'mv' needs 'separate' (refilling diverges on its spots).
         fold_repair='refill',
         hair_bones=('Head', 'Neck'),  # bone heat gives the long hair to the head
-        tail_tube=None, hip_soften=None,
+        # The tail is no thicker than tail_radius here; a wider tube test only takes the backs
+        # of the thighs and makes the stride worse (2.1 cm instead of 1.3 cm).
+        tail_tube=None,
+        # Running strides stretched the faces in the crotch and between thighs and tail root by
+        # up to 4.7 cm: same softening as 'mv'.
+        hip_soften=dict(band=0.06, iterations=60, tail_falloff=0.08),
         fin=dict(z_max=0.14, y_min=0.015),  # the fin behind the heels
         z_hem=0.35,  # lowest point of the skirt frills
         leg_reach=None,  # below the hem everything that is not tail belongs to a leg

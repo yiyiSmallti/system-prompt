@@ -278,7 +278,7 @@
     }
   },
   "rig": {
-    "auto_weight_seconds": 3.0,
+    "auto_weight_seconds": 3.7,
     "auto": {
       "unweighted_verts": 0,
       "max_influences": 9,
@@ -367,6 +367,22 @@
         }
       }
     },
+    "stride_auto": {
+      "run_left_forward": {
+        "region_max_cm": 1.02,
+        "region_edges_over_3cm": 0,
+        "region_edges_over_1_5cm": 0,
+        "region_edges_over_1cm": 1,
+        "whole_mesh_max_cm": 1.02
+      },
+      "run_right_forward": {
+        "region_max_cm": 0.95,
+        "region_edges_over_3cm": 0,
+        "region_edges_over_1_5cm": 0,
+        "region_edges_over_1cm": 0,
+        "whole_mesh_max_cm": 1.0
+      }
+    },
     "cleanup": {
       "head_and_hair": 20591,
       "arms": 5457,
@@ -376,11 +392,31 @@
       "skirt": 12246,
       "chest_verts_shifted": 4229
     },
+    "stride_before_soften": {
+      "run_left_forward": {
+        "region_max_cm": 4.37,
+        "region_edges_over_3cm": 60,
+        "region_edges_over_1_5cm": 219,
+        "region_edges_over_1cm": 293,
+        "whole_mesh_max_cm": 4.37
+      },
+      "run_right_forward": {
+        "region_max_cm": 4.66,
+        "region_edges_over_3cm": 63,
+        "region_edges_over_1_5cm": 232,
+        "region_edges_over_1cm": 301,
+        "whole_mesh_max_cm": 4.66
+      }
+    },
+    "hip_soften": {
+      "smoothed_verts": 2189,
+      "faded_verts": 1538
+    },
     "final": {
       "unweighted_verts": 0,
       "max_influences": 4,
       "dominant_verts": {
-        "mixamorig:Hips": 11693,
+        "mixamorig:Hips": 11098,
         "mixamorig:Spine": 1259,
         "mixamorig:Spine1": 349,
         "mixamorig:Spine2": 2505,
@@ -394,11 +430,11 @@
         "mixamorig:RightArm": 1158,
         "mixamorig:RightForeArm": 811,
         "mixamorig:RightHand": 779,
-        "mixamorig:LeftUpLeg": 499,
+        "mixamorig:LeftUpLeg": 794,
         "mixamorig:LeftLeg": 949,
         "mixamorig:LeftFoot": 472,
         "mixamorig:LeftToeBase": 130,
-        "mixamorig:RightUpLeg": 517,
+        "mixamorig:RightUpLeg": 817,
         "mixamorig:RightLeg": 963,
         "mixamorig:RightFoot": 485,
         "mixamorig:RightToeBase": 126,
@@ -464,6 +500,22 @@
         }
       }
     },
+    "stride_final": {
+      "run_left_forward": {
+        "region_max_cm": 1.19,
+        "region_edges_over_3cm": 0,
+        "region_edges_over_1_5cm": 0,
+        "region_edges_over_1cm": 8,
+        "whole_mesh_max_cm": 1.71
+      },
+      "run_right_forward": {
+        "region_max_cm": 1.34,
+        "region_edges_over_3cm": 0,
+        "region_edges_over_1_5cm": 0,
+        "region_edges_over_1cm": 6,
+        "whole_mesh_max_cm": 1.69
+      }
+    },
     "fbx": {
       "file": "ds_lp100k_rigged.fbx",
       "megabytes": 7.5,
@@ -471,6 +523,7 @@
       "root": [
         "mixamorig:Hips"
       ],
+      "tail_bones": 4,
       "tail_parent": "mixamorig:Hips",
       "vertices": 48815,
       "vertex_groups": 26,
