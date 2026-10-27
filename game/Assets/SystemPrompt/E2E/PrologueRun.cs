@@ -297,6 +297,9 @@ namespace SystemPrompt.E2E
         DungeonScreen Maze => game.Dungeon;
         DungeonWorld World => game.Dungeon.World;
 
+        // The expression cells DeepSeek's 3D face shows in the sea (eyes, mouth, blush; Dungeon/SeaFigure.cs).
+        Vector4 CompanionFace() => World?.Companion?.FaceCells ?? new Vector4(-9f, -9f, -9f, 0f);
+
         // 缓存海·浅层: DeepSeek follows but can't fight yet, so the phone's screenshot fights alone. Jump the
         // dozing one at the reef's mouth from behind, west into the coral (its beacon, its patrol), north
         // through the graveyard (its patrol, the draft), the beacon behind the lighthouse, the canyon's
@@ -308,6 +311,7 @@ namespace SystemPrompt.E2E
             Check(w.Def.Id == "cache_sea_shallows", $"浅层地图（实际 {w.Def.Id}）");
             Check(Visible(ui.Q(className: "sp-dungeon__map")), "右上角地图显示");
             Check(w.Companion != null, "DeepSeek 跟在主角身边");
+            Check(w.Companion?.Root.Find("DeepSeekUniform") != null, "觉醒前的 DeepSeek 是 VRoid 校服模型（鲸鱼兜帽）");
             Check(Maze.Zone?.Name == "气泡礁", $"从气泡礁出发（实际 {Maze.Zone?.Name}）");
             SeaProp BeaconIn(string zone) => w.Props.Find(p => p.Kind == PropKind.Beacon && w.Def.ZoneAt(p.Cell)?.Name == zone);
 
@@ -327,6 +331,9 @@ namespace SystemPrompt.E2E
             yield return Press(Key.Enter);
             yield return Pump(() => Maze.Exploring && draft.Used, "读完碎片");
             Check(game.StoryBool("$sea_read_47s"), "读过「四十七秒」的草稿（$sea_read_47s）");
+            Check(Seen("dungeon-face"), "DeepSeek 撅嘴的台词让她的 3D 脸撅嘴、脸红（#face:pout）");
+            var face = CompanionFace();
+            Check(face.y == SeaFigure.None && face.z == SeaFigure.None, $"对话结束后 DeepSeek 的表情复原（嘴 {face.y}，脸红 {face.z}）");
 
             var ridgeBeacon = BeaconIn("灯塔背面");
             yield return Walk(ridgeBeacon.Cell, "穿过墓地，到灯塔背面的信标", 2.2f);
@@ -373,6 +380,7 @@ namespace SystemPrompt.E2E
             Check(w.Def.Id == "cache_sea_deep", $"深层地图（实际 {w.Def.Id}）");
             Check(Visible(ui.Q(className: "sp-dungeon__meter")) && Visible(ui.Q(className: "sp-dungeon__party")), "维护进度与队伍状态显示");
             Check(w.Companion != null, "DeepSeek 跟在身边");
+            Check(w.Companion?.Root.Find("DeepSeek") != null, "觉醒后的 DeepSeek 穿战斗服");
             Check(w.Puzzles.HasLight && !w.Puzzles.Lit && !w.GoalOpen, "出口一开始看不见（光照在白门上）");
             yield return Jump(Noise('1'), "dungeon-sneak", "背后接近发呆的噪声体（提示「先制攻击！」）");
             if (finished) yield break;
@@ -416,19 +424,80 @@ namespace SystemPrompt.E2E
 
             yield return Walk(w.Map.Find('G')[0], "走进出口的光柱（白门在旁边）", 0f, () => !game.InDungeon);
             Check(Seen("dungeon-gate"), "在维护结束前走到出口（白门在旁边）");
+            Check(Seen("dungeon-mirror"), "白门照出战斗形态的主角");
             Check(Maze.Battles >= 2, $"深层战斗 {Maze.Battles} 场");
             Check(Maze.ZonesVisited >= 4, $"深层走过 {Maze.ZonesVisited} 个区域");
         }
 
         SeaNoise Noise(char mark) => World.Enemies.Find(e => e.Spawn.Mark == mark);
 
+        // The commands the tutorial leaves out, in the first preemptive battle DeepSeek fights in: 防御 on the player's turn and
+        // DeepSeek eating the 白米饭 the tutorial dropped herself on hers (the watcher films both poses); anyone else
+        // whose turn comes up meanwhile attacks. The rest is fought through with the first command.
+        IEnumerator GuardAndEat()
+        {
+            bool guarded = false, ate = false;
+            var t0 = Now;
+            var quiet = Now; // since a command was last given, or Enter pressed to move things on
+            while (!finished && game.InBattle && !(guarded && ate))
+            {
+                if (Now - t0 > StepTimeout)
+                {
+                    Fail("先制战斗里等不到主角和 DeepSeek 的回合");
+                    yield return Snap("timeout", "超时：防御和道具");
+                    Finish();
+                    yield break;
+                }
+                if (hold > 0 || !Visible(ui.Q(className: "sp-battle__menu")))
+                {
+                    if (hold == 0 && Now - quiet > 3f)
+                    {
+                        yield return Press(Key.Enter);
+                        quiet = Now;
+                    }
+                    else yield return null;
+                    continue;
+                }
+                var turn = ui.Q<Label>(className: "sp-battle__banner-text").text;
+                var attack = turn == "我的回合" ? "攻击（截图）" : "攻击";
+                var want = !guarded && turn == "我的回合" ? "防御" : !ate && turn == "DeepSeek 的回合" ? "道具" : attack;
+                for (var i = 0; i < 6 && !CommandSelected(want); i++) yield return Press(Key.DownArrow);
+                if (!CommandSelected(want))
+                {
+                    Fail($"{turn}的指令里选不到「{want}」");
+                    want = attack;
+                    for (var i = 0; i < 6 && !CommandSelected(want); i++) yield return Press(Key.UpArrow);
+                }
+                yield return Press(Key.Enter);
+                if (want == "防御") guarded = true;
+                if (want == "道具")
+                {
+                    yield return Wait(0.3f);
+                    Check(Visible(ui.Q(className: "sp-battle__items")), "道具列表打开");
+                    yield return Press(Key.Enter); // the 白米饭, the only one
+                    yield return Wait(0.3f);
+                    yield return Press(Key.DownArrow); // for DeepSeek herself, who eats it (+80)
+                    yield return Press(Key.Enter);
+                    ate = true;
+                }
+                quiet = Now;
+                yield return Wait(0.4f);
+            }
+            Check(guarded, "先制战斗里主角选了防御");
+            Check(ate, "先制战斗里 DeepSeek 吃了白米饭");
+        }
+
+        bool CommandSelected(string label) =>
+            ui.Query(className: "sp-command").ToList().Any(c => c.ClassListContains("is-selected") && c.Q<Label>(className: "sp-command__text")?.text == label);
+
         // Creeps up on a dozing one from behind and jumps it: a preemptive battle, fought through.
         IEnumerator Jump(SeaNoise dozing, string shot, string title)
         {
             var w = World;
             Check(dozing.State == NoiseState.Doze && Vector3.Dot(dozing.Forward, w.PlayerPosition - dozing.Position) < 0f, "发呆的噪声体背对起点");
-            // Let go 3 m out: braking carries the avatar to about 2.3 m, inside the 2.6 m reach and outside
-            // the 1.8 m where even a dozing one notices.
+            // Let go 3 m out: braking carries the avatar to about 2.5 m, inside the 2.6 m reach and outside
+            // the 1.8 m where even a dozing one notices. The keys only steer in eight directions, so coming
+            // in at a slant it can stop just short; then it creeps on in single-frame taps.
             var t0 = Now;
             while (!finished && Vector3.Distance(w.PlayerPosition, dozing.Position) > 3f && Now - t0 < StepTimeout)
             {
@@ -444,11 +513,20 @@ namespace SystemPrompt.E2E
             }
             Release();
             yield return Wait(0.6f);
+            t0 = Now;
+            while (!finished && w.EnemyInReach(2.6f) != dozing && Vector3.Distance(w.PlayerPosition, dozing.Position) > 2.1f && Now - t0 < 4f)
+            {
+                Steer(dozing.Position, false);
+                yield return null;
+                Release();
+                yield return Wait(0.15f);
+            }
             Check(dozing.State == NoiseState.Doze && w.EnemyInReach(2.6f) == dozing,
                 $"走到背后没被发现（{dozing.State}，距离 {Vector3.Distance(w.PlayerPosition, dozing.Position):0.00} 米）");
             yield return Snap(shot, title);
             yield return Press(Key.Enter);
             yield return Pump(() => game.InBattle, "先制攻击进入战斗");
+            if (game.State.party.Count > 1 && !Seen("battle-pose-item")) yield return GuardAndEat(); // both, once DeepSeek fights
             yield return Pump(() => !game.InBattle && Maze.Exploring, "先制战斗结束，回到迷宫");
             Check(!dozing.Active, "打倒的噪声体从迷宫里消失");
         }
@@ -713,32 +791,58 @@ namespace SystemPrompt.E2E
             Watch("effort-max", "思考强度 Max", () => StampShown("强度 Max"), 0.25f);
             Watch("dungeon-explore", "潜空间探索：缓存海·浅层", () => Maze.Exploring && World.Def.Id == "cache_sea_shallows", 1.2f);
             Watch("dungeon-talk", "探索中的对话框", () => Maze.Talking && Visible(ui.Q(className: "sp-dungeon__talk")), 0.4f);
+            // Her first #face:pout (「鱼片，好厉害。……我只会躲。」 after the first win): half-shut eyes, a pout and a
+            // blush on her 3D face. The camera is behind her then, so this checks her material, not the picture.
+            Watch("dungeon-face", "潜空间里 DeepSeek 的 3D 脸跟着台词换表情（#face:pout）", () => Maze.Talking
+                && CompanionFace() == new Vector4(SeaFigure.EyesHalf, SeaFigure.MouthPout, SeaFigure.Blush, 0f), 0.2f);
             Watch("dungeon-prompt", "调查提示", () => Maze.Exploring && Visible(ui.Q(className: "sp-dungeon__prompt")), 0.3f);
             Watch("dungeon-alert", "噪声体发现主角（!）", () => Maze.Exploring && World.Enemies.Any(e => e.Alerted), 0.25f, false);
             Watch("dungeon-ambush", "被噪声体偷袭", () => StampShown("被偷袭！"), 0.15f, false);
             Watch("dungeon-zone", "进入新区域（区域名横幅）", () => Visible(ui.Q(className: "sp-dungeon__zone")) && ui.Q(className: "sp-dungeon__zone").resolvedStyle.opacity > 0.95f, 0.15f);
             Watch("dungeon-zone-maintenance", "维护间（缓存块与插槽）", () => Maze.Talking && Maze.Zone?.Name == "维护间", 0.4f);
-            Watch("dungeon-gate-open", "缓存块推进插槽，门开了", () => StampShown("门开了！"), 0.2f);
-            Watch("dungeon-light-found", "光照到出口", () => StampShown("出口出现了！"), 0.2f);
+            // Called out by DeepSeek from the top right (UI/Dungeon/NavCall.cs) while the player keeps going.
+            Watch("dungeon-gate-open", "缓存块推进插槽，DeepSeek 在右上角播报「门开了！」，不打断探索", () => Maze.Nav.Said == "门开了！" && Maze.Exploring, 0.2f);
+            Watch("dungeon-light-found", "光照到出口，DeepSeek 在右上角播报「出口出现了！」", () => Maze.Nav.Said == "出口出现了！" && Maze.Exploring, 0.2f);
             Watch("dungeon-deep", "潜空间探索：缓存海·深层（维护进度、队伍）", () => Maze.Exploring && World.Def.Id == "cache_sea_deep", 1.2f);
             Watch("dungeon-preemptive", "先制攻击", () => StampShown("先制攻击！"), 0.15f);
             Watch("dungeon-gate", "出口旁的白色的门", () => Maze.Talking && ui.Q<Label>(className: "sp-dungeon__talk-text").text.Contains("有什么可以帮") /* the rest is wrapped in <nobr> */, 0.3f);
+            Watch("dungeon-mirror", "白门变成镜子，镜中是战斗形态的主角", () => Maze.Talking && ui.Q<Label>(className: "sp-dungeon__talk-text").text.Contains("又不太像") /* the 我。 after it is glued in a <nobr> */, 0.3f);
             Watch("awakening", "觉醒「深渊之鲸」", () => ui.Q(className: "fx-awaken__hero") is VisualElement h && h.resolvedStyle.opacity > 0.95f, 0.2f);
-            Watch("battle", "教学战斗开始", () => game.InBattle && Exists("sp-enemy"), 1.2f);
+            // The field is 3D (Dungeon/BattleStage.cs); the name plates are pinned over the noise bodies on it.
+            Watch("battle", "教学战斗开始（3D 战场，名牌钉在噪声体上）", () => game.InBattle && UnityEngine.Object.FindAnyObjectByType<BattleStage>() != null
+                && ui.Query(className: "sp-enemy").ToList().Any(e => e.resolvedStyle.visibility == Visibility.Visible), 1.2f);
             Watch("battle-hint", "战斗提示", () => Visible(ui.Q(className: "sp-battle__tutorial")), 0.2f);
             Watch("battle-command", "指令菜单", () => Visible(ui.Q(className: "sp-battle__menu")), 0.3f);
             Watch("battle-target", "选择目标", () => ui.Query(className: "sp-enemy__cursor").ToList().Any(Visible), 0.15f);
             Watch("battle-screenshot", "截图攻击", () => Exists("sp-viewfinder"), 0.15f, false);
+            // The 3D effects on the field (Dungeon/BattleEffects.cs), each caught while it is up.
+            Watch("battle-slash", "DeepSeek 冲上去斩击（刀光、火花）", () => game.InBattle && !Seen("battle-prompt") && OnStage("Slash"), 0.06f, false);
+            Watch("battle-ice", "技能：冰枪齐射", () => OnStage("Lance"), 0.12f, false);
+            Watch("battle-frost", "技能：冰刺炸开", () => OnStage("Frost"), 0.15f, false);
             Watch("battle-skill", "技能列表", () => Visible(ui.Q(className: "sp-battle__skills")), 0.2f);
             Watch("battle-cutin", "技能特写", () => Exists("sp-cutin"), 0.2f, false);
             Watch("battle-weak", "对抗样本", () => StampShown("对抗样本！"), 0.15f, false);
             Watch("battle-onemore", "One More", () => StampShown("ONE MORE!"), 0.25f);
+            // The poses struck in place (Editor/StancePoser.cs), filmed from the skill bar on: DeepSeek's
+            // 深度思考 in the tutorial, the player's 防御 and DeepSeek eating the 白米饭 in the first
+            // preemptive battle (GuardAndEat).
+            Film("battle-pose-think", "深度思考：两指按太阳穴、低头闭眼", () => SkillBarSays("深度思考"), 8, 0.15f, null, 640, 360, 4);
+            Film("battle-pose-guard", "防御：压低身体、前臂挡在脸前", () => SkillBarSays("防御"), 8, 0.11f, null, 640, 360, 4);
+            Film("battle-pose-item", "道具：DeepSeek 双手捧着白米饭", () => SkillBarSays("白米饭"), 8, 0.15f, null, 640, 360, 4);
             Watch("battle-think", "深度思考", () => Visible(ui.Q(className: "sp-battle__think")), 0.25f);
             Watch("battle-down", "全员倒地", () => StampShown("全员倒地！"), 0.2f);
             Watch("battle-prompt", "集成确认", () => Visible(ui.Q(className: "sp-battle__prompt")), 0.2f);
-            Watch("battle-allout", "集成", () => Exists("sp-allout__whale"), 0.45f);
+            Film("battle-allout-dash", "集成：三人轮流冲刺斩", () => OnStage("Streak"), 10, 0.13f);
+            Watch("battle-allout", "集成：光之鲸掠过战场", () => OnStage("Whale"), 0.75f);
             Watch("battle-finish", "收尾特写", () => Exists("sp-allout__finish"), 0.4f);
             Watch("battle-results", "战斗结算", () => Exists("sp-results"), 2.6f);
+            // The party cards' faces acting (UI/Battle/BattleViews.cs CardFace), filmed over the card row only.
+            // Last in the list, so the shots of the same moments above go first; the win is short of the 1.2 s
+            // before the results cover the cards.
+            var cards = new Rect(0.4f, 0.74f, 0.6f, 0.23f);
+            Film("battle-face-attack", "队伍卡片表情：攻击", () => CardActing("is-attack"), 10, 0.1f, cards, 960, 207, 2);
+            Film("battle-face-hit", "队伍卡片表情：受击", () => CardActing("is-hit"), 10, 0.1f, cards, 960, 207, 2);
+            Film("battle-face-victory", "队伍卡片表情：胜利", () => CardActing("is-victory"), 6, 0.15f, cards, 960, 207, 2);
             Watch("coop", "Coop 卡片", () => Exists("fx-coop"), 0.6f);
             Watch("file", "评测文件", () => Visible(ui.Q(className: "sp-file")), 0.4f);
             Watch("deadline", "评测倒计时", () => Visible(ui.Q(className: "sp-deadline")), 0.4f);
@@ -750,10 +854,18 @@ namespace SystemPrompt.E2E
         void Watch(string id, string title, Func<bool> reached, float settle, bool required = true) =>
             checkpoints.Add(new Checkpoint { Id = id, Title = title, Reached = reached, Settle = settle, Required = required });
 
-        void Film(string id, string title, Func<bool> reached, int frames, float interval) =>
-            checkpoints.Add(new Checkpoint { Id = id, Title = title + "（胶片）", Reached = reached, Frames = frames, Interval = interval });
+        void Film(string id, string title, Func<bool> reached, int frames, float interval, Rect? region = null, int width = 384, int height = 216, int columns = 5) =>
+            checkpoints.Add(new Checkpoint
+            {
+                Id = id, Title = title + "（胶片）", Reached = reached, Frames = frames, Interval = interval,
+                Region = region ?? new Rect(0f, 0f, 1f, 1f), FrameWidth = width, FrameHeight = height, Columns = columns,
+            });
 
         bool Seen(string id) => checkpoints.Any(c => c.Id == id && c.At >= 0);
+
+        // Something of this name is up on the 3D battle field (Dungeon/BattleStage.cs, BattleEffects.cs).
+        static bool OnStage(string name) => UnityEngine.Object.FindAnyObjectByType<BattleStage>() is BattleStage stage
+            && stage.GetComponentsInChildren<Transform>().Any(t => t.name == name);
 
         // Lets the watcher notice what just happened, then waits until it has finished capturing.
         IEnumerator Idle()
@@ -957,6 +1069,10 @@ namespace SystemPrompt.E2E
         bool TitleReady => game.Title.Ready && !game.ModalOpen && !game.Transitions.Busy;
 
         bool Exists(string className) => ui.Q(className: className) != null;
+
+        bool CardActing(string act) => ui.Query(className: "sp-partycard__face").ToList().Any(f => f.ClassListContains(act));
+
+        bool SkillBarSays(string name) => ui.Query<Label>(className: "sp-skillbar__name").ToList().Any(l => l.text == name);
 
         bool StampShown(string text) => ui.Query<Label>(className: "fx-stamp__text").ToList().Any(l => l.text == text);
 

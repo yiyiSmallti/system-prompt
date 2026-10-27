@@ -71,6 +71,12 @@ namespace SystemPrompt.Story
             runner.AddCommandHandler("chapter_end", (Func<string, Awaitable>)(id => guard(() => screen.ChapterEnd(id))));
         }
 
+        // The commands of the nodes played inside the maze or a battle (StoryController.RunHint).
+        public static void RegisterHints(DialogueRunner runner, GameRoot game, Func<Func<Awaitable>, Awaitable> guard)
+        {
+            runner.AddCommandHandler("mirror", (Func<string, Awaitable>)(state => guard(() => game.Dungeon.Mirror(state == "on"))));
+        }
+
         static async Awaitable Done()
         {
             await Awaitable.NextFrameAsync();

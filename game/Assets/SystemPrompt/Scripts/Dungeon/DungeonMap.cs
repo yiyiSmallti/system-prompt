@@ -15,6 +15,8 @@ namespace SystemPrompt.Dungeon
         public bool GateOpen;
         public readonly HashSet<Vector2Int> Blocks = new HashSet<Vector2Int>();
         public readonly List<Vector2Int> BlockStarts = new List<Vector2Int>();
+        // The wreckage on the seabed (DungeonWorld.BuildWreckage), circles that stop the feet but not sight.
+        public readonly List<(Vector3 At, float Radius)> Wrecks = new List<(Vector3, float)>();
 
         public DungeonMap(string[] rows)
         {
@@ -80,7 +82,8 @@ namespace SystemPrompt.Dungeon
             return found;
         }
 
-        // A circle of this radius at this point overlaps no solid cell (no tall one, for the camera).
+        // A circle of this radius at this point overlaps no solid cell or wreck (with tallOnly, for the camera: no
+        // tall cell).
         public bool Free(Vector3 p, float radius, bool tallOnly = false)
         {
             var c = CellAt(p);
@@ -91,10 +94,15 @@ namespace SystemPrompt.Dungeon
                 if (tallOnly ? !Opaque(n) : !Solid(n)) continue;
                 if (Overlap(p, radius, n, out _)) return false;
             }
+            if (!tallOnly)
+                foreach (var w in Wrecks)
+                    if (Flat(p - w.At).magnitude < radius + w.Radius) return false;
             return true;
         }
 
-        // Moves a circle by delta and slides it along the walls it touches.
+        static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        // Moves a circle by delta and slides it along the walls and wreckage it touches.
         public Vector3 Slide(Vector3 from, Vector3 delta, float radius)
         {
             var p = from + delta;
@@ -108,6 +116,14 @@ namespace SystemPrompt.Dungeon
                     var n = new Vector2Int(c.x + dx, c.y + dy);
                     if (!Solid(n) || !Overlap(p, radius, n, out var push)) continue;
                     p += push;
+                    moved = true;
+                }
+                foreach (var w in Wrecks)
+                {
+                    var away = Flat(p - w.At);
+                    var d = away.magnitude;
+                    if (d >= radius + w.Radius) continue;
+                    p += (d < 1e-4f ? Vector3.right : away / d) * (radius + w.Radius - d);
                     moved = true;
                 }
                 if (!moved) break;

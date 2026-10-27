@@ -27,8 +27,7 @@ namespace SystemPrompt.Dungeon
         }
     }
 
-    // The player in the latent space, in the turnarounds' lounge clothes (4-lounge) of the chosen gender:
-    // an unregistered human consciousness, so the rim glows pale cyan like the sea light.
+    // The player in the latent space, in the turnarounds' lounge clothes (4-lounge) of the chosen gender.
     public sealed class SeaAvatar
     {
         public const float Radius = 0.45f;
@@ -39,8 +38,8 @@ namespace SystemPrompt.Dungeon
         public SeaAvatar(Transform parent, string gender)
         {
             Root = Parts.Node("Avatar", parent);
-            figure = new SeaFigure(gender == "female" ? "PlayerFemale" : "PlayerMale", Root, gender == "female" ? 1.62f : 1.72f,
-                Palette.Hex("#8C97C4"), new Color(0.5f, 0.92f, 1f, 0.8f), Palette.Hex("#0A1626"), 0.006f);
+            figure = SeaFigure.Player(gender, false, Root);
+            SeaArt.Shadow(Root, 1f);
         }
 
         // speed in metres per second.
@@ -49,9 +48,9 @@ namespace SystemPrompt.Dungeon
         public void Dispose() => figure.Dispose();
     }
 
-    // DeepSeek after the awakening, swimming a little behind the player, in her latent-space battle dress
-    // (4-battle: the maid dress, apron and whale tail). She follows the trail the player walked, so she
-    // goes round the racks instead of through them.
+    // DeepSeek walking a little behind the player: in her weekend hoodie dress (3-casual) before she
+    // awakens at the lighthouse, in her latent-space battle dress (4-battle) after. She follows the trail
+    // the player walked, so she goes round the racks instead of through them.
     public sealed class SeaCompanion
     {
         const float Gap = 1.8f;        // metres of trail between the player and her
@@ -60,19 +59,18 @@ namespace SystemPrompt.Dungeon
         const int MaxCrumbs = 48;
 
         public readonly Transform Root;
-        readonly Transform lean;
         readonly SeaFigure figure;
         readonly List<Vector3> trail = new List<Vector3>();
         DungeonMap map;
         Vector3 position;
+        float speed;
+        bool standing; // put somewhere by the scene, so not following
 
-        public SeaCompanion(Transform parent)
+        public SeaCompanion(Transform parent, bool awakened)
         {
             Root = Parts.Node("DeepSeek", parent);
-            lean = Parts.Node("Lean", Root, new Vector3(0, 0.9f, 0));
-            figure = new SeaFigure("DeepSeek", lean, 1.58f,
-                Palette.Hex("#8E98C8"), new Color(0.45f, 0.9f, 1f, 0.8f), Palette.Hex("#0A1630"), 0.006f);
-            figure.Root.localPosition = new Vector3(0, -0.9f, 0); // she tips about her waist
+            figure = SeaFigure.DeepSeek(awakened, Root);
+            SeaArt.Shadow(Root, 0.95f);
         }
 
         // Puts her just behind the player, or beside when a rack is in the way.
@@ -86,10 +84,29 @@ namespace SystemPrompt.Dungeon
                 : map.Free(player + side * Gap, 0.4f) ? player + side * Gap : player;
             trail.Add(position);
             trail.Add(player);
+            Root.position = position;
         }
 
-        public void Follow(Vector3 player, float dt, float time)
+        // Stands her at a spot of the scene's choosing (the white door's mirror), facing `look`; she stays there.
+        public void Stand(Vector3 at, Vector3 look)
         {
+            position = at;
+            standing = true;
+            speed = 0f;
+            trail.Clear();
+            trail.Add(at);
+            Root.position = at;
+            look.y = 0f;
+            if (look.sqrMagnitude > 0.01f) Root.rotation = Quaternion.LookRotation(look);
+        }
+
+        public void Follow(Vector3 player, float dt)
+        {
+            if (standing)
+            {
+                figure.Animate(dt, 0f);
+                return;
+            }
             if ((player - trail[trail.Count - 1]).sqrMagnitude > Crumb * Crumb) trail.Add(player);
             if (trail.Count > MaxCrumbs) trail.RemoveRange(0, trail.Count - MaxCrumbs);
             var target = Behind(player, Gap);
@@ -103,18 +120,22 @@ namespace SystemPrompt.Dungeon
             }
             var before = position;
             position = Vector3.Lerp(position, target, 1f - Mathf.Exp(-7f * dt));
-            var speed = dt > 0f ? (position - before).magnitude / dt : 0f;
+            // Smoothed, so the easing in and out of her steps doesn't flick between idle and walk.
+            var moved = dt > 0f ? (position - before).magnitude / dt : 0f;
+            speed = Mathf.Lerp(speed, moved, 1f - Mathf.Exp(-10f * dt));
 
-            var look = player - position;
+            var look = (speed > 0.3f ? position - before : player - position);
             look.y = 0f;
-            if (look.sqrMagnitude > 0.01f)
-                Root.rotation = Quaternion.Slerp(Root.rotation, Quaternion.LookRotation(look), 1f - Mathf.Exp(-6f * dt));
-            // Swimming, not walking: she floats a hand above the seabed in her idle and leans into the way.
-            Root.position = position + Vector3.up * (0.28f + Mathf.Sin(time * 1.7f) * 0.1f);
-            var swim = Mathf.Clamp01(speed / 6f);
-            lean.localRotation = Quaternion.Euler(swim * 18f, 0, Mathf.Sin(time * 0.9f) * 3f);
-            figure.Animate(dt, 0f);
+            if (look.sqrMagnitude > 0.0001f)
+                Root.rotation = Quaternion.Slerp(Root.rotation, Quaternion.LookRotation(look), 1f - Mathf.Exp(-8f * dt));
+            Root.position = position;
+            figure.Animate(dt, speed);
         }
+
+        // Her face for one of the story's #face: tags (null: as modelled), and her mouth moving while she talks.
+        public void SetFace(string face) => figure.SetFace(face);
+        public bool Talking { set => figure.Talking = value; }
+        public Vector4 FaceCells => figure.FaceCells;
 
         public void Dispose() => figure.Dispose();
 
@@ -162,10 +183,7 @@ namespace SystemPrompt.Dungeon
 
         readonly DungeonMap map;
         readonly List<Vector2Int> route = new List<Vector2Int>();
-        readonly Transform body;
-        readonly Transform[] satellites;
-        readonly Material skin;
-        readonly Material eyes;
+        readonly NoiseLook look;
         readonly Material fanMaterial;
         readonly Transform fan;
         readonly NoiseState rest;
@@ -203,37 +221,8 @@ namespace SystemPrompt.Dungeon
             Phrase = phrases[Mathf.Abs(spawn.Mark) % phrases.Length];
 
             Root = Parts.Node("Noise " + spawn.Mark, parent);
-            body = Parts.Node("Body", Root, new Vector3(0, 1.25f, 0));
-            eyes = SeaArt.Toon(Color.white, Color.white, Color.white, new Color(0.8f, 0.8f, 0.8f), 0.01f);
-            if (spawn.Kind == "repost")
-            {
-                skin = SeaArt.Glitch(Palette.Sea, Palette.Cold, 0.16f);
-                Parts.Shape("Core", body, SeaArt.Sphere(0.62f), skin);
-                satellites = new Transform[6];
-                var arrow = SeaArt.Cone(0.16f, 0.55f, 10);
-                for (var i = 0; i < satellites.Length; i++)
-                {
-                    satellites[i] = Parts.Node("Arrow", body);
-                    satellites[i].localRotation = Quaternion.Euler(i * 60f, i * 37f, 90f);
-                    Parts.Shape("Cone", satellites[i], arrow, skin, new Vector3(0, 0.62f, 0));
-                }
-                Parts.Shape("EyeL", body, SeaArt.Box(new Vector3(0.16f, 0.07f, 0.04f)), eyes, new Vector3(-0.17f, 0.12f, 0.58f));
-                Parts.Shape("EyeR", body, SeaArt.Box(new Vector3(0.16f, 0.07f, 0.04f)), eyes, new Vector3(0.17f, 0.12f, 0.58f));
-            }
-            else
-            {
-                skin = SeaArt.Glitch(Palette.Red, Palette.Hex("#FFD23F"), 0.2f);
-                Parts.Shape("Block", body, SeaArt.Box(new Vector3(1.15f, 1.15f, 1.15f)), skin);
-                satellites = new Transform[3];
-                var bit = SeaArt.Box(new Vector3(0.28f, 0.28f, 0.28f));
-                for (var i = 0; i < satellites.Length; i++)
-                {
-                    satellites[i] = Parts.Node("Bit", body);
-                    Parts.Shape("Cube", satellites[i], bit, skin, new Vector3(1.05f, 0, 0));
-                }
-                Parts.Shape("EyeL", body, SeaArt.Box(new Vector3(0.2f, 0.08f, 0.04f)), eyes, new Vector3(-0.22f, 0.16f, 0.6f));
-                Parts.Shape("EyeR", body, SeaArt.Box(new Vector3(0.2f, 0.08f, 0.04f)), eyes, new Vector3(0.22f, 0.16f, 0.6f));
-            }
+            look = new NoiseLook(spawn.Kind, Root);
+            SeaArt.Shadow(Root, NoiseLook.ShadowSize);
 
             fanMaterial = SeaArt.Glow(SeaArt.White, new Color(1f, 0.82f, 0.3f, 0.18f));
             var half = spawn.Dozing ? DozeHalfAngle : HalfAngle;
@@ -451,30 +440,291 @@ namespace SystemPrompt.Dungeon
             Root.rotation = Quaternion.Euler(0, Yaw, 0);
         }
 
-        // Bobbing, spinning satellites, alert colours, the view fan.
+        // Its look (bobbing, eyes, alert colours) and the view fan.
         public void Animate(float time, float dt)
         {
             if (State == NoiseState.Gone) return;
             var alert = State == NoiseState.Chase ? 1f : State == NoiseState.Look ? 0.4f : 0f;
-            var shake = alert >= 1f ? Mathf.Sin(time * 40f) * 0.05f : 0f;
-            body.localPosition = new Vector3(shake, 1.25f + Mathf.Sin(time * 2.1f + seed) * 0.12f, 0);
-            body.localRotation = Quaternion.Euler(0, Mathf.Sin(time * 0.9f + seed) * 8f, Spawn.Dozing && State == NoiseState.Doze ? 12f : 0f);
-            for (var i = 0; i < satellites.Length; i++)
-            {
-                var spin = time * (Spawn.Kind == "repost" ? 40f : 90f) + i * 360f / satellites.Length;
-                satellites[i].localRotation = Spawn.Kind == "repost"
-                    ? Quaternion.Euler(i * 60f + time * 25f, spin, 90f)
-                    : Quaternion.Euler(0, spin, Mathf.Sin(time + i) * 20f);
-            }
-            skin.SetFloat("_Alert", alert);
-            eyes.SetColor("_Color", alert >= 1f ? Palette.Red : Color.white);
-            eyes.SetColor("_ShadeColor", alert >= 1f ? Palette.Red : Color.white);
+            look.Animate(time, seed, alert, Spawn.Dozing && State == NoiseState.Doze ? 12f : 0f);
             var c = State == NoiseState.Chase ? new Color(1f, 0.2f, 0.22f, 0.28f)
                 : State == NoiseState.Look ? new Color(1f, 0.55f, 0.15f, 0.24f)
                 : new Color(1f, 0.82f, 0.3f, State == NoiseState.Doze ? 0.1f : 0.16f);
             fanMaterial.SetColor("_Color", c);
             var r = SightRange;
             fan.localScale = new Vector3(r, 1f, r);
+        }
+    }
+
+    // A noise body's shape (design/systems.md 噪声体图鉴), in the maze and on the battle field. 标题党型: a
+    // lumpy block of glitching red-and-yellow voxels, one now and then jumping out of it, pixels dripping off
+    // underneath and pop-up ads (「震惊！」「点击领取」) springing open around it. 转发型: a sphere bristling with
+    // forked arrows, copies of itself drifting off it and fading. It floats a little over the seabed, with two
+    // flat eyes on the front (+z) that show what it is up to: shut while dozing, wide while it looks, slanted
+    // and red in a chase.
+    public sealed class NoiseLook
+    {
+        public const float Height = 1.25f; // of the body's centre
+        public const float ShadowSize = 1.8f; // across, on the seabed under it
+        const float Voxel = 0.3f;
+        const float AdSeconds = 2.8f, GhostSeconds = 1.9f;
+        static readonly string[] Ads = { "震惊！", "点击领取", "99%", "恭喜中奖", "限时免费" };
+        // Where the 转发型's arrows point, none in front of its eyes.
+        static readonly Vector3[] ArrowDirs =
+        {
+            new Vector3(0f, 1f, 0.15f), new Vector3(0.9f, 0.35f, 0.1f), new Vector3(-0.9f, 0.35f, 0.1f),
+            new Vector3(0.6f, -0.6f, 0.45f), new Vector3(-0.6f, -0.6f, 0.45f), new Vector3(0.45f, 0.35f, -0.85f),
+            new Vector3(-0.45f, 0.35f, -0.85f), new Vector3(0f, -0.5f, -0.85f),
+        };
+
+        public readonly Transform Body;
+        readonly string kind;
+        readonly Material skin;
+
+        // Its loud colour (red for 标题党型, sea blue for 转发型), for what flies off it when it is hit.
+        public Color Tint => skin.GetColor("_ColorA");
+        readonly Material eyes;
+        readonly Transform eyeL, eyeR;
+        readonly Transform[] arrows = new Transform[0], ghosts = new Transform[0], ads = new Transform[0], drips = new Transform[0];
+        readonly Quaternion[] arrowRest = new Quaternion[0];
+        readonly Material[] ghostLooks = new Material[0];
+        readonly TextMesh[] adWords = new TextMesh[0];
+        readonly int[] adCycle = new int[0];
+        readonly TextMesh snore;
+
+        public NoiseLook(string kind, Transform parent)
+        {
+            this.kind = kind;
+            Body = Parts.Node("Body", parent, new Vector3(0, Height, 0));
+            eyes = SeaArt.Toon(Color.white, Color.white, Color.white, new Color(0.8f, 0.8f, 0.8f), 0.01f);
+            Vector3 eyeAt;
+            Vector3 eyeSize;
+            if (kind == "repost")
+            {
+                skin = SeaArt.Glitch(Palette.Sea, Palette.Cold, 0.16f);
+                var core = SeaArt.Sphere(0.55f);
+                var fork = ForkedArrow(0.42f);
+                Parts.Shape("Core", Body, core, skin);
+                arrows = new Transform[ArrowDirs.Length];
+                arrowRest = new Quaternion[arrows.Length];
+                var ghostParts = new List<(Mesh, Matrix4x4)> { (core, Matrix4x4.identity) };
+                for (var i = 0; i < arrows.Length; i++)
+                {
+                    arrowRest[i] = Quaternion.FromToRotation(Vector3.up, ArrowDirs[i].normalized) * Quaternion.Euler(0f, i * 47f, 0f);
+                    arrows[i] = Parts.Node("Arrow", Body);
+                    arrows[i].localRotation = arrowRest[i];
+                    Parts.Shape("Fork", arrows[i], fork, skin);
+                    ghostParts.Add((fork, Matrix4x4.Rotate(arrowRest[i])));
+                }
+                // The copies it keeps making of itself, drifting off its sides and fading.
+                var ghost = SeaArt.Combine("Repost Ghost", ghostParts);
+                ghosts = new Transform[3];
+                ghostLooks = new Material[ghosts.Length];
+                for (var i = 0; i < ghosts.Length; i++)
+                {
+                    ghostLooks[i] = SeaArt.Glow(SeaArt.White, Palette.Cold);
+                    ghosts[i] = Parts.Shape("Copy", parent, ghost, ghostLooks[i]).transform;
+                }
+                eyeAt = new Vector3(0.17f, 0.12f, 0.53f);
+                eyeSize = new Vector3(0.16f, 0.07f, 0.04f);
+            }
+            else
+            {
+                skin = SeaArt.Glitch(Palette.Red, Palette.Hex("#FFD23F"), 0.2f);
+                skin.SetFloat("_Voxels", 1f);
+                // The front row with the eyes stays put.
+                Parts.Shape("Block", Body, SeaArt.Voxels(BlockCells(), Voxel, 0.012f, c => c.z == 1 && c.y == 0), skin);
+                drips = new Transform[4];
+                var pixel = SeaArt.Box(Vector3.one * 0.11f);
+                for (var i = 0; i < drips.Length; i++) drips[i] = Parts.Shape("Drip", Body, pixel, skin).transform;
+                ads = new Transform[3];
+                adWords = new TextMesh[ads.Length];
+                adCycle = new int[ads.Length];
+                var chrome = SeaArt.Toon(Palette.Hex("#F2F4FA"), Palette.Hex("#B8BFD0"), new Color(1f, 1f, 1f, 0.3f), Palette.Hex("#40444F"), 0.008f);
+                var page = SeaArt.Toon(Palette.Hex("#1B1230"), Palette.Hex("#120A22"), default, Palette.Hex("#0E0820"), 0f);
+                var bar = SeaArt.Toon(Palette.Red, Palette.Red, default, Palette.Red * 0.6f, 0f);
+                for (var i = 0; i < ads.Length; i++)
+                {
+                    // A pop-up window, turned to the camera, a little askew.
+                    ads[i] = Parts.Node("Ad", Body);
+                    ads[i].gameObject.AddComponent<Billboard>();
+                    var window = Parts.Node("Window", ads[i]);
+                    window.localRotation = Quaternion.Euler(0f, 0f, (i - 1) * 9f);
+                    Parts.Shape("Chrome", window, SeaArt.Box(new Vector3(0.7f, 0.48f, 0.02f)), chrome);
+                    Parts.Shape("Page", window, SeaArt.Box(new Vector3(0.62f, 0.3f, 0.02f)), page, new Vector3(0f, -0.05f, -0.012f));
+                    Parts.Shape("Bar", window, SeaArt.Box(new Vector3(0.7f, 0.09f, 0.03f)), bar, new Vector3(0f, 0.195f, -0.006f));
+                    Parts.Shape("Close", window, SeaArt.Box(new Vector3(0.06f, 0.06f, 0.02f)), chrome, new Vector3(0.29f, 0.195f, -0.025f));
+                    adWords[i] = SeaArt.Text("Words", window, Ads[i], 0.15f, Palette.Hex("#FFE14A"), new Vector3(0f, -0.05f, -0.03f));
+                    adCycle[i] = int.MinValue;
+                    ads[i].localScale = Vector3.zero;
+                }
+                eyeAt = new Vector3(0.22f, 0.16f, 0.62f);
+                eyeSize = new Vector3(0.2f, 0.08f, 0.04f);
+            }
+            eyeL = Parts.Node("EyeL", Body, new Vector3(-eyeAt.x, eyeAt.y, eyeAt.z));
+            eyeR = Parts.Node("EyeR", Body, eyeAt);
+            var eye = SeaArt.Box(eyeSize);
+            Parts.Shape("Eye", eyeL, eye, eyes);
+            Parts.Shape("Eye", eyeR, eye, eyes);
+            snore = SeaArt.Text("Snore", Body, "Z", 0.3f, new Color(0.7f, 0.9f, 1f, 0f));
+            snore.gameObject.AddComponent<Billboard>();
+        }
+
+        // The 标题党型's voxels, in cells of Voxel round the centre: a 4 × 4 × 4 block with most corners and
+        // some edges knocked off, and a few lumps standing out of it (none on the front, where the eyes are).
+        static List<Vector3Int> BlockCells()
+        {
+            var cells = new List<Vector3Int>();
+            for (var x = -2; x < 2; x++)
+            for (var y = -2; y < 2; y++)
+            for (var z = -2; z < 2; z++)
+            {
+                var outer = (x == -2 || x == 1 ? 1 : 0) + (y == -2 || y == 1 ? 1 : 0) + (z == -2 || z == 1 ? 1 : 0);
+                var h = DungeonWorld.Hash(x * 3 + z + 20, y * 5 + z * 7 + 20);
+                if ((outer == 3 && h < 0.7f) || (outer == 2 && h < 0.22f)) continue;
+                cells.Add(new Vector3Int(x, y, z));
+            }
+            var inside = new HashSet<Vector3Int>(cells);
+            for (var x = -3; x < 3; x++)
+            for (var y = -2; y < 3; y++)
+            for (var z = -3; z < 2; z++)
+            {
+                var c = new Vector3Int(x, y, z);
+                if (inside.Contains(c)) continue;
+                var touching = inside.Contains(c + Vector3Int.right) || inside.Contains(c + Vector3Int.left) || inside.Contains(c + Vector3Int.down)
+                    || inside.Contains(c + Vector3Int.forward) || inside.Contains(c + Vector3Int.back);
+                if (touching && DungeonWorld.Hash(x * 11 + 40, y * 13 + z * 17 + 40) < 0.1f) cells.Add(c);
+            }
+            return cells;
+        }
+
+        // The 转发型's arrow, along +y from `from` inside the core: a stem forking into two arrowheads.
+        static Mesh ForkedArrow(float from)
+        {
+            var stem = SeaArt.Box(new Vector3(0.08f, 0.3f, 0.08f));
+            var twig = SeaArt.Box(new Vector3(0.06f, 0.26f, 0.06f));
+            var head = SeaArt.Cone(0.11f, 0.2f, 8);
+            var fork = new Vector3(0f, from + 0.28f, 0f);
+            var parts = new List<(Mesh, Matrix4x4)> { (stem, Matrix4x4.Translate(new Vector3(0f, from + 0.15f, 0f))) };
+            foreach (var lean in new[] { -30f, 30f })
+            {
+                var turn = Quaternion.Euler(0f, 0f, lean);
+                var dir = turn * Vector3.up;
+                parts.Add((twig, Matrix4x4.TRS(fork + dir * 0.12f, turn, Vector3.one)));
+                parts.Add((head, Matrix4x4.TRS(fork + dir * 0.24f, turn, Vector3.one)));
+            }
+            return SeaArt.Combine("Forked Arrow", parts);
+        }
+
+        // Bobbing and the rest of its life. alert 0..1 heats the glitch (its eyes wide open while it looks)
+        // and, at 1, shakes it with red, slanted eyes; tilt leans it over, dozing in the maze with its eyes shut.
+        public void Animate(float time, float seed, float alert, float tilt = 0f)
+        {
+            var shake = alert >= 1f ? Mathf.Sin(time * 40f) * 0.05f : 0f;
+            Body.localPosition = new Vector3(shake, Height + Mathf.Sin(time * 2.1f + seed) * 0.12f, 0);
+            Body.localRotation = Quaternion.Euler(0, Mathf.Sin(time * 0.9f + seed) * 8f, tilt);
+            skin.SetFloat("_Alert", alert);
+            eyes.SetColor("_Color", alert >= 1f ? Palette.Red : Color.white);
+            eyes.SetColor("_ShadeColor", alert >= 1f ? Palette.Red : Color.white);
+            var dozing = tilt != 0f;
+            Eyes(time, seed, alert, dozing);
+            var z = Mathf.Repeat(time * 0.55f + seed, 1f);
+            snore.transform.localPosition = new Vector3(0.45f + z * 0.25f, 0.7f + z * 0.6f, 0f);
+            snore.color = new Color(0.7f, 0.9f, 1f, dozing ? Mathf.Sin(z * Mathf.PI) * 0.9f : 0f);
+
+            if (kind == "repost") AnimateArrows(time, seed, alert);
+            else AnimateBlock(time, seed, alert);
+        }
+
+        void Eyes(float time, float seed, float alert, bool dozing)
+        {
+            float wide = 1f, open = 1f, slant = 0f;
+            if (dozing) open = 0.18f;
+            else if (alert >= 1f)
+            {
+                open = 0.7f;
+                slant = 24f;
+            }
+            else if (alert > 0f)
+            {
+                open = 1.6f;
+                wide = 0.85f;
+            }
+            if (!dozing && Mathf.Repeat(time * 0.31f + seed * 0.37f, 1f) < 0.035f) open = 0.12f; // a blink
+            eyeL.localScale = eyeR.localScale = new Vector3(wide, open, 1f);
+            eyeL.localRotation = Quaternion.Euler(0f, 0f, -slant);
+            eyeR.localRotation = Quaternion.Euler(0f, 0f, slant);
+        }
+
+        // The arrows turning and, one after another, shooting out a little as they pass something on; the
+        // copies drifting off to the sides and back, growing and fading.
+        void AnimateArrows(float time, float seed, float alert)
+        {
+            var pace = 1f + alert;
+            for (var i = 0; i < arrows.Length; i++)
+            {
+                var beat = Mathf.Repeat(time * 0.7f * pace + i * 0.37f + seed, 1f);
+                var push = beat < 0.2f ? Mathf.Sin(beat / 0.2f * Mathf.PI) : 0f;
+                arrows[i].localRotation = arrowRest[i] * Quaternion.Euler(0f, time * 40f * pace, 0f);
+                arrows[i].localScale = new Vector3(1f, 1f + push * 0.3f, 1f);
+            }
+            for (var i = 0; i < ghosts.Length; i++)
+            {
+                var t = Mathf.Repeat(time / GhostSeconds * pace + (float)i / ghosts.Length + seed * 0.1f, 1f);
+                var round = Mathf.Floor(time / GhostSeconds * pace + (float)i / ghosts.Length + seed * 0.1f);
+                var a = (DungeonWorld.Hash((int)round, i + 7) - 0.5f) * 2.4f + (i - 1) * 1.9f;
+                var drift = new Vector3(Mathf.Sin(a), 0.35f * Mathf.Cos(a * 1.7f), -0.3f) * (t * 1.9f);
+                ghosts[i].localPosition = Body.localPosition + Body.localRotation * drift;
+                ghosts[i].localRotation = Body.localRotation;
+                ghosts[i].localScale = Vector3.one * (1f + t * 0.25f);
+                var fade = Mathf.SmoothStep(0f, 1f, t / 0.1f) * Mathf.Pow(1f - t, 1.5f);
+                var tint = Color.Lerp(Palette.Cold, Palette.Red, alert >= 1f ? 0.6f : 0f);
+                tint.a = 0.35f * fade;
+                ghostLooks[i].SetColor("_Color", tint);
+            }
+        }
+
+        // Pop-ups springing open round the block one after another (faster when alerted), each somewhere new
+        // with a new come-on, and pixels dripping off underneath.
+        void AnimateBlock(float time, float seed, float alert)
+        {
+            var pace = 1f + alert * 0.8f;
+            for (var i = 0; i < ads.Length; i++)
+            {
+                var clock = time / AdSeconds * pace + (float)i / ads.Length + seed * 0.13f;
+                var t = Mathf.Repeat(clock, 1f);
+                var round = Mathf.FloorToInt(clock);
+                if (round != adCycle[i])
+                {
+                    adCycle[i] = round;
+                    // Round the sides and the back, clear of the face.
+                    var a = (40f + 280f * Mathf.Repeat(DungeonWorld.Hash(round, i * 5 + 3) * 0.6f + (float)i / ads.Length, 1f)) * Mathf.Deg2Rad;
+                    ads[i].localPosition = new Vector3(Mathf.Sin(a) * 1.1f, -0.15f + DungeonWorld.Hash(i * 5 + 3, round) * 0.7f, Mathf.Cos(a) * 0.75f);
+                    adWords[i].text = Ads[(int)(DungeonWorld.Hash(round, i + 11) * Ads.Length) % Ads.Length];
+                }
+                float size;
+                if (t < 0.08f) size = OutBack(t / 0.08f);
+                else if (t < 0.7f) size = 1f;
+                else if (t < 0.76f) size = 1f - (t - 0.7f) / 0.06f;
+                else size = 0f;
+                ads[i].localScale = Vector3.one * size;
+            }
+            for (var i = 0; i < drips.Length; i++)
+            {
+                var clock = time * 0.5f + (float)i / drips.Length + seed * 0.21f;
+                var t = Mathf.Repeat(clock, 1f);
+                var round = Mathf.Floor(clock);
+                var x = (DungeonWorld.Hash((int)round, i + 30) - 0.5f) * 0.8f;
+                var z = (DungeonWorld.Hash(i + 30, (int)round) - 0.5f) * 0.8f;
+                drips[i].localPosition = new Vector3(x, -0.55f - t * t * 0.6f, z);
+                drips[i].localScale = Vector3.one * (1f - t);
+            }
+        }
+
+        static float OutBack(float t)
+        {
+            const float c = 1.7f;
+            t -= 1f;
+            return 1f + t * t * ((c + 1f) * t + c);
         }
     }
 }

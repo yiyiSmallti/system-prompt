@@ -5,14 +5,14 @@ using UnityEngine;
 namespace SystemPrompt.Dungeon
 {
     // One latent-space area in 3D (P5-style third person): the rack maze on the seabed and what each zone
-    // has instead (SeaDecor.cs), the lighthouse, the props, puzzles (SeaPuzzles.cs) and noise bodies, the
+    // has instead (SeaDecor.cs), the lighthouse, the props, the wreckage (SeaModels.cs), puzzles (SeaPuzzles.cs) and noise bodies, the
     // player's avatar, DeepSeek beside it and the camera that follows. The UI on top (UI/Dungeon/DungeonScreen.cs) drives it a step
     // at a time and runs the story around it.
     public sealed class DungeonWorld : MonoBehaviour
     {
         const float RunSpeed = 6.2f, SprintSpeed = 9f, Acceleration = 42f;
         const float CameraDistance = 7f, CameraHeight = 1.55f, KeyTurnSpeed = 110f;
-        static readonly Color FogColor = Palette.Hex("#061428");
+        public static readonly Color FogColor = Palette.Hex("#061428");
         static readonly Color SurfaceColor = Palette.Hex("#2F7FB8");
 
         public DungeonDef Def { get; private set; }
@@ -45,15 +45,19 @@ namespace SystemPrompt.Dungeon
         Material lamp, beamA, beamB;
         Transform lampBeams;
         bool shown = true;
+        string gender;
+        Transform door, doorSeam, doorMist; // the white door at the deep exit, if the area has one
+        SeaMirror mirror;
 
         public float Time => time;
 
-        // gender: the player's (GameState.playerGender), which picks the avatar's model.
-        public static DungeonWorld Create(DungeonDef def, string gender)
+        // gender: the player's (GameState.playerGender), which picks the avatar's model; deepSeekAwakened
+        // picks DeepSeek's (her hoodie dress before the lighthouse, her battle dress after).
+        public static DungeonWorld Create(DungeonDef def, string gender, bool deepSeekAwakened)
         {
             var go = new GameObject("Latent Space · " + def.Id);
             var world = go.AddComponent<DungeonWorld>();
-            world.Build(def, gender);
+            world.Build(def, gender, deepSeekAwakened);
             return world;
         }
 
@@ -63,9 +67,10 @@ namespace SystemPrompt.Dungeon
             Companion?.Dispose();
         }
 
-        void Build(DungeonDef def, string gender)
+        void Build(DungeonDef def, string gender, bool deepSeekAwakened)
         {
             Def = def;
+            this.gender = gender;
             Map = new DungeonMap(def.Map);
             Revealed = new bool[Map.Width, Map.Height];
 
@@ -85,13 +90,14 @@ namespace SystemPrompt.Dungeon
             decor.Build();
             BuildLighthouse();
             BuildProps();
+            BuildWreckage();
             Puzzles = new SeaPuzzles(def, Map, transform);
             Puzzles.Build();
             ShowGoal(GoalOpen);
             BuildAmbience();
 
             Avatar = new SeaAvatar(transform, gender);
-            Companion = new SeaCompanion(transform);
+            Companion = new SeaCompanion(transform, deepSeekAwakened);
             var start = Map.Find('S');
             var startCell = start.Count > 0 ? start[0] : new Vector2Int(1, 1);
             // Facing into the maze: north unless the start sits on the north edge.
@@ -108,8 +114,26 @@ namespace SystemPrompt.Dungeon
             floor.sharedMaterial.SetFloat("_Cell", Dungeons.Cell);
             floor.sharedMaterial.SetTexture("_ZoneTex", decor.FloorLight(out var rect));
             floor.sharedMaterial.SetVector("_ZoneRect", rect);
+            floor.sharedMaterial.SetTexture("_WallTex", WallMask());
             sky = Parts.Shape("Sky", transform, SeaArt.Sphere(1f, 0f, 32, 20), SeaArt.Plain("Sky")).transform;
             sky.localScale = Vector3.one * 420f;
+        }
+
+        // The cells where a wall, low wall or the lighthouse stands, white, in SeaDecor.FloorLight's layout: the
+        // seabed darkens at their foot.
+        Texture2D WallMask()
+        {
+            var t = new Texture2D(Map.Width + 2, Map.Height + 2, TextureFormat.R8, false)
+            {
+                wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point, name = "Walls",
+            };
+            var px = new Color[t.width * t.height];
+            for (var y = 0; y < Map.Height; y++)
+            for (var x = 0; x < Map.Width; x++)
+                if ("#=L".IndexOf(Map[x, y]) >= 0) px[(Map.Height - y) * t.width + x + 1] = Color.white;
+            t.SetPixels(px);
+            t.Apply();
+            return t;
         }
 
         Vector3 Centre => new Vector3(Map.Width * Dungeons.Cell / 2f, 0f, Map.Height * Dungeons.Cell / 2f);
@@ -141,8 +165,11 @@ namespace SystemPrompt.Dungeon
                     blocks[c] = 9f + Hash(y, x) * (6f + ring * 2.5f);
                 }
             }
-            var walls = SeaArt.Walls(blocks, c => Map.World(c), Dungeons.Cell, c => SeaDecor.For(decor.StyleAt(c)).Rack);
-            Parts.Shape("Racks", transform, walls, SeaArt.Plain("Rack"));
+            Color Tint(Vector2Int c) => SeaDecor.For(decor.StyleAt(c)).Rack;
+            Parts.Shape("Racks", transform, SeaArt.Walls(blocks, c => Map.World(c), Dungeons.Cell, Tint), SeaArt.Plain("Rack"));
+            // Litter at their foot, only on the plain seabed of the maze's corridors.
+            bool Plain(Vector2Int c) => Map.Inside(c.x, c.y) && (Map[c] == '.' || char.IsLower(Map[c])) && !decor.Draws(c) && !Map.BlockStarts.Contains(c);
+            Parts.Shape("Rack Litter", transform, SeaArt.Scatter(blocks, c => Map.World(c), Dungeons.Cell, Tint, Plain), SeaArt.Plain("Scatter"));
         }
 
         public static float Hash(int x, int y)
@@ -212,6 +239,148 @@ namespace SystemPrompt.Dungeon
             if (Map.Find('D').Count > 0) BuildDoor();
         }
 
+        // Longest side in metres of each wreck (Resources/Models/Props).
+        static readonly Dictionary<string, float> WreckSizes = new Dictionary<string, float>
+        {
+            ["FallenRack"] = 3.8f, ["CableDrum"] = 2.6f, ["BoardCoral"] = 3.2f, ["DataCrystals"] = 3f,
+            ["OldMonitor"] = 2.2f, ["CableHeap"] = 3f, ["DrivePile"] = 2.6f,
+        };
+
+        static string[] BigWrecks(ZoneStyle style) => style switch
+        {
+            ZoneStyle.Coral or ZoneStyle.Reef => new[] { "BoardCoral" },
+            ZoneStyle.Context or ZoneStyle.Rift or ZoneStyle.WhiteHall or ZoneStyle.Ridge => new[] { "DataCrystals", "FallenRack" },
+            ZoneStyle.Graveyard or ZoneStyle.RecycleBin => new[] { "FallenRack", "OldMonitor" },
+            _ => new[] { "FallenRack", "CableDrum" },
+        };
+
+        // Corners take what stands up.
+        static string[] CornerWrecks(ZoneStyle style) => style switch
+        {
+            ZoneStyle.Coral or ZoneStyle.Reef => new[] { "BoardCoral", "CableDrum" },
+            ZoneStyle.Context or ZoneStyle.Rift or ZoneStyle.WhiteHall or ZoneStyle.Ridge or ZoneStyle.Plaza => new[] { "DataCrystals", "CableDrum" },
+            ZoneStyle.Graveyard or ZoneStyle.RecycleBin => new[] { "OldMonitor", "CableDrum" },
+            _ => new[] { "CableDrum", "OldMonitor", "DataCrystals" },
+        };
+
+        // Walls take what lies along them.
+        static string[] WallWrecks(ZoneStyle style) => style switch
+        {
+            ZoneStyle.Coral or ZoneStyle.Reef => new[] { "BoardCoral", "CableHeap" },
+            ZoneStyle.Context or ZoneStyle.Rift or ZoneStyle.WhiteHall => new[] { "DataCrystals", "FallenRack", "DrivePile" },
+            ZoneStyle.Graveyard or ZoneStyle.RecycleBin => new[] { "DrivePile", "OldMonitor", "FallenRack" },
+            _ => new[] { "FallenRack", "CableHeap", "DrivePile" },
+        };
+
+        // The wreckage of the sea's corridors (Tripo models, Dungeon/SeaModels.cs): something big filling the end
+        // of a dead end, something standing in a corner, now and then something lying along a wall, each in a faint
+        // pool of its zone's light. Only on the plain seabed clear of anything marked on the map (props, noise
+        // bodies and their rounds, the puzzles), never across the way, and each stops the feet (DungeonMap.Wrecks).
+        void BuildWreckage()
+        {
+            var root = Parts.Node("Wreckage", transform);
+            var placed = new List<Vector2Int>();
+            var pools = new Dictionary<ZoneStyle, Material>();
+            var steps = new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+            for (var y = 1; y < Map.Height - 1; y++)
+            for (var x = 1; x < Map.Width - 1; x++)
+            {
+                var c = new Vector2Int(x, y);
+                if (Map[c] != '.' || Marked(c) || placed.Exists(p => (p - c).sqrMagnitude < 9)) continue;
+                var walls = new List<Vector2Int>();
+                foreach (var step in steps)
+                    if (Map[c + step] == '#' || Map[c + step] == '=') walls.Add(step);
+                var style = decor.StyleAt(c);
+                var h = Hash(x * 7 + 3, y * 5 - 1);
+                var centre = Map.World(c);
+                Vector3 at, facing;
+                string[] kinds;
+                float chance, swing, widest; // widest: the most its footprint may stick out, so the way stays clear
+                var alongWall = false;
+                if (walls.Count == 3)
+                {
+                    // Pushed into the closed end, its front to the way out.
+                    facing = DungeonMap.Direction(-(walls[0] + walls[1] + walls[2]));
+                    at = centre - facing * 1.1f;
+                    kinds = BigWrecks(style);
+                    chance = 0.9f;
+                    swing = 8f;
+                    widest = 1f;
+                }
+                else if (walls.Count == 2 && walls[0] + walls[1] != Vector2Int.zero)
+                {
+                    var corner = DungeonMap.Direction(walls[0] + walls[1]);
+                    at = centre + corner * 1.25f;
+                    facing = -corner.normalized;
+                    kinds = CornerWrecks(style);
+                    chance = 0.85f;
+                    swing = 40f;
+                    widest = 1.1f;
+                }
+                else if (walls.Count is 1 or 2)
+                {
+                    var side = DungeonMap.Direction(walls[walls.Count == 2 && h >= 0.5f ? 1 : 0]);
+                    at = centre + side * 1.25f; // then up to the wall, below
+                    facing = -side;
+                    alongWall = true;
+                    kinds = WallWrecks(style);
+                    chance = walls.Count == 2 ? 0.55f : 0.45f;
+                    swing = 6f;
+                    widest = 0.75f;
+                }
+                else continue;
+                if (Hash(y * 3 + 1, x * 9 + 2) > chance) continue;
+                placed.Add(c);
+                var name = kinds[Mathf.Min(kinds.Length - 1, (int)(h * kinds.Length))];
+                var turn = Hash(x + 11, y * 2);
+                var wreck = SeaModels.Place(name, root, WreckSizes[name] * (0.9f + turn * 0.2f)).transform;
+                wreck.localPosition = at;
+                // Its footprint before it turns: a row of circles along its longer side.
+                var bounds = wreck.GetComponentInChildren<Renderer>().bounds;
+                var length = Mathf.Max(bounds.size.x, bounds.size.z);
+                var radius = Mathf.Min(bounds.size.x, bounds.size.z) / 2f * 0.9f;
+                var axis = bounds.size.x >= bounds.size.z ? Vector3.right : Vector3.forward;
+                if (radius > widest)
+                {
+                    wreck.localScale = Vector3.one * (widest / radius);
+                    length *= widest / radius;
+                    radius = widest;
+                }
+                if (alongWall) at = wreck.localPosition = centre - facing * (Dungeons.Cell / 2f - radius - 0.05f);
+                wreck.localRotation = Quaternion.LookRotation(facing) * Quaternion.Euler(0f, (turn - 0.5f) * 2f * swing, 0f);
+                var circles = Mathf.Max(1, Mathf.RoundToInt(length / (radius * 2f)));
+                for (var i = 0; i < circles; i++)
+                {
+                    var along = circles == 1 ? 0f : (i / (circles - 1f) - 0.5f) * (length - radius * 2f);
+                    Map.Wrecks.Add((at + wreck.localRotation * axis * along, radius));
+                }
+                var unscaled = 1f / wreck.localScale.x; // the decals below are in its (scaled) space
+                SeaArt.Shadow(wreck, length * 0.9f * unscaled);
+                if (!pools.TryGetValue(style, out var pool))
+                {
+                    pool = pools[style] = SeaArt.Glow(SeaArt.Atlas, SeaDecor.For(style).Floor.WithAlpha(0.5f));
+                    pool.mainTextureScale = new Vector2(0.25f, 1f);
+                    pool.mainTextureOffset = new Vector2(0.25f * SeaArt.AtlasDot, 0f);
+                }
+                Parts.Shape("Pool", wreck, SeaArt.Decal(length * 1.8f * unscaled), pool, new Vector3(0f, 0.03f, 0f));
+            }
+        }
+
+        // Something marked on the map within two cells (within one for a noise body's round), or a cache block.
+        bool Marked(Vector2Int c)
+        {
+            for (var dy = -2; dy <= 2; dy++)
+            for (var dx = -2; dx <= 2; dx++)
+            {
+                var n = new Vector2Int(c.x + dx, c.y + dy);
+                var mark = Map[n];
+                if (".#=%".IndexOf(mark) >= 0 && !Map.BlockStarts.Contains(n)) continue;
+                if (char.IsLower(mark) && Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) > 1) continue;
+                return true;
+            }
+            return false;
+        }
+
         void SpawnEnemy(char mark, Vector2Int cell)
         {
             var spawn = Array.Find(Def.Enemies, e => e.Mark == mark);
@@ -231,24 +400,25 @@ namespace SystemPrompt.Dungeon
             var b = Map.World(cells[cells.Count - 1]);
             var centre = (a + b) / 2f + new Vector3(0, 0, -Dungeons.Cell / 2f + 0.3f);
             var width = Vector3.Distance(a, b) + Dungeons.Cell;
-            var root = Parts.Node("Sealed Door", transform, centre);
+            var root = door = Parts.Node("Sealed Door", transform, centre);
             var white = SeaArt.Toon(Palette.Hex("#F4F7FF"), Palette.Hex("#B8C6E6"), new Color(1f, 1f, 1f, 1f), Palette.Hex("#3A4660"), 0.03f);
             Parts.Shape("Slab", root, SeaArt.Box(new Vector3(width, 11f, 0.6f)), white, new Vector3(0, 5.5f, 0));
             var seam = SeaArt.Glow(SeaArt.White, new Color(0.85f, 0.92f, 1f, 0.9f));
-            Parts.Shape("Seam", root, SeaArt.Box(new Vector3(0.12f, 10.4f, 0.7f)), seam, new Vector3(0, 5.5f, 0));
+            doorSeam = Parts.Shape("Seam", root, SeaArt.Box(new Vector3(0.12f, 10.4f, 0.7f)), seam, new Vector3(0, 5.5f, 0)).transform;
             var cloud = SeaArt.Glow(SeaArt.Atlas, new Color(0.8f, 0.88f, 1f, 0.5f));
             cloud.mainTextureScale = new Vector2(0.25f, 1f);
             cloud.mainTextureOffset = new Vector2(0.25f * SeaArt.AtlasDot, 0f);
+            doorMist = Parts.Node("Mist", root);
             for (var i = 0; i < 5; i++)
-                Parts.Shape("Cloud", root, SeaArt.Quad(7f, 4f), cloud, new Vector3((i - 2) * 3f, 0.8f + (i % 2) * 0.6f, -0.6f));
+                Parts.Shape("Cloud", doorMist, SeaArt.Quad(7f, 4f), cloud, new Vector3((i - 2) * 3f, 0.8f + (i % 2) * 0.6f, -0.6f));
         }
 
         void BuildAmbience()
         {
             // Plankton-like motes around the player, and the sea's lost things drifting higher up.
             motes = Parts.Node("Motes", transform);
-            Particles(motes, "Motes", SeaArt.AtlasDot, SeaArt.AtlasDot, 260, new Vector3(70f, 18f, 70f), 9f, 0.08f, 0.22f, new Color(0.5f, 0.85f, 1f, 0.9f), 0.25f);
-            Particles(motes, "Debris", SeaArt.AtlasBubble, SeaArt.AtlasCard, 90, new Vector3(110f, 24f, 110f), 20f, 0.7f, 2.4f, new Color(0.45f, 0.75f, 1f, 0.55f), 0.12f, 14f);
+            SeaArt.Particles(motes, "Motes", SeaArt.AtlasDot, SeaArt.AtlasDot, 260, new Vector3(70f, 18f, 70f), 9f, 0.08f, 0.22f, new Color(0.5f, 0.85f, 1f, 0.9f), 0.25f);
+            SeaArt.Particles(motes, "Debris", SeaArt.AtlasBubble, SeaArt.AtlasCard, 90, new Vector3(110f, 24f, 110f), 20f, 0.7f, 2.4f, new Color(0.45f, 0.75f, 1f, 0.55f), 0.12f, 14f);
 
             // Shafts of light from the surface.
             beams = Parts.Node("Shafts", transform, Centre);
@@ -262,60 +432,6 @@ namespace SystemPrompt.Dungeon
                 var t = Parts.Shape("Shaft", beams, tube, shaft, p).transform;
                 t.localRotation = Quaternion.Euler(180f + Hash(i, 9) * 14f - 7f, 0, Hash(9, i) * 14f - 7f);
             }
-        }
-
-        void Particles(Transform parent, string name, int firstTile, int lastTile, int count, Vector3 box, float lifetime,
-            float minSize, float maxSize, Color color, float rise, float height = 4f)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = new Vector3(0, height, 0);
-            var ps = go.AddComponent<ParticleSystem>();
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = ps.main;
-            main.loop = true;
-            main.duration = lifetime;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(lifetime * 0.6f, lifetime);
-            main.startSpeed = 0f;
-            main.startSize = new ParticleSystem.MinMaxCurve(minSize, maxSize);
-            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-            main.startColor = color;
-            main.maxParticles = count;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.useUnscaledTime = true;
-            main.prewarm = true;
-            var emission = ps.emission;
-            emission.rateOverTime = count / lifetime;
-            var shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = box;
-            var vel = ps.velocityOverLifetime;
-            vel.enabled = true;
-            vel.space = ParticleSystemSimulationSpace.World;
-            vel.x = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
-            vel.y = new ParticleSystem.MinMaxCurve(rise * 0.5f, rise);
-            vel.z = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
-            var rot = ps.rotationOverLifetime;
-            rot.enabled = true;
-            rot.z = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f);
-            var fade = ps.colorOverLifetime;
-            fade.enabled = true;
-            var g = new Gradient();
-            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.25f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
-            fade.color = g;
-            var sheet = ps.textureSheetAnimation;
-            sheet.enabled = true;
-            sheet.numTilesX = 4;
-            sheet.numTilesY = 1;
-            sheet.frameOverTime = new ParticleSystem.MinMaxCurve(firstTile / 4f, (lastTile + 0.99f) / 4f);
-            sheet.cycleCount = 1;
-            var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = SeaArt.Glow(SeaArt.Atlas, Color.white);
-            renderer.renderMode = ParticleSystemRenderMode.Billboard;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            ps.Play();
         }
 
         // ------------------------------------------------------------------ playing
@@ -382,6 +498,40 @@ namespace SystemPrompt.Dungeon
         }
 
         // Dialogue and the like: the avatar stands, nobody walks.
+        // <<mirror on>> at the white door (story: Prologue_Deep_Exit): the player steps up to it, the camera
+        // looks over their shoulder, and the door's face turns into a mirror with the player's battle-coat
+        // double in it. <<mirror off>> settles the reflection back to the player as they are.
+        public async Awaitable Mirror(bool on)
+        {
+            if (door == null)
+            {
+                Debug.LogError($"<<mirror>>：{Def.Id} 没有白门");
+                return;
+            }
+            if (!on)
+            {
+                if (mirror != null) await mirror.Settle();
+                return;
+            }
+            var glass = door.position + new Vector3(0f, 0f, -0.33f); // just off the slab's face, toward the maze
+            var stand = glass + new Vector3(-0.45f, 0f, -1.5f);
+            PlayerPosition = stand;
+            PlayerYaw = 0f;
+            velocity = Vector3.zero;
+            Avatar.Root.SetPositionAndRotation(stand, Quaternion.identity);
+            var beside = stand + new Vector3(-1.1f, 0f, -0.3f);
+            Companion?.Stand(beside, glass - beside);
+            // Over the right shoulder, far enough out that the reflection shows beside the player, not behind,
+            // and near enough that it fills a good part of the frame.
+            Camera.transform.position = stand + new Vector3(0.95f, 1.6f, -2.1f);
+            Camera.transform.rotation = Quaternion.LookRotation(new Vector3(stand.x + 0.1f, 1.3f, glass.z) - Camera.transform.position);
+            // The seam would split the glass, and the mist at the door's foot hangs in front of it.
+            doorSeam.gameObject.SetActive(false);
+            doorMist.gameObject.SetActive(false);
+            if (mirror == null) mirror = SeaMirror.Create(transform, Camera, glass, Vector3.back, 3f, 4f, Avatar, gender);
+            await mirror.Open();
+        }
+
         public void Idle(float dt)
         {
             Avatar.Animate(dt, 0f);
@@ -521,34 +671,47 @@ namespace SystemPrompt.Dungeon
             lampBeams.localRotation = Quaternion.Euler(0, t * 24f, 0);
             foreach (var p in Props) p.Animate(t, Camera);
             foreach (var e in Enemies) e.Animate(t, UnityEngine.Time.unscaledDeltaTime);
-            Companion?.Follow(PlayerPosition, UnityEngine.Time.unscaledDeltaTime, t);
+            Companion?.Follow(PlayerPosition, UnityEngine.Time.unscaledDeltaTime);
             decor.Animate(t);
             Puzzles.Animate(t);
             foreach (var f in firewalls) f.Animate(t);
         }
 
-        void ApplyGlobals()
+        void ApplyGlobals() => ApplySea(time, PlayerPosition, 6.5f);
+
+        // The latent-space shaders' globals (Resources/Shaders/SeaCommon.cginc), here and on the battle field:
+        // the seabed lights up within glowRadius of glowAt.
+        public static void ApplySea(float time, Vector3 glowAt, float glowRadius)
         {
             Shader.SetGlobalColor("_SeaFogColor", FogColor);
             Shader.SetGlobalColor("_SeaSurfaceColor", SurfaceColor);
             Shader.SetGlobalVector("_SeaLightDir", new Vector4(0.35f, 1f, 0.25f, 0f));
             Shader.SetGlobalFloat("_SeaFogDensity", 0.016f);
             Shader.SetGlobalFloat("_SeaTime", time);
-            Shader.SetGlobalVector("_SeaGlowPos", new Vector4(PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, 6.5f));
+            Shader.SetGlobalVector("_SeaGlowPos", new Vector4(glowAt.x, glowAt.y, glowAt.z, glowRadius));
             Shader.SetGlobalColor("_SeaGlowColor", new Color(0.3f, 0.7f, 1f));
         }
     }
 
-    // Turns to face the area's camera every frame (the lighthouse halo).
+    // Turns to face the camera every frame (the lighthouse halo, the pop-up ads): the maze's, or the battle field's.
     public sealed class Billboard : MonoBehaviour
     {
-        DungeonWorld world;
+        Camera view;
 
         void LateUpdate()
         {
-            if (world == null) world = GetComponentInParent<DungeonWorld>();
-            if (world == null || world.Camera == null) return;
-            transform.rotation = Quaternion.LookRotation(transform.position - world.Camera.transform.position);
+            if (view == null)
+            {
+                var world = GetComponentInParent<DungeonWorld>();
+                if (world != null) view = world.Camera;
+                else
+                {
+                    var stage = GetComponentInParent<BattleStage>();
+                    if (stage != null) view = stage.Camera;
+                }
+            }
+            if (view == null) return;
+            transform.rotation = Quaternion.LookRotation(transform.position - view.transform.position);
         }
     }
 }

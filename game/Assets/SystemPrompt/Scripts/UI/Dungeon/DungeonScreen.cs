@@ -10,11 +10,12 @@ namespace SystemPrompt.UI
 {
     // <<dungeon>>: one latent-space area played in 3D (Dungeon/DungeonWorld.cs) under a P5-style HUD: the
     // area card with the zone the player is in (a banner the first time), the objective, the corner map,
-    // the maintenance meter, the party, prompts and alert marks over the world, and a text box for the
-    // story nodes the area runs (zones, fragments, the terminal...). Noise bodies are fought, JRPG style:
-    // hitting one with Enter before it has seen the party gives a free round, one that chased the party
-    // down gets the first move, and running into one otherwise is a plain battle. Enter also pushes cache
-    // blocks and turns light plates (Dungeon/SeaPuzzles.cs).
+    // the maintenance meter, the party, prompts and alert marks over the world, a text box for the story
+    // nodes the area runs (zones, fragments, the terminal...), and DeepSeek calling out from the top right
+    // for the ones that don't stop the player (NavCall: the gate, the exit, the warning, ambush hints).
+    // Noise bodies are fought, JRPG style: hitting one with Enter before it has seen the party gives a free
+    // round, one that chased the party down gets the first move, and running into one otherwise is a plain
+    // battle. Enter also pushes cache blocks and turns light plates (Dungeon/SeaPuzzles.cs).
     public sealed class DungeonScreen : IInputLayer, ILinePresenter
     {
         enum Mode { Off, Explore, Talk, Busy }
@@ -44,6 +45,7 @@ namespace SystemPrompt.UI
         readonly VisualElement talkBox, talkPlate;
         readonly Label talkName, talkText;
         readonly VisualElement fx, flash;
+        readonly NavCall nav;
         readonly Dictionary<SeaNoise, Label> alertMarks = new Dictionary<SeaNoise, Label>();
         readonly Dictionary<SeaNoise, Label> phraseMarks = new Dictionary<SeaNoise, Label>();
 
@@ -55,6 +57,7 @@ namespace SystemPrompt.UI
         Mode mode = Mode.Off;
         bool shown;
         bool advance;
+        bool hintRunning; // the story's one hint runner is busy with a node (a talk, or one read into the nav)
         float meter;
         float travelledAtLastTick;
         bool spottedTold, firewallTold, beaconTold, ambushTold, warned;
@@ -76,6 +79,7 @@ namespace SystemPrompt.UI
         public int Turns { get; private set; }
         public ZoneDef Zone => zone;
         public int ZonesVisited => visited.Count;
+        public NavCall Nav => nav;
 
         public DungeonScreen(GameRoot game, VisualElement parent)
         {
@@ -124,6 +128,9 @@ namespace SystemPrompt.UI
             meterText = Ui.Text("", "sp-dungeon__meter-value", meterHead, FontKind.MonoBold);
             var track = Ui.El("sp-dungeon__meter-track", meterBox);
             meterFill = Ui.El("sp-dungeon__meter-fill", track);
+
+            // Left of the map; a line waits while the screen is away (a battle) or the text box is up.
+            nav = new NavCall(game, Root, () => !shown || world == null || mode == Mode.Talk);
 
             partyRow = Ui.El("sp-dungeon__party", Root);
 
@@ -181,9 +188,12 @@ namespace SystemPrompt.UI
             }
             story = run;
             done = new AwaitableCompletionSource();
-            world = DungeonWorld.Create(def, game.State.playerGender);
+            world = DungeonWorld.Create(def, game.State.playerGender, game.State.FormOf("DeepSeek") != null);
             world.Spotted += OnSpotted;
             world.Touched += OnTouched;
+            nav.Clear();
+            nav.Companion = world.Companion;
+            hintRunning = false;
             var stealth = game.State.abilities.Contains("deep_dive") ? 0.6f : 1f; // DeepSeek's 深海潜行
             foreach (var e in world.Enemies) e.VisionScale = stealth;
             spottedTold = firewallTold = beaconTold = ambushTold = warned = false;
@@ -226,11 +236,19 @@ namespace SystemPrompt.UI
             await done.Awaitable;
         }
 
+        // <<mirror on|off>> from the exit's node (Dungeon/DungeonWorld.cs Mirror).
+        public async Awaitable Mirror(bool on)
+        {
+            if (world != null) await world.Mirror(on);
+        }
+
         // After the cover of the way out: the area goes away.
         public void Leave()
         {
             mode = Mode.Off;
             Lock(false);
+            nav.Clear();
+            nav.Companion = null;
             if (world != null) UnityEngine.Object.Destroy(world.gameObject);
             world = null;
             minimap.Attach(null);
@@ -348,7 +366,7 @@ namespace SystemPrompt.UI
             {
                 Turns++;
                 game.Audio.Sfx("key", 0.7f);
-                if (world.Turn(plate)) Act(LightFound);
+                if (world.Turn(plate)) LightFound(session).Forget();
                 return;
             }
             var prop = world.PropInReach();
@@ -367,29 +385,22 @@ namespace SystemPrompt.UI
             }
             Pushes++;
             game.Audio.Sfx(world.Puzzles.InSocket(block) ? "confirm" : "whoosh", 0.6f);
-            if (world.Puzzles.Solved && !wasSolved) Act(GateOpened);
+            if (world.Puzzles.Solved && !wasSolved) GateOpened(session).Forget();
         }
 
+        // The gate goes dark and DeepSeek calls it out from the top right; the player keeps going.
         async Awaitable GateOpened(Session s)
         {
             game.Audio.Sfx("rise");
-            var stamp = Fx.Stamp(fx, "门开了！", Palette.Green, 110f, -4f, new Vector2(960, 440));
-            await Anim.Wait(0.9f);
-            Fx.Dismiss(stamp).Forget();
-            if (s.Over) return;
-            if (def.GateNode != null) await Talk(def.GateNode, s);
+            await Call(def.GateNode, s);
         }
 
-        // The light on the goal: the exit shows where it lands.
+        // The light on the goal: the exit shows where it lands, and DeepSeek calls it out.
         async Awaitable LightFound(Session s)
         {
             game.Audio.Sfx("rise");
             await Flash(Palette.Paper, 0.5f, s);
-            var stamp = Fx.Stamp(fx, "出口出现了！", Palette.Sea, 110f, -4f, new Vector2(960, 440));
-            await Anim.Wait(0.9f);
-            Fx.Dismiss(stamp).Forget();
-            if (s.Over) return;
-            if (def.LightNode != null) await Talk(def.LightNode, s);
+            await Call(def.LightNode, s);
         }
 
         // Runs one thing that takes the controls away (talking, a battle...) and gives them back after.
@@ -455,7 +466,7 @@ namespace SystemPrompt.UI
             if (opening == BattleOpening.Ambush && !ambushTold && def.AmbushHintNode != null)
             {
                 ambushTold = true;
-                await Talk(def.AmbushHintNode, s);
+                Call(def.AmbushHintNode, s).Forget();
             }
         }
 
@@ -541,8 +552,8 @@ namespace SystemPrompt.UI
             if (!warned && meter >= 80f && def.WarningNode != null)
             {
                 warned = true;
-                Act(s => Talk(def.WarningNode, s));
-                return true;
+                game.Audio.Sfx("glitch", 0.5f);
+                Call(def.WarningNode, session).Forget();
             }
             if (meter < 100f) return false;
             meter = 100f;
@@ -561,9 +572,28 @@ namespace SystemPrompt.UI
             var previous = mode;
             mode = Mode.Talk;
             Lock(false);
-            await story.RunHint(node, this);
+            while (hintRunning && !s.Over) await Awaitable.NextFrameAsync();
+            if (!s.Over)
+            {
+                hintRunning = true;
+                await story.RunHint(node, this);
+                hintRunning = false;
+            }
             Ui.Show(talkBox, false);
+            world?.Companion?.SetFace(null);
             if (!s.Over && mode == Mode.Talk) mode = previous == Mode.Explore ? Mode.Busy : previous;
+        }
+
+        // A node DeepSeek says from the top right without taking the controls: its lines are read into the
+        // nav's queue in a frame or two, then play there while the player keeps going.
+        async Awaitable Call(string node, Session s)
+        {
+            if (node == null || story == null) return;
+            while (hintRunning && !s.Over) await Awaitable.NextFrameAsync();
+            if (s.Over) return;
+            hintRunning = true;
+            await story.RunHint(node, nav);
+            hintRunning = false;
         }
 
         async Awaitable Banner(ZoneDef z)
@@ -623,6 +653,12 @@ namespace SystemPrompt.UI
             talkPlate.Q<Shape>()?.Fill(plate);
             Ui.Show(talkBox, true);
 
+            // DeepSeek beside the player takes the face the line is tagged with (until the talk ends, as her
+            // portrait keeps it in the story), and her mouth moves while her words type out.
+            var deepSeek = line.Speaker == "DeepSeek" ? world?.Companion : null;
+            if (deepSeek != null && line.Face != null) deepSeek.SetFace(line.Face);
+            if (deepSeek != null) deepSeek.Talking = line.Kind == LineKind.Speech;
+
             var cps = game.Settings.CharsPerSecond;
             var shown = float.IsInfinity(cps) ? text.Length : 0f;
             while (shown < text.Length && !s.Over && !nextRequested())
@@ -637,6 +673,7 @@ namespace SystemPrompt.UI
                 await Awaitable.NextFrameAsync();
             }
             talkText.text = Ui.GluePunctuation(text);
+            if (deepSeek != null) deepSeek.Talking = false;
             while (!s.Over && !nextRequested() && !advance && !SkipHeld(line)) await Awaitable.NextFrameAsync();
             advance = false;
             game.Records.MarkRead(line.Id);

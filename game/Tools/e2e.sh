@@ -1,8 +1,10 @@
 #!/bin/bash
 # 构建端到端测试版并从标题玩到序章结束。截图、report.md 和日志写到 game/E2E/<时间>/。
+# `e2e.sh tour` 改为录一段剪辑过的实机视频（画面加声音，需要 ffmpeg）：标题、设置、登记，序章每类台词一两句，手机和暂停菜单，缓存海浅层的 3D 探索和第一场战斗，输出同一目录下的 tour.mp4。
 # 编辑器路径默认按 ProjectSettings/ProjectVersion.txt 的版本在 Unity Hub 的安装目录里找，也可以用 UNITY=... 指定。
-# 运行期间会弹出一个 1600×900 的窗口，不要碰键盘鼠标。
+# 运行期间会弹出一个 1600×900 的窗口，不要碰键盘鼠标；录视频时会放出声音。
 set -euo pipefail
+MODE="${1:-prologue}"
 
 GAME="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(sed -n 's/^m_EditorVersion: //p' "$GAME/ProjectSettings/ProjectVersion.txt")"
@@ -31,6 +33,19 @@ rm -rf "$HOME/Library/Application Support/$BUNDLE_ID"
 
 echo "运行 → $OUT"
 set +e
+if [ "$MODE" = tour ]; then
+  "$APP/Contents/MacOS/System Prompt E2E" -tour "$OUT" -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -logFile "$OUT/player.log"
+  CODE=$?
+  set -e
+  cat "$OUT/tour.txt" || true
+  if [ $CODE -ne 0 ]; then exit $CODE; fi
+  # Frames held for the time they were on screen, resampled to a steady 30 fps.
+  ffmpeg -loglevel error -y -f concat -safe 0 -i "$OUT/frames.txt" -i "$OUT/sound.wav" \
+    -vf "fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 192k -shortest -movflags +faststart "$OUT/tour.mp4"
+  rm -rf "$OUT/frames" "$OUT/frames.txt" "$OUT/sound.wav"
+  echo "视频 $OUT/tour.mp4"
+  exit 0
+fi
 "$APP/Contents/MacOS/System Prompt E2E" -e2e "$OUT" -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -logFile "$OUT/player.log"
 CODE=$?
 set -e

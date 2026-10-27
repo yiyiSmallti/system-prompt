@@ -479,14 +479,16 @@ namespace SystemPrompt.Dungeon
             }
         }
 
-        // The way out: a column of light rising from the goal to the surface.
+        // The way out: a column of light rising from the goal to the surface, streaks running up it.
         void ExitLight()
         {
             var goals = map.Find('G');
             if (goals.Count == 0) return;
             var node = Exit = Parts.Node("Exit", root, map.World(goals[0]));
-            Parts.Shape("Column", node, SeaArt.Tube(1.6f, 2.6f, 70f, 24), Glow(SeaArt.Beam, new Color(0.75f, 0.9f, 1f, 0.5f)), new Vector3(0, 0.1f, 0));
-            Parts.Shape("Core", node, SeaArt.Tube(0.5f, 0.9f, 70f, 16), Glow(SeaArt.Beam, new Color(0.9f, 0.97f, 1f, 0.6f)), new Vector3(0, 0.1f, 0));
+            var column = Parts.Shape("Column", node, SeaArt.Ribbon(5f, 24), SeaArt.Shaft(new Color(0.75f, 0.9f, 1f, 0.55f), new Color(0.95f, 0.98f, 1f, 0.7f), 0.25f, 3f, 0.5f, 1.2f, 0.6f)).transform;
+            column.localScale = new Vector3(1f, 70f, 1f);
+            var halo = Parts.Shape("Halo", node, SeaArt.Ribbon(13f, 24), SeaArt.Shaft(new Color(0.7f, 0.85f, 1f, 0.16f), Color.clear, 0.2f, 1.5f, 0.3f, 1.8f, 1f)).transform;
+            halo.localScale = new Vector3(1f, 45f, 1f);
             Parts.Shape("Pool", node, SeaArt.Decal(9f), Glow(SeaArt.Atlas, new Color(0.7f, 0.85f, 1f, 0.5f), SeaArt.AtlasDot), new Vector3(0, 0.06f, 0));
             var sign = Parts.Node("Sign", node, new Vector3(0, 5.2f, 0));
             sign.gameObject.AddComponent<Billboard>();

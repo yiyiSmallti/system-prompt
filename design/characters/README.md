@@ -97,6 +97,7 @@ ChatGPT 和 DeepSeek 有尾巴，坐姿要单独处理，教室椅子留出尾�
 | [00-protagonist.md](00-protagonist.md)、[01-chatgpt.md](01-chatgpt.md)、[02-claude.md](02-claude.md)、[03-deepseek.md](03-deepseek.md) | 各角色的资料、性格、说话方式、外观、服装和 3D 要点 |
 | [assets/characters/](../../assets/characters/) | 服装设定图，每人一张，主角男女版各一张 |
 | [assets/characters/turnarounds/](../../assets/characters/turnarounds/) | 建模用的四视图，每套服装一张，另有切开的单视图 |
+| [assets/characters/parts/](../../assets/characters/parts/) | 分件参考图：身体、头部、面部、眼部、头发和每件服装各一张，目前有 DeepSeek 和男女主角 |
 
 ## 署名与授权
 

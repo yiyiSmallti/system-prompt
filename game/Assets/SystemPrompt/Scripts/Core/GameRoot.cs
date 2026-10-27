@@ -9,7 +9,7 @@ namespace SystemPrompt
 {
     // Owns the UI Toolkit panel, the screens, the modal stack and the flow between title, story, the
     // latent-space maze and battle. The whole UI lives in a fixed 1920x1080 frame that is letterboxed to the
-    // window; the maze's 3D camera draws under it.
+    // window; the 3D camera of the maze and of the battle field draws under it.
     public sealed class GameRoot : MonoBehaviour
     {
         public const float Width = 1920f;
@@ -83,6 +83,8 @@ namespace SystemPrompt
             Ui.Fill(root);
             root.styleSheets.Add(Resources.Load<StyleSheet>("UI/SystemPrompt"));
             root.AddToClassList("sp-root");
+            if (root.panel != null) IgnoreNavigation(root.panel);
+            else root.RegisterCallback<AttachToPanelEvent>(e => IgnoreNavigation(e.destinationPanel));
 
             frame = Ui.El("sp-frame", root);
             var screens = Ui.El("sp-screens", frame);
@@ -109,6 +111,12 @@ namespace SystemPrompt
             NewGame = new NewGameModal(this);
             Confirm = new ConfirmModal(this);
         }
+
+        // Every menu is driven by GameInput. UI Toolkit's own arrow and Tab navigation would also move the
+        // focus, and with nothing focused it lands on the one focusable element: in the registration, ←→ on
+        // the gender row put the cursor back in the name field, so the arrows typed instead of switching.
+        static void IgnoreNavigation(IPanel panel) =>
+            panel.visualTree.RegisterCallback<NavigationMoveEvent>(e => panel.focusController.IgnoreEvent(e), TrickleDown.TrickleDown);
 
         void Update()
         {
@@ -179,9 +187,10 @@ namespace SystemPrompt
             Story.Show(s == Story);
             Battle.Show(s == Battle);
             Dungeon.Show(s == Dungeon);
-            // The panel's and the frame's own backdrops would hide the maze's camera.
-            frame.parent.EnableInClassList("is-3d", s == Dungeon);
-            frame.EnableInClassList("is-3d", s == Dungeon);
+            // The panel's and the frame's own backdrops would hide the maze's and the battle field's camera.
+            var is3d = s == Dungeon || s == Battle;
+            frame.parent.EnableInClassList("is-3d", is3d);
+            frame.EnableInClassList("is-3d", is3d);
         }
 
         public void ShowTitle() => Transitions.Play(Wipe.Slash, EnterTitle).Forget();
@@ -232,10 +241,10 @@ namespace SystemPrompt
             State = state;
             PlaySeconds = seconds;
             Phone.ResetSeen();
-            Audio.StopMusic();
             Story.Reset();
             Story.RestoreScene();
             SetScreen(Story);
+            UpdateMusic();
             story = new StoryController(this, Story);
             story.Finished += OnStoryFinished;
             return story;
@@ -257,6 +266,15 @@ namespace SystemPrompt
             ShowTitle();
         }
 
+        // Battles, the maze, or else the story's current scene (StoryScreen calls this when the scene changes).
+        public void UpdateMusic()
+        {
+            if (InBattle) Audio.PlayMusic("battle");
+            else if (InDungeon) Audio.PlayMusic("sea");
+            else if (GameData.Scenes.TryGetValue(State.scene ?? "", out var def)) Audio.PlayMusic(def.Music);
+            else Audio.StopMusic();
+        }
+
         // <<battle>>, or a noise body met in the maze: the caller waits here until the results screen
         // closes, then the screen it came from is back.
         public async Awaitable RunBattle(string id, BattleOpening opening = BattleOpening.Normal)
@@ -271,6 +289,7 @@ namespace SystemPrompt
                 if (run == story)
                 {
                     SetScreen(Battle);
+                    UpdateMusic();
                     battle = Battle.Run(id, run, opening); // sets up the field before its first await, so it is ready to reveal
                 }
             }
@@ -287,7 +306,11 @@ namespace SystemPrompt
                 if (run == story) InBattle = false;
             }
             if (run != story) return;
-            await Transitions.Play(Wipe.Slash, () => SetScreen(back));
+            await Transitions.Play(Wipe.Slash, () =>
+            {
+                SetScreen(back);
+                UpdateMusic();
+            });
         }
 
         // <<dungeon>>: the story waits here while the player explores, until the area ends (its goal, or
@@ -303,6 +326,7 @@ namespace SystemPrompt
                 if (run == story)
                 {
                     SetScreen(Dungeon);
+                    UpdateMusic();
                     explore = Dungeon.Run(id, run); // builds the area before its first await
                 }
             }
@@ -323,6 +347,7 @@ namespace SystemPrompt
             {
                 Dungeon.Leave();
                 SetScreen(Story);
+                UpdateMusic();
             });
         }
 

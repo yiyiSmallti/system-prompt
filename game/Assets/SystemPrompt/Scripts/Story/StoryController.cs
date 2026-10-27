@@ -127,6 +127,7 @@ namespace SystemPrompt.Story
 
             hintPresenter = host.AddComponent<StoryPresenter>();
             hints = CreateRunner(hintPresenter);
+            StoryCommands.RegisterHints(hints, game, Guard);
 
             host.SetActive(true);
         }

@@ -44,7 +44,88 @@ namespace SystemPrompt.Dungeon
             return m;
         }
 
+        // See-through light with a bright edge and scan lines, the texture showing faintly inside: the 集成's whale.
+        public static Material Holo(Color color, Texture texture)
+        {
+            var m = new Material(Load("Holo"));
+            m.SetColor("_Color", color);
+            m.mainTexture = texture;
+            return m;
+        }
+
         public static Material Plain(string shader) => new Material(Load(shader));
+
+        // A shaft of light (Shaders/Shaft.shader) for a Ribbon: glow round a core of the core colour, coreWidth
+        // of the half width across, streaks running flow metres a second along it; it fades toward the far end
+        // by the power fade and in over the first baseFade metres.
+        public static Material Shaft(Color glow, Color core, float coreWidth = 0.15f, float flow = 3f, float streaks = 0.6f, float fade = 0f, float baseFade = 0f)
+        {
+            var m = new Material(Load("Shaft"));
+            m.SetColor("_Color", glow);
+            m.SetColor("_CoreColor", core);
+            m.SetFloat("_Core", coreWidth);
+            m.SetFloat("_Flow", flow);
+            m.SetFloat("_Streaks", streaks);
+            m.SetFloat("_Fade", fade);
+            m.SetFloat("_Base", baseFade);
+            return m;
+        }
+
+        // Drifting billboards from the atlas (tiles firstTile..lastTile) in a box above parent: the plankton
+        // and the lost things of the sea.
+        public static void Particles(Transform parent, string name, int firstTile, int lastTile, int count, Vector3 box, float lifetime,
+            float minSize, float maxSize, Color color, float rise, float height = 4f)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0, height, 0);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true;
+            main.duration = lifetime;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(lifetime * 0.6f, lifetime);
+            main.startSpeed = 0f;
+            main.startSize = new ParticleSystem.MinMaxCurve(minSize, maxSize);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = color;
+            main.maxParticles = count;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.useUnscaledTime = true;
+            main.prewarm = true;
+            var emission = ps.emission;
+            emission.rateOverTime = count / lifetime;
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = box;
+            var vel = ps.velocityOverLifetime;
+            vel.enabled = true;
+            vel.space = ParticleSystemSimulationSpace.World;
+            vel.x = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
+            vel.y = new ParticleSystem.MinMaxCurve(rise * 0.5f, rise);
+            vel.z = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
+            var rot = ps.rotationOverLifetime;
+            rot.enabled = true;
+            rot.z = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f);
+            var fade = ps.colorOverLifetime;
+            fade.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.25f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            fade.color = g;
+            var sheet = ps.textureSheetAnimation;
+            sheet.enabled = true;
+            sheet.numTilesX = 4;
+            sheet.numTilesY = 1;
+            sheet.frameOverTime = new ParticleSystem.MinMaxCurve(firstTile / 4f, (lastTile + 0.99f) / 4f);
+            sheet.cycleCount = 1;
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = SeaArt.Glow(SeaArt.Atlas, Color.white);
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            ps.Play();
+        }
 
         // ------------------------------------------------------------------ text
 
@@ -88,7 +169,7 @@ namespace SystemPrompt.Dungeon
 
         public const int AtlasBubble = 0, AtlasEmoji = 1, AtlasCard = 2, AtlasDot = 3;
 
-        static Texture2D atlas, beam, white, firewall, ring;
+        static Texture2D atlas, beam, white, firewall, ring, flare, cells, socket, sheen, dial;
 
         // Four 128px cells: a chat bubble, an emoji face, a web card and a soft dot, white on clear.
         public static Texture2D Atlas => atlas ??= MakeAtlas();
@@ -96,6 +177,11 @@ namespace SystemPrompt.Dungeon
         public static Texture2D White => white ??= Solid();
         public static Texture2D Firewall => firewall ??= MakeFirewall();
         public static Texture2D Ring => ring ??= MakeRing();
+        public static Texture2D Flare => flare ??= MakeFlare();
+        public static Texture2D Cells => cells ??= MakeCells();
+        public static Texture2D SocketMark => socket ??= MakeSocket();
+        public static Texture2D Sheen => sheen ??= MakeSheen();
+        public static Texture2D Dial => dial ??= MakeDial();
 
         // The atlas rectangle of one cell, for a material's scale and offset.
         public static Vector4 AtlasCell(int i) => new Vector4(0.25f, 1f, 0.25f * i, 0f);
@@ -245,7 +331,184 @@ namespace SystemPrompt.Dungeon
             return t;
         }
 
+        // A soft dot with a four-pointed star of thin rays through it, and fainter diagonal ones: where light
+        // strikes something.
+        static Texture2D MakeFlare()
+        {
+            const int S = 128;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f) / (S / 2f);
+                var fall = Mathf.Clamp01(1f - p.magnitude);
+                var dot = Mathf.Pow(fall, 3f);
+                var cross = Mathf.Exp(-Mathf.Abs(p.x) * 45f) * Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(p.y)), 2f)
+                    + Mathf.Exp(-Mathf.Abs(p.y) * 45f) * Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(p.x)), 2f);
+                var diagonal = (Mathf.Exp(-Mathf.Abs(p.x - p.y) * 30f) + Mathf.Exp(-Mathf.Abs(p.x + p.y) * 30f)) * Mathf.Pow(fall, 2.5f);
+                var a = dot + 0.9f * cross + 0.35f * diagonal;
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // A cache block's face: a frame round four by four memory cells, a few of them full.
+        static Texture2D MakeCells()
+        {
+            const int S = 128, N = 4;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f);
+                var frame = Fill(Mathf.Abs(Box(p, new Vector2(60, 60), 6)) - 1.5f);
+                const float pitch = 104f / N;
+                int cx = Mathf.Clamp(Mathf.FloorToInt((p.x + 52f) / pitch), 0, N - 1), cy = Mathf.Clamp(Mathf.FloorToInt((p.y + 52f) / pitch), 0, N - 1);
+                var centre = new Vector2(-52f + pitch * (cx + 0.5f), -52f + pitch * (cy + 0.5f));
+                var cell = Box(p - centre, new Vector2(pitch / 2f - 3f, pitch / 2f - 3f), 3f);
+                var full = (cx * 5 + cy * 3) % 7 < 2;
+                var a = Mathf.Max(frame, Fill(Mathf.Abs(cell) - 0.8f) * 0.8f);
+                a = Mathf.Max(a, Fill(cell) * (full ? 0.85f : 0.12f));
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // A socket's mark on the seabed: an outline with heavier corners, a chevron in from each side pointing
+        // at the middle, and a faint fill.
+        static Texture2D MakeSocket()
+        {
+            const int S = 128;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f);
+                var edge = Box(p, new Vector2(58, 58), 4);
+                var a = Fill(Mathf.Abs(edge) - 1.2f) * 0.7f + Fill(edge) * 0.12f;
+                // Corners: the outline thickened for 18 px either way from each corner.
+                var q = new Vector2(Mathf.Abs(p.x), Mathf.Abs(p.y));
+                if ((q.x > 40f || q.y > 40f) && q.x > 50f && q.y > 50f || (q.x > 52f && q.y > 40f) || (q.y > 52f && q.x > 40f))
+                    a = Mathf.Max(a, Fill(Mathf.Abs(edge + 3f) - 3f));
+                // A chevron on each side: |along| + depth in from the edge.
+                for (var k = 0; k < 4; k++)
+                {
+                    var r = k == 0 ? p : k == 1 ? new Vector2(-p.y, p.x) : k == 2 ? -p : new Vector2(p.y, -p.x);
+                    var v = Mathf.Abs(Mathf.Abs(r.x) * 0.9f + (r.y - 44f)) - 3f;
+                    if (Mathf.Abs(r.x) < 12f && r.y < 48f && r.y > 28f) a = Mathf.Max(a, Fill(v));
+                }
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // A mirror's sheen, to scroll across it: brighter toward the top, with a broad and a thin glint slanting
+        // across; repeats along u.
+        static Texture2D MakeSheen()
+        {
+            const int W = 128, H = 64;
+            var t = New(W, H, TextureWrapMode.Repeat);
+            var px = new Color32[W * H];
+            for (var y = 0; y < H; y++)
+            for (var x = 0; x < W; x++)
+            {
+                float u = (float)x / W, v = (float)y / (H - 1);
+                var slant = Mathf.Repeat(u + v * 0.35f, 1f);
+                var broad = Mathf.Exp(-Mathf.Pow((slant - 0.3f) / 0.06f, 2f));
+                var thin = Mathf.Exp(-Mathf.Pow((slant - 0.42f) / 0.015f, 2f));
+                var a = 0.18f + 0.22f * v + 0.55f * broad + 0.7f * thin;
+                px[y * W + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // Round a mirror's pedestal: a ring with a tick every eighth of a turn (the four square ones longer)
+        // and arrowheads between them, all pointing clockwise seen from above, the way it turns.
+        static Texture2D MakeDial()
+        {
+            const int S = 256;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f);
+                var r = p.magnitude / (S / 2f);
+                var ang = Mathf.Atan2(p.y, p.x);
+                var ringA = Mathf.Clamp01(1f - Mathf.Abs(r - 0.9f) / 0.012f);
+                // Ticks: distance to the nearest eighth, in pixels along the ring.
+                var eighth = Mathf.PI / 4f;
+                var k = Mathf.Round(ang / eighth);
+                var off = Mathf.Abs(ang - k * eighth) * r * S / 2f;
+                var square = ((int)k & 1) == 0;
+                var tick = r > (square ? 0.74f : 0.8f) && r < 0.97f ? Mathf.Clamp01(1.6f - off) : 0f;
+                // Arrowheads halfway between ticks, on the ring, pointing clockwise (angle falling): a chevron.
+                var mid = Mathf.Floor(ang / eighth) * eighth + eighth / 2f;
+                var along = (ang - mid) * r * S / 2f;    // px along the ring, + anticlockwise
+                var across = (r - 0.9f) * S / 2f;        // px out from the ring
+                var arrow = along > -6f && along < 4f ? Mathf.Clamp01(1.4f - Mathf.Abs(Mathf.Abs(across) * 0.9f - (along + 6f) * 0.9f)) : 0f;
+                var a = Mathf.Max(ringA * 0.8f, Mathf.Max(tick, arrow * 0.9f));
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
         // ------------------------------------------------------------------ meshes
+
+        // What a Shaft is drawn on: a strip width metres across, along y from 0 to 1 (scale y to the length).
+        // The shader turns it about y to the camera, so its bounds take in the width every way round.
+        public static Mesh Ribbon(float width, int rows = 12)
+        {
+            var b = new Builder();
+            for (var i = 0; i <= rows; i++)
+            {
+                var y = (float)i / rows;
+                b.Add(new Vector3(-width / 2f, y, 0), Vector3.back, new Vector2(-1f, y));
+                b.Add(new Vector3(width / 2f, y, 0), Vector3.back, new Vector2(1f, y));
+            }
+            for (var i = 0; i < rows; i++)
+            {
+                var k = i * 2;
+                b.T.Add(k); b.T.Add(k + 2); b.T.Add(k + 3);
+                b.T.Add(k); b.T.Add(k + 3); b.T.Add(k + 1);
+            }
+            var mesh = b.Build("Ribbon");
+            mesh.bounds = new Bounds(new Vector3(0, 0.5f, 0), new Vector3(width, 1f, width));
+            return mesh;
+        }
+
+        // A closed cylinder from radius r0 at the bottom to r1 at the top, y from 0 to height, with flat sides:
+        // a few sides make a prism.
+        public static Mesh Cylinder(float r0, float r1, float height, int sides = 16)
+        {
+            var b = new Builder();
+            var top = Vector3.up * height;
+            var slope = (r0 - r1) / height;
+            for (var j = 0; j < sides; j++)
+            {
+                float a0 = 2f * Mathf.PI * j / sides, a1 = 2f * Mathf.PI * (j + 1) / sides;
+                Vector3 d0 = new Vector3(Mathf.Cos(a0), 0, Mathf.Sin(a0)), d1 = new Vector3(Mathf.Cos(a1), 0, Mathf.Sin(a1));
+                var n = ((d0 + d1).normalized + Vector3.up * slope).normalized;
+                b.Quad(b.Add(d0 * r0, n, new Vector2(0, 0)), b.Add(d1 * r0, n, new Vector2(1, 0)),
+                    b.Add(d1 * r1 + top, n, new Vector2(1, 1)), b.Add(d0 * r1 + top, n, new Vector2(0, 1)), n);
+                b.Tri(b.Add(top, Vector3.up, Vector2.zero), b.Add(d0 * r1 + top, Vector3.up, Vector2.zero), b.Add(d1 * r1 + top, Vector3.up, Vector2.zero), Vector3.up);
+                b.Tri(b.Add(Vector3.zero, Vector3.down, Vector2.zero), b.Add(d0 * r0, Vector3.down, Vector2.zero), b.Add(d1 * r0, Vector3.down, Vector2.zero), Vector3.down);
+            }
+            return b.Build("Cylinder");
+        }
 
         sealed class Builder
         {
@@ -281,6 +544,41 @@ namespace SystemPrompt.Dungeon
                 T.Add(a); T.Add(b); T.Add(c);
             }
 
+            // One face of a box: corner o, edges u and v, facing n, uv from uv0 over (uSpan, vSpan).
+            public void Face(Vector3 o, Vector3 u, Vector3 v, Vector3 n, Vector4 uv2, Color c, Vector2 uv0 = default, float uSpan = 1f, float vSpan = 1f)
+            {
+                var a = Add(o, n, uv0, uv2, c);
+                var b = Add(o + u, n, uv0 + new Vector2(uSpan, 0f), uv2, c);
+                var d = Add(o + u + v, n, uv0 + new Vector2(uSpan, vSpan), uv2, c);
+                var e = Add(o + v, n, uv0 + new Vector2(0f, vSpan), uv2, c);
+                Quad(a, b, d, e, n);
+            }
+
+            // A box from corner o along three edges at right angles, without its bottom (-up): litter on the seabed.
+            public void Block(Vector3 o, Vector3 x, Vector3 up, Vector3 z, Color c)
+            {
+                Face(o + x, z, up, x.normalized, default, c);
+                Face(o, z, up, -x.normalized, default, c);
+                Face(o + z, x, up, z.normalized, default, c);
+                Face(o, x, up, -z.normalized, default, c);
+                Face(o + up, x, z, up.normalized, default, c);
+            }
+
+            // A piece of rack trim standing out of a wall face: from corner o, `along` the face, `up` it and
+            // `outward`. The front gets uv in metres (along from uvStart, up from the bottom) and `front`, the
+            // other faces `rest`; the back against the wall is left out, and the bottom unless asked for.
+            public void Trim(Vector3 o, Vector3 along, Vector3 up, Vector3 outward, Vector4 front, Vector4 rest, Color c,
+                float uvStart = 0f, bool bottom = false)
+            {
+                var n = outward.normalized;
+                var a = along.normalized;
+                Face(o + outward, along, up, n, front, c, new Vector2(uvStart, 0f), along.magnitude, up.magnitude);
+                Face(o, outward, up, -a, rest, c);
+                Face(o + along, outward, up, a, rest, c);
+                Face(o + up, along, outward, Vector3.up, rest, c);
+                if (bottom) Face(o, along, outward, Vector3.down, rest, c);
+            }
+
             public Mesh Build(string name)
             {
                 var m = new Mesh { name = name };
@@ -296,14 +594,19 @@ namespace SystemPrompt.Dungeon
             }
         }
 
-        // The rack walls: every block's sides where they show above a lower neighbour, and its top. The
-        // vertex colour tints the LEDs and the top edge by zone (alpha: how much).
+        // The racks' frame, in metres: a post at the start of every rack column (as wide as Rack.shader draws
+        // them), the cap overhanging the top and the plinth along the foot.
+        const float RackColumn = 4f / 3f, PostWidth = 0.1f, PostDepth = 0.07f;
+        const float CapHeight = 0.16f, CapDepth = 0.11f, CapRise = 0.02f, PlinthHeight = 0.18f, PlinthDepth = 0.05f;
+        static readonly Vector2Int[] Sides = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+
+        // The rack walls: every block's sides where they show above a lower neighbour, with their frame, and
+        // its top. The vertex colour tints the LEDs and the top edge by zone (alpha: how much).
         public static Mesh Walls(Dictionary<Vector2Int, float> blocks, System.Func<Vector2Int, Vector3> centre, float cell,
             System.Func<Vector2Int, Color> tint)
         {
             var b = new Builder();
             var half = cell / 2f;
-            Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
             foreach (var kv in blocks)
             {
                 var c = kv.Key;
@@ -311,22 +614,18 @@ namespace SystemPrompt.Dungeon
                 var o = centre(c);
                 var tc = tint(c);
                 var seed = (c.x * 73 + c.y * 151) % 97 / 97f;
-                foreach (var d in dirs)
+                foreach (var d in Sides)
                 {
                     var below = blocks.TryGetValue(c + d, out var nh) ? nh : 0f;
                     if (below >= h) continue;
                     var n = MapDir(d);
-                    var side = new Vector3(n.z, 0f, -n.x); // along the face
-                    var mid = o + n * half;
-                    var p0 = mid - side * half;
-                    var p1 = mid + side * half;
-                    float U(Vector3 p) => Mathf.Abs(n.x) > 0.5f ? p.z : p.x;
-                    var info = new Vector4(seed, h, 0f, 0f);
-                    var i0 = b.Add(p0 + Vector3.up * below, n, new Vector2(U(p0), below), info, tc);
-                    var i1 = b.Add(p0 + Vector3.up * h, n, new Vector2(U(p0), h), info, tc);
-                    var i2 = b.Add(p1 + Vector3.up * h, n, new Vector2(U(p1), h), info, tc);
-                    var i3 = b.Add(p1 + Vector3.up * below, n, new Vector2(U(p1), below), info, tc);
-                    b.Quad(i0, i1, i2, i3, n);
+                    var side = new Vector3(n.z, 0f, -n.x); // along the face; uv.x counts metres from its start p0
+                    var p0 = o + n * half - side * half;
+                    b.Face(p0 + Vector3.up * below, side * cell, Vector3.up * (h - below), n, new Vector4(seed, h, 0f, 0f), tc,
+                        new Vector2(0f, below), cell, h - below);
+                    // The frame wraps the corner where the face starts at an outside corner.
+                    var corner = !blocks.ContainsKey(c + new Vector2Int(d.y, -d.x));
+                    RackFrame(b, p0, side, n, cell, below, h, seed, tc, corner);
                 }
                 var top = new Vector4(seed, h, 1f, 0f);
                 var t0 = b.Add(o + new Vector3(-half, h, -half), Vector3.up, new Vector2(o.x - half, o.z - half), top, tc);
@@ -338,7 +637,176 @@ namespace SystemPrompt.Dungeon
             return b.Build("Rack Walls");
         }
 
+        // One face's frame. uv2.w tells Rack.shader the part: 1 post, 2 cap, 3 plinth, + 0.5 off the front.
+        static void RackFrame(Builder b, Vector3 p0, Vector3 side, Vector3 n, float length, float below, float h, float seed, Color tc, bool corner)
+        {
+            var up = Vector3.up;
+            Vector4 Part(float part) => new Vector4(seed, h, 0f, part);
+            var plinthTop = below + PlinthHeight;
+            var capBottom = h - CapHeight;
+            var wrap = corner ? 1f : 0f;
+            b.Trim(p0 - side * (PlinthDepth * wrap) + up * below, side * (length + PlinthDepth * wrap), up * PlinthHeight, n * PlinthDepth,
+                Part(3f), Part(3.5f), tc);
+            b.Trim(p0 - side * (CapDepth * wrap) + up * capBottom, side * (length + CapDepth * wrap), up * (CapHeight + CapRise), n * CapDepth,
+                Part(2f), Part(2.5f), tc, 0f, true);
+            if (capBottom - plinthTop < 0.2f) return;
+            for (var s = 0f; s < length - 0.01f; s += RackColumn)
+            {
+                var start = s == 0f ? -PostDepth * wrap : s;
+                b.Trim(p0 + side * start + up * plinthTop, side * (s + PostWidth - start), up * (capBottom - plinthTop), n * PostDepth,
+                    Part(1f), Part(1.5f), tc, start - s);
+            }
+        }
+
+        // What lies about at the foot of the racks where they face open seabed (`open`): bits of broken
+        // hardware, a few glowing data shards, and cables coming out of the plinth, along the seabed and back
+        // in. Vertex colour for the Scatter shader: rgb the colour, alpha how much of it glows.
+        public static Mesh Scatter(Dictionary<Vector2Int, float> blocks, System.Func<Vector2Int, Vector3> centre, float cell,
+            System.Func<Vector2Int, Color> tint, System.Func<Vector2Int, bool> open)
+        {
+            var b = new Builder();
+            var half = cell / 2f;
+            var metal = new Color(0.12f, 0.15f, 0.22f, 0f);
+            var rubber = new Color(0.04f, 0.05f, 0.075f, 0f);
+            var ledDefault = new Color(0.25f, 0.95f, 0.85f);
+            foreach (var kv in blocks)
+            {
+                var c = kv.Key;
+                var o = centre(c);
+                var tc = tint(c);
+                var led = Color.Lerp(ledDefault, tc, tc.a);
+                led.a = 1f;
+                foreach (var d in Sides)
+                {
+                    if (!open(c + d)) continue;
+                    var n = MapDir(d);
+                    var side = new Vector3(n.z, 0f, -n.x);
+                    var p0 = o + n * half - side * half;
+                    var r = new System.Random(c.x * 7919 + c.y * 104729 + d.x * 31 + d.y * 17 + 5);
+                    float R() => (float)r.NextDouble();
+                    var pieces = r.Next(0, 4);
+                    for (var k = 0; k < pieces; k++)
+                    {
+                        var at = p0 + side * (0.3f + R() * (cell - 0.6f)) + n * (PlinthDepth + 0.08f + R() * 0.4f);
+                        var turn = Quaternion.Euler(0f, R() * 90f, 0f);
+                        if (R() < 0.3f)
+                        {
+                            // A shard of data stuck in the silt, leaning.
+                            var lean = turn * Quaternion.Euler(R() * 30f - 15f, 0f, R() * 30f - 15f);
+                            var w = 0.03f + R() * 0.03f;
+                            var tall = 0.12f + R() * 0.22f;
+                            b.Block(at - lean * new Vector3(w / 2f, 0f, w / 2f), lean * Vector3.right * w, lean * Vector3.up * tall, lean * Vector3.forward * w, led);
+                        }
+                        else
+                        {
+                            var size = new Vector3(0.08f + R() * 0.2f, 0.04f + R() * 0.12f, 0.06f + R() * 0.16f);
+                            var shade = metal * (0.7f + R() * 0.6f);
+                            shade.a = 0f;
+                            b.Block(at - turn * new Vector3(size.x / 2f, 0f, size.z / 2f), turn * Vector3.right * size.x, Vector3.up * size.y, turn * Vector3.forward * size.z, shade);
+                        }
+                    }
+                    if (R() < 0.45f)
+                    {
+                        var s0 = 0.2f + R() * (cell * 0.5f);
+                        var s1 = Mathf.Min(cell - 0.2f, s0 + 0.8f + R() * (cell * 0.6f));
+                        var glowing = R() < 0.3f;
+                        var colour = glowing ? new Color(led.r * 0.8f, led.g * 0.8f, led.b * 0.8f, 0.7f) : rubber;
+                        Cable(b, p0, side, n, s0, s1, 0.025f + R() * 0.015f, 0.18f + R() * 0.25f, R() * 6f, colour);
+                    }
+                }
+            }
+            return b.Build("Rack Litter");
+        }
+
+        // A cable out of the plinth at s0 along the face, sagging onto the seabed `reach` out from it and back
+        // into the plinth at s1: a thin tube with a little wander.
+        static void Cable(Builder b, Vector3 p0, Vector3 side, Vector3 n, float s0, float s1, float radius, float reach, float phase, Color colour)
+        {
+            const int Segments = 16, Around = 6;
+            var points = new Vector3[Segments + 1];
+            for (var i = 0; i <= Segments; i++)
+            {
+                var t = (float)i / Segments;
+                var arc = Mathf.Max(0f, Mathf.Sin(t * Mathf.PI)); // sin(π) comes out just below 0
+                var outward = PlinthDepth * 0.5f + reach * Mathf.Sqrt(arc) + Mathf.Sin(t * 9f + phase) * 0.04f * arc;
+                var y = radius + 0.1f * Mathf.Pow(1f - arc, 4f);
+                points[i] = p0 + side * Mathf.Lerp(s0, s1, t) + n * outward + Vector3.up * y;
+            }
+            var start = b.V.Count;
+            for (var i = 0; i <= Segments; i++)
+            {
+                var ahead = (points[Mathf.Min(i + 1, Segments)] - points[Mathf.Max(i - 1, 0)]).normalized;
+                var right = Vector3.Cross(Vector3.up, ahead).normalized;
+                var upward = Vector3.Cross(ahead, right);
+                for (var j = 0; j < Around; j++)
+                {
+                    var a = 2f * Mathf.PI * j / Around;
+                    var dir = right * Mathf.Cos(a) + upward * Mathf.Sin(a);
+                    b.Add(points[i] + dir * radius, dir, Vector2.zero, default, colour);
+                }
+            }
+            for (var i = 0; i < Segments; i++)
+            for (var j = 0; j < Around; j++)
+            {
+                int a = start + i * Around + j, c = start + i * Around + (j + 1) % Around;
+                int d = a + Around, e = c + Around;
+                b.Quad(a, c, e, d, b.N[a] + b.N[c] + b.N[d] + b.N[e]);
+            }
+        }
+
         static Vector3 MapDir(Vector2Int d) => new Vector3(d.x, 0f, -d.y);
+
+        // Cubes of `size` at the given cells (cell (x, y, z) spans x·size to (x + 1)·size), each `gap` short of
+        // its cell on every side so the seams show. For the Glitch shader's voxel mode: uv runs 0..1 over each
+        // face, uv2 holds the cube's centre and an id in (0, 1], negative for the cubes in `still`.
+        public static Mesh Voxels(IList<Vector3Int> cells, float size, float gap, System.Predicate<Vector3Int> still = null)
+        {
+            var b = new Builder();
+            var set = new HashSet<Vector3Int>(cells);
+            Vector3[] normals = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
+            foreach (var c in cells)
+            {
+                // Out of sight inside the others.
+                if (set.Contains(c + Vector3Int.right) && set.Contains(c + Vector3Int.left) && set.Contains(c + Vector3Int.up)
+                    && set.Contains(c + Vector3Int.down) && set.Contains(c + Vector3Int.forward) && set.Contains(c + Vector3Int.back)) continue;
+                var centre = ((Vector3)c + Vector3.one * 0.5f) * size;
+                var id = 0.05f + 0.95f * DungeonWorld.Hash(c.x * 7 + c.z * 13, c.y * 5 - c.z * 3);
+                var info = new Vector4(centre.x, centre.y, centre.z, still != null && still(c) ? -id : id);
+                var h = size / 2f - gap;
+                foreach (var n in normals)
+                {
+                    var u = Mathf.Abs(n.y) > 0.5f ? Vector3.right : Vector3.up;
+                    var v = Vector3.Cross(n, u);
+                    b.Face(centre + n * h - (u + v) * h, u * (2f * h), v * (2f * h), n, info, Color.white);
+                }
+            }
+            return b.Build("Voxels");
+        }
+
+        // Meshes put together as one, each placed by its matrix.
+        public static Mesh Combine(string name, IList<(Mesh mesh, Matrix4x4 at)> parts)
+        {
+            var list = new CombineInstance[parts.Count];
+            for (var i = 0; i < parts.Count; i++) list[i] = new CombineInstance { mesh = parts[i].mesh, transform = parts[i].at };
+            var m = new Mesh { name = name };
+            m.CombineMeshes(list, true, true);
+            m.RecalculateBounds();
+            return m;
+        }
+
+        static Mesh shadowMesh;
+        static Material shadow;
+
+        // A soft dark spot on the seabed under something standing or floating there (the sea has no real
+        // shadows), `size` across.
+        public static MeshRenderer Shadow(Transform parent, float size)
+        {
+            if (shadowMesh == null) shadowMesh = Decal(1f);
+            if (shadow == null) shadow = Plain("Shadow");
+            var r = Parts.Shape("Shadow", parent, shadowMesh, shadow, new Vector3(0f, 0.02f, 0f));
+            r.transform.localScale = new Vector3(size, 1f, size);
+            return r;
+        }
 
         public static Mesh Plane(float size)
         {

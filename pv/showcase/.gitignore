@@ -1,0 +1,12 @@
+# Unity 生成的缓存和本机设置
+/unity/Library/
+/unity/Temp/
+/unity/Logs/
+/unity/UserSettings/
+/unity/obj/
+# render.sh 每次从 game/ 和衍生作同步过来的模型、动作和着色器
+/unity/Assets/SystemPrompt/
+/unity/Assets/SystemPrompt.meta
+# 逐镜的中间视频和预览图，render.sh 能重新生成
+/frames/
+/stills/

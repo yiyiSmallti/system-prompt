@@ -16,10 +16,14 @@ namespace SystemPrompt.Dungeon
         public readonly Transform Root;
         public bool Used;
 
+        static readonly Color Rested = new Color(0.45f, 1f, 0.85f, 1f); // a beacon after the player has rested at it
+
         readonly Material glow;
         readonly Material beam;
         readonly Transform floater;
         readonly Transform lid;
+        readonly Transform sweep, ripple;
+        readonly Material sweepLight, bands, rippleLight;
         float usedAt = -1f;
         readonly Color color;
 
@@ -58,7 +62,7 @@ namespace SystemPrompt.Dungeon
                     halo.mainTextureOffset = new Vector2(0.25f * SeaArt.AtlasDot, 0f);
                     Parts.Shape("Halo", floater, SeaArt.Quad(4f, 4f), halo, new Vector3(0, 0, 0.05f));
                     Ring(1.8f, color);
-                    Beam(color, 0.04f, 0.5f, 10f);
+                    Beam(color, 0.7f, 10f, 0.1f);
                     break;
                 }
                 case PropKind.Chest:
@@ -82,7 +86,7 @@ namespace SystemPrompt.Dungeon
                     var screen = Parts.Shape("Screen", Root, SeaArt.Quad(0.56f, 0.4f), glow, new Vector3(0, 1.25f, 0.26f));
                     screen.transform.localRotation = Quaternion.Euler(-20f, 180f, 0f);
                     Ring(2.2f, color);
-                    Beam(color, 0.05f, 0.6f, 12f);
+                    Beam(color, 0.8f, 12f, 0.1f);
                     break;
                 }
                 case PropKind.Console:
@@ -99,16 +103,36 @@ namespace SystemPrompt.Dungeon
                 }
                 case PropKind.Beacon:
                 {
-                    // A small lighthouse of three racks with a lamp, the safe point of the area.
+                    // A small lighthouse, the safe point of the area: an eight-sided tower on a plinth with bands
+                    // of light round it, a lamp in a glass room under a pointed roof, two beams sweeping round
+                    // from the lamp, a shaft of light standing up out of the roof and rings going out over the
+                    // seabed.
                     color = new Color(0.35f, 0.7f, 1f, 1f);
                     var shell = SeaArt.Toon(Palette.Hex("#1C2A48"), Palette.Hex("#0C1426"), new Color(0.4f, 0.8f, 1f, 1f), Palette.Hex("#060C18"));
-                    Parts.Shape("Rack1", Root, SeaArt.Box(new Vector3(1f, 0.9f, 1f)), shell, new Vector3(0, 0.45f, 0));
-                    Parts.Shape("Rack2", Root, SeaArt.Box(new Vector3(0.8f, 0.8f, 0.8f)), shell, new Vector3(0, 1.3f, 0));
-                    Parts.Shape("Rack3", Root, SeaArt.Box(new Vector3(0.6f, 0.7f, 0.6f)), shell, new Vector3(0, 2.05f, 0));
+                    var trim = SeaArt.Toon(Palette.Hex("#C9D6EE"), Palette.Hex("#6A7A9A"), Color.white, Palette.Hex("#141C2C"), 0.03f);
+                    Parts.Shape("Plinth", Root, SeaArt.Cylinder(1.05f, 0.95f, 0.32f, 8), shell);
+                    Parts.Shape("Tower", Root, SeaArt.Cylinder(0.46f, 0.32f, 1.75f, 8), shell, new Vector3(0, 0.32f, 0));
+                    Parts.Shape("Gallery", Root, SeaArt.Cylinder(0.5f, 0.5f, 0.1f, 8), trim, new Vector3(0, 2.07f, 0));
+                    bands = SeaArt.Glow(SeaArt.White, color.WithAlpha(0.7f));
+                    Parts.Shape("Band", Root, SeaArt.Tube(0.98f, 0.98f, 0.06f, 8), bands, new Vector3(0, 0.24f, 0));
+                    Parts.Shape("Band", Root, SeaArt.Tube(0.425f, 0.425f, 0.06f, 8), bands, new Vector3(0, 0.92f, 0));
+                    Parts.Shape("Band", Root, SeaArt.Tube(0.375f, 0.375f, 0.06f, 8), bands, new Vector3(0, 1.52f, 0));
+                    Parts.Shape("Glass", Root, SeaArt.Tube(0.33f, 0.33f, 0.5f, 8), SeaArt.Glow(SeaArt.White, new Color(0.6f, 0.85f, 1f, 0.18f)), new Vector3(0, 2.17f, 0));
                     glow = SeaArt.Toon(color, color, Color.white, color * 0.6f, 0.01f);
-                    Parts.Shape("Lamp", Root, SeaArt.Sphere(0.3f), glow, new Vector3(0, 2.65f, 0));
+                    Parts.Shape("Lamp", Root, SeaArt.Sphere(0.2f), glow, new Vector3(0, 2.42f, 0));
+                    Parts.Shape("Roof", Root, SeaArt.Cone(0.48f, 0.4f, 8), trim, new Vector3(0, 2.67f, 0));
+                    sweep = Parts.Node("Sweep", Root, new Vector3(0, 2.42f, 0));
+                    sweepLight = SeaArt.Shaft(color.WithAlpha(0.4f), Color.white.WithAlpha(0.35f), 0.12f, 4f, 0.4f, 1.6f, 0.3f);
+                    for (var k = 0; k < 2; k++)
+                    {
+                        var arm = Parts.Shape("Arm", sweep, SeaArt.Ribbon(0.9f), sweepLight).transform;
+                        arm.localRotation = Quaternion.Euler(0, k * 180f, -90f);
+                        arm.localScale = new Vector3(1f, 6f, 1f);
+                    }
+                    beam = Beam(color, 1.5f, 18f, 3f);
                     Ring(3f, color);
-                    beam = Beam(color, 0.15f, 0.9f, 16f);
+                    rippleLight = SeaArt.Glow(SeaArt.Ring, color.WithAlpha(0.6f));
+                    ripple = Parts.Shape("Ripple", Root, SeaArt.Decal(1f), rippleLight, new Vector3(0, 0.05f, 0)).transform;
                     break;
                 }
                 default:
@@ -126,10 +150,11 @@ namespace SystemPrompt.Dungeon
             Parts.Shape("Ring", Root, SeaArt.Decal(size), m, new Vector3(0, 0.04f, 0));
         }
 
-        Material Beam(Color c, float r0, float r1, float length)
+        // A shaft of light standing up from the prop to find it by from afar.
+        Material Beam(Color c, float width, float length, float from)
         {
-            var m = SeaArt.Glow(SeaArt.Beam, c * 0.35f);
-            Parts.Shape("Beam", Root, SeaArt.Tube(r0, r1, length, 12), m, new Vector3(0, 0.1f, 0));
+            var m = SeaArt.Shaft(c.WithAlpha(0.35f), Color.white.WithAlpha(0.2f), 0.15f, 2f, 0.4f, 1.4f, 0.3f);
+            Parts.Shape("Beam", Root, SeaArt.Ribbon(width, 16), m, new Vector3(0, from, 0)).transform.localScale = new Vector3(1f, length, 1f);
             return m;
         }
 
@@ -173,11 +198,22 @@ namespace SystemPrompt.Dungeon
                     glow.SetColor("_Color", new Color(1f, 0.66f, 0.2f, since >= 0f && since < 0.6f ? 1f : 0.5f + 0.2f * Mathf.Sin(time * 3f)));
                     break;
                 case PropKind.Beacon:
-                    var lit = Used ? new Color(0.45f, 1f, 0.85f, 1f) : color;
-                    var pulse = since >= 0f && since < 1.2f ? 1f + (1.2f - since) * 2f : 1f;
+                {
+                    // Resting lights it up for a moment and sends a ring out at once; after that it stays green.
+                    var lit = Used ? Rested : color;
+                    var flash = since >= 0f && since < 1.2f ? 1f - since / 1.2f : 0f;
+                    var pulse = 1f + flash * 2f;
                     glow.SetColor("_Emission", lit * 0.7f * pulse);
-                    beam.SetColor("_Color", lit * (Used ? 0.45f : 0.25f) * pulse);
+                    beam.SetColor("_Color", lit.WithAlpha((Used ? 0.55f : 0.45f) * (1f + flash)));
+                    beam.SetColor("_CoreColor", Color.white.WithAlpha((Used ? 0.4f : 0.3f) * (1f + flash)));
+                    sweep.localRotation = Quaternion.Euler(0, time * 50f, 0);
+                    sweepLight.SetColor("_Color", lit.WithAlpha(0.4f * pulse));
+                    bands.SetColor("_Color", lit.WithAlpha(0.55f + 0.2f * Mathf.Sin(time * 2f) + 0.3f * flash));
+                    var k = since >= 0f && since < 2.4f ? since / 2.4f : Mathf.Repeat(time / 2.4f, 1f);
+                    ripple.localScale = new Vector3(2f + 7f * k, 1f, 2f + 7f * k);
+                    rippleLight.SetColor("_Color", lit.WithAlpha(0.7f * (1f - k) * (1f - k)));
                     break;
+                }
             }
         }
     }

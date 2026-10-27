@@ -96,6 +96,67 @@ DeepSeek 战斗服的 18 件已经套到新身体上，渲染见 [assembled-deep
 - 眉毛按参考图的高度放，大部分被刘海盖住；嘴只是一条细线，全身图里几乎看不出。表情目前固定为睁眼微笑，换表情要换贴花图片。
 - 各件只按截面和包围盒对齐，局部仍有轻微穿插；还没有骨骼和布料物理。
 
+## 绑定与动画
+
+DeepSeek 战斗服已在 Blender 5.2 里绑好骨骼（含手指和 16 节尾巴），做了原地的行走和奔跑循环，预览见 [rigged-deepseek-4-battle-walk-run.jpg](rigged-deepseek-4-battle-walk-run.jpg)。脚本在 [blender/](blender/)，产物（.blend、Unity 用的 FBX、浏览器用的 GLB、2K 贴图和预览视频）在 Downloads 的 `deepseek-rig/`，体积大，不进仓库。按顺序运行：
+
+```bash
+blender -b -P blender/build_model.py -- assembly-deepseek-4-battle.json ~/Downloads deepseek/base/face-decals model.blend
+blender -b model.blend -P blender/materials.py
+blender -b model.blend -P blender/rig.py -- assembly-deepseek-4-battle.json rigged.blend rig-report.json
+blender -b rigged.blend -P blender/anim.py -- anim.blend anim-report.json
+blender -b anim.blend -P blender/render.py -- frames Walk Run
+blender -b anim.blend -P blender/clip_check.py -- clip.json Walk Run
+blender -b anim.blend -P blender/export.py -- out deepseek-battle
+```
+
+- 模型：按 JSON 把 20 件原始 GLB 摆好，换成 Blender 坐标（Z 朝上，角色朝 -Y）和米制，呆毛下的头顶 1.51 m。每件先焊上 UV 接缝处断开的顶点再减面，否则减不下去；全身约 52 万三角面。材质改动照 JSON 改成 Principled BSDF。面部贴花改成从头模上切下的薄片，沿法线抬起 0.4 mm，按投影盒重算 UV。
+- 材质（`materials.py`，直接改 model.blend）：Tripo 把短斗篷、马甲、领结和腿环整件标成金属（金属度 0.9 到 1.0），藏青布料渲染出来像深色金属；过膝袜和靴子皮面也太亮。每件布料重写一张金属度/粗糙度贴图：只有底色是金色的地方保留金属，布料粗糙度抬到各件的下限（斗篷 0.85，马甲 0.80，袜子 0.75，围裙 0.95 等），金边保持 0.25 到 0.45 的半光泽。改的是贴图，所以导出 FBX、GLB 后照样生效。斗篷的金属度从 0.93 降到 0.04，马甲 0.95 降到 0.06。布料另加一点 sheen（只在 Blender 里有效）。头发改成哑光：粗糙度 0.62，高光减到 0.25，法线贴图减半，加一层偏冷色的 sheen，不再像塑料。尾巴原来粗糙度 0.35、法线贴图满强度，看起来像一根光滑的塑料管，表面还有一块块起伏；现在粗糙度 0.65（JSON 的 `mat` 同步改了），高光 0.3，法线贴图降到 0.4，加 0.35 的次表面散射和偏青色的 sheen，看起来软而微微透光，斑点和鱼尾的自发光不变。`materials.py` 可以重复运行，已经改过的金属度/粗糙度贴图会跳过。
+- 骨骼：Unity 人形的标准骨骼名（Hips、Spine、Chest、UpperChest、Neck、Head，左右 Shoulder、UpperArm、LowerArm、Hand、UpperLeg、LowerLeg、Foot、Toes），每只手 15 节手指骨（Thumb、Index、Middle、Ring、Little 各 Proximal、Intermediate、Distal）。尾巴 16 节 Tail_0 到 Tail_15 挂在 Hips 下，鱼尾两片尾叶各一根 TailFin_L/R。关节位置按身体、靴子的横截面量出（`probe.py`）：髋关节高 0.83 m，膝 0.47 m，踝 0.11 m，肩关节离中线 0.115 m，肘 0.305 m，腕 0.475 m。手指关节按手套截面量：手套的四根手指是分开的，但并排贴在一起，中间只有浅槽，每根约占手宽的四分之一，所以按宽度均分，骨骼正好落在各指中线上；指根在指尖往回 7 cm 处。
+- 尾巴静止形状：原模型的尾巴垂到地上再平铺，骨骼只转关节会在拐角处折出硬角。所以绑定前先把尾巴本身改形：每个顶点按到中线的弧长保留它在横向、法向、切向上的偏移，再沿新中线重建。新中线从根部（0.78 m 高，藏在裙摆里）向后下方弯成平滑的弧，鱼尾段放平，16 节骨沿中线等长排开。改形、分骨和权重都在拼装时的原尺寸上做，中线探测和尾叶的阈值是按这个尺寸量的；之后网格和尾巴骨一起绕尾根缩到 65%（`rig.py` 的 `TAIL_SCALE`），权重不用重算。原尺寸全长 1.19 m，鱼尾中心离地 0.32 m，比例太大；现在全长 0.77 m，不到身高一半，鱼尾中心离地 0.48 m。两片尾叶向前伸到弯折下面，改形时跟鱼尾段一起重建，但只认离地 20 cm 以内的宽处：裙下的尾根一样宽，之前那里有 32 个顶点也被当成尾叶，动起来甩到左膝旁边。
+- 肩部：原模型静止时就有穿模。短斗篷只比肩部皮肤高 6 到 10 mm，上衣的泡泡袖却鼓出最多 6 cm，袖子在 T-pose 下已经从斗篷里戳出来，手臂一动更明显。所以绑定前先把上衣塞回斗篷下面：每个上衣顶点从最近的身体表面点向外打一条射线，射线先碰到斗篷的，就把顶点压到斗篷内侧 4 mm 处。压入量沿网格往外渐弱（每圈边乘 0.75，共 5 圈），免得留下白色碎边，最深压到离皮肤 2 mm 为止。共有 2720 个顶点被压回，最深 73 mm。
+- 权重：身体用骨骼热度自动权重。贴身衣物（上衣、马甲、领结、过膝袜、腿环、靴子、腕部终端）取最近身体表面的权重，再沿网格平滑。短斗篷叠在上衣外面：离上衣 1.5 cm 以内直接取上衣的权重，4 cm 以外取身体的，中间渐变，这样斗篷跟着下面的袖子一起动，袖子不会从里面甩出来。手套用骨骼热度：手套网格太小，Blender 的热度解算失败，全部顶点都没有权重。所以在放大 10 倍的手套和骨架副本上算，只让本侧前臂、手和 15 根手指骨参与，算完再删掉副本；手腕处在 1.6 cm 内渐变回从身体取的权重，袖口跟着手腕和袖子走。以前按横向位置硬分手指、拇指区整块给拇指，握拳时手掌会凹进去，现在没有了。裙子和围裙从腰到下摆渐变：下摆最多 55% 跟大腿，其余跟 Hips。头发离身体 6 cm 内的跟身体表面走，其余按高度分给 Head 和 UpperChest。尾巴按弧长分给相邻三节（以各节中点为节点的二次 B 样条），一个关节的弯曲分摊到一节半长的网格上，弯得再大也是圆滑的弧，不在关节处折出棱；根部过渡到 Hips，两片尾叶的外侧渐变到 TailFin。每个顶点最多受四根骨影响，和 Unity 的蒙皮上限一致。权重做完后删掉 JSON `clip` 遮住的身体和袜子的面。
+- 行走（Walk）：32 帧（30 fps），步幅对应 0.75 m/s。奔跑（Run）：20 帧，2.4 m/s，有腾空期，身体前倾 11°。两段都是原地循环，末帧等于首帧，没有根运动。脚的落点和抬脚轨迹在脚本里直接解两段腿的 IK：着地时脚掌固定、整只脚随地面后移，脚跟着地、全脚掌、脚尖蹬离三段翻转，脚尖不入地。骨盆有起伏、左右平移、转动和侧倾，胸口反向转，头基本保持朝前。
+- 尾巴动作：在静止弧形上逐节加同样的弯曲，曲线整体变化、不出折角；后三分之一再逐节往上翘（行走累计约 13°，奔跑约 10°），鱼尾微微上扬，不是平直地拖在后面。行走时略往下垂，鱼尾离地 34 到 55 cm；奔跑时根部抬起 6°，尾巴拉平跟在身后，鱼尾离地 46 到 70 cm。摆动叠加两层：随骨盆每个循环左右摆一次（每节最多 6°，奔跑 4.5°），随骨盆起伏上下摆两次（每节最多 2.2°，奔跑 3.2°）。每往后一节摆动延后一点（左右每节 0.05 个循环，奔跑 0.045；上下 0.035 和 0.032），整条尾巴上累计差出大半个循环，所以尾巴弯成一道 S 形的波，从根部传到鱼尾，而不是整根一起摆。越往尾尖幅度越大，两片尾叶跟着上下拍动再晚半拍（行走 ±12°，奔跑 ±15°）。之前每节只摆 2° 和 1°，延后量也小，整条尾巴几乎保持同一个形状平移，看起来像一根硬棍。尾巴离小腿和靴子行走时至少 25 cm，奔跑时至少 18 cm。
+- 手臂和手：头发两侧很宽（腰部高度达 ±0.28 m），手臂贴身下垂或往后摆就会插进头发。所以手臂只放下 60°（行走）和 64°（奔跑），摆动整体偏前，奔跑时肘弯约 72°。行走时手指自然弯曲（三节分别弯 28°、38°、22°，拇指 14°、18°、12°），奔跑时握拳（50°、65°、40°，拇指 22°、30°、20°）。四根手指并排贴着，所以四指一起弯。
+- 穿模检查（`clip_check.py`）：逐帧把各层衣服的三角面两两求交，只数静止姿势里没有、动起来才新出现的相交。改之前斗篷和上衣每帧新增 1387 到 1844 对，改之后行走 748 到 1000、奔跑 1194 到 1305，剩下的集中在腋下（离中线 7 到 16 cm、高 1.0 到 1.08 m），被手臂挡住，正常视角看不到。静止时袖子戳穿斗篷的部分本来就不计入这个数，塞回之后也没有了。
+
+### 在 Unity 里验证
+
+[unity/MotionCheck.cs](unity/MotionCheck.cs) 在一个临时 Unity 6 工程里按游戏的 `ModelAssetImporter` 导入 FBX（人形、从模型建 Avatar、原地循环），把仓库里现有的 Tripo 动作播在 DeepSeek 上，按 60 Hz 逐帧推进，每帧在 [unity/TailDynamics.cs](unity/TailDynamics.cs) 处理尾巴之前和之后各拍一次，`report.txt` 记下每个动作里尾巴的最低点、插进腿里多深、伸到髋部前面多远、尾尖左右和上下摆动的范围，转身测试里再记尾尖比动画姿势落后多少。全部动作（尾巴经过 TailDynamics）见 [unity-deepseek-4-battle-motions.jpg](unity-deepseek-4-battle-motions.jpg)；每格再拍一张离镜头较近那只手的特写，看手指动画，见 [unity-deepseek-4-battle-hands.jpg](unity-deepseek-4-battle-hands.jpg)；尾巴处理前后的对比见 [unity-deepseek-4-battle-tail.jpg](unity-deepseek-4-battle-tail.jpg)。把 FBX 放进工程的 `Assets/DeepSeek/`，`game/Assets/SystemPrompt/Resources/Models/Motions/` 里的动作放进 `Assets/Motions/`，MotionCheck.cs 放进 `Assets/Editor/`，TailDynamics.cs 放进 `Assets/Scripts/`，然后：
+
+```bash
+Unity -batchmode -quit -projectPath MotionCheck -executeMethod MotionCheck.Run -out out
+```
+
+- Avatar 有效，55 根人形骨骼映射了 52 根，手指 30 根全部识别，只缺眼睛和下巴。朝向正确，单位是米。
+- 编辑器脚本里手动调 `cam.Render()` 不走播放循环的蒙皮步骤，SkinnedMeshRenderer 显示的是旧姿势，和刚算出的骨骼对不上。上一版验证图因此不对（Cheer、Hit 看起来都像在走路）。现在每帧用 `BakeMesh` 按当前骨骼烘一份网格来渲染，原来的蒙皮渲染器隐藏，Animator 设成 `AlwaysAnimate`，否则它以为模型不在画面里就停止更新骨骼。
+- 我们的 Walk、Run 和 Tripo 的 Walk、Run、Cheer、Cast、Slash、Hit 都能直接播，Cheer 举手张开五指、Cast 伸臂、Slash 弯腰都对。手指跟着动画走：张开时各指分开，握拳时手掌不凹陷。任何人形动画（Mixamo、Tripo、Asset Store 的人形动作包）都可以这样通过 Avatar 重定向用在她身上，手指动画也会生效。
+- 尾巴不属于人形骨骼。默认导入时，人形动画只保留肌肉曲线，尾巴的曲线被丢掉（0 条）。动画导入时要把遮罩设成 `CreateFromThisModel`，并勾上 Tail 骨骼，才会保留尾巴曲线（18 根骨共 180 条）。别的人形动作本身不带尾巴，播的时候要加第二层，用只含 Tail 的 AvatarMask 叠上我们的 Walk 或 Run，尾巴就会照样摆。
+- 叠上去的尾巴层只跟 Hips 走，和身体动作不配合：Cast 后半段骨盆后仰约 20°、下蹲成弓步，整条尾弧跟着往下往前转，几乎竖直往下，插进后腿 6 cm，最低离地 12 cm；Hit 骨盆同样后仰，尾巴也落到离地 12 cm。原尺寸的尾巴在这两个动作里插到地下 18–19 cm，缩到 65% 后够不到地面了，但尾弧照样竖着。（之前写的 Hit 尾巴“穿到前面”是正面视角的错觉：从两腿间的空隙能看到它，侧面看其实一直在腿后。）
+- `TailDynamics` 在 Animator 之后接手尾巴，分三步：
+  - 先整理动画给的姿势：骨盆后仰超过 5° 的部分（最多 40°）在尾根处反转回去，尾弧保持静止时的形状；每节最多比静止时陡 20°，不许朝髋部前方；会落到地下的那节改成贴地往后铺，越深越往后拐。
+  - 每个关节是一个带惯性的粒子，按 60 Hz 拉向整理后的姿势，根部每步拉 35%、尾尖 7%，速度每步衰减 15%。粒子不低于地面（角色根节点高度）加尾巴半径，从 Tail_3 起推出大腿、小腿和脚的胶囊，鱼尾段按鱼尾的半宽推。尺寸都按一节尾巴骨的长度记，尾巴换尺寸重绑也不用改：现在半径 3.6 cm，鱼尾半宽 8.4 cm。
+  - 骨骼依次转向粒子；靠近地面时鱼尾绕自身转平，尾叶平铺在地上，尾鳍尖会落到地下时抬到地面。
+- 尾巴和尾鳍骨在 Animator 之前先放回静止姿势，不带尾巴曲线的动作就从静止弧形开始，不会沿用上一帧的结果。静止姿势取自蒙皮的 bind pose，不能取模型刚放进场景时的骨骼：Unity 把新导入的模型摆在第一段动画（DeepSeek|Run）的第一帧，而不是静止姿势。
+- 处理前后（最低点 / 插进腿里 / 伸到髋部前方，单位 m）：Cast 0.118 / 0.059 / −0.037 → 0.184 / 0 / −0.041；Hit 0.120 / 0 / −0.032 → 0.220 / 0 / −0.038；Tripo Walk 0.244 / 0.020 → 0.268 / 0。我们自己的 Walk、Run 和 Tripo 的 Run、Cheer、Slash 基本不变（最低点差 2 cm 以内）。TailDynamics 保留了动画里的摆动，没有把它抹平：我们的 Walk 尾尖左右摆 36 cm、上下 14 cm，处理后是 38 cm 和 18 cm；Run 是 41 cm 和 21 cm，处理后 44 cm 和 21 cm。
+- 转身和急停：按 `DungeonWorld` 移动玩家的方式测试，跑速 6.2 m/s，每秒最多转 760°，以 42 m/s² 刹停。左转 90° 时尾尖最多落后约 21°（开始转后 0.07 s），转完后往另一边甩过头约 22°，0.35 s 后回到动画姿势 5° 以内；刹停时尾尖只摆约 4°。不加 TailDynamics 时尾巴和身体一起硬转。原尺寸时速度衰减试过 10%，甩过头更多，摆动时间更长，所以用 15%。
+- FBX 的材质导入成 Standard 后有两个问题：尾巴的自发光颜色带进来了，自发光贴图却没接上，整条尾巴发白；面部贴花失去了透明混合。验证脚本只在场景里临时修正，游戏里的卡通着色器要另外处理这两点。
+
+### 现成动作
+
+- 仓库里已有：`game/Assets/SystemPrompt/Resources/Models/Motions/` 的 Walk、Run、Cast、Cheer、Hit、Slash（Tripo 预设，Mixamo 骨架），已验证可直接用。
+- [Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)：CC0，免费版约 45 个人形动作（移动、待机、交互、战斗），付费版 120 个以上，可商用、无需署名。
+- [Mixamo](https://www.mixamo.com/)：用 Adobe 账号免费下载，可在游戏中商用，但不能单独再分发原始动作文件。动作量最大，下载时选 "Without Skin"、FBX。
+- Unity Asset Store 的 Starter Assets – Third Person：免费的人形移动动作（待机、走、跑、跳、落地）。
+- Unity-chan 系列动作：Unity-chan License，商用需要按规定标注。
+
+还没解决的：
+- 头发、裙摆和围裙没有物理，头发整体跟头和胸走，裙摆只按权重跟大腿。进 Unity 后可以给发尾和裙摆加 Spring Bone 一类的次级运动。
+- 尾巴的惯性只在 Unity 里由 TailDynamics 加上，Blender 预览里仍是原地循环的程序摆动。刹停时尾巴几乎不甩：尾巴朝后，往前的惯性大多顺着尾巴方向，被长度约束吃掉了。
+- 腋下仍有斗篷和上衣、身体互相穿插，手臂放下时被挡住；手臂大幅上举的动作（Cheer）从侧下方看可能露出来。
+- 右前侧一缕头发的发尖在行走时会碰进斗篷。
+
 ## 下一步
 
-DeepSeek 的部件减面，身体先绑人形骨骼，其余部件按 [assembly-deepseek-4-battle.json](assembly-deepseek-4-battle.json) 放好后按最近的身体顶点继承权重，删掉被衣服盖住的身体面，把面部贴花烘进头部贴图（或在 Unity 里做成可换的表情层），再在 Unity 里拼成完整角色，和现在的整体模型对比。男女主角的身体先按二次元素体重画。
+把 FBX 接进游戏：在 `ModelAssetImporter` 里给 DeepSeek 的动画加 Tail 遮罩，把 SeaFigure 的卡通着色器接到这套多材质模型上（尾巴发光、面部贴花透明），用两层 Animator（身体 + 尾巴）替换现在的 DeepSeek 整体模型，挂上 TailDynamics 代替 SeaFigure 原来给旧模型用的 `LayTail`（TailDynamics 读蒙皮的 bind pose，接入后在打包版本里确认一次能读到）。把面部贴花烘进头部贴图，或做成可换的表情层。头发和裙摆加次级运动。男女主角的身体先按二次元素体重画。

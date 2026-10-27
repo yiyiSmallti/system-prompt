@@ -36,6 +36,8 @@
 //   <<battle 战斗ID>>                进入战斗，战斗结束后继续；战斗中的提示和台词由战斗系统调用 Prologue_Battle_* 节点
 //   <<dungeon 区域ID>>               进入潜空间 3D 探索，走到终点（或维护进度满）后继续；探索中的提示、区域、碎片和事件
 //                                    由探索系统调用 Prologue_Sea_* / Prologue_Deep_* 节点，这些节点里不能放选项
+//   <<mirror on|off>>                只在深层出口的节点里用：on 让白门的门面变成镜子，镜子里的主角穿着潜空间战斗服；
+//                                    off 让镜像变回主角本来的样子
 //   <<coop_rank 角色 等级>>          Coop 升级
 //   <<ability_unlock 能力ID>>        获得能力
 //   <<deadline_set 期限ID 月 日>>    设置期限，主界面显示倒计时
@@ -481,7 +483,7 @@ DeepSeek: 鱼片，好厉害。……我只会躲。 #face:pout
 
 title: Prologue_Sea_Ambushed
 ---
-// 浅层第一次被噪声体偷袭、战斗结束后调用
+// 浅层第一次被噪声体偷袭、战斗结束后调用；DeepSeek 在右上角播报，不打断探索
 DeepSeek: ……被它从后面撞上了。鱼片，看着它的扇形，从背后过去。 #face:pout
 ===
 
@@ -560,9 +562,9 @@ DeepSeek: 左边那个插槽，好像只有一个方向推得进去。 #face:pou
 
 title: Prologue_Sea_Gate
 ---
-// 两块缓存块都推进插槽、门打开时调用
-旁白: 插槽一个接一个变成了绿色。橘色的门闪了两下，像断电一样熄灭了。
-DeepSeek: ……开了。鱼片，好会推箱子。 #face:smile
+// 两块缓存块都推进插槽、门打开时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: 门开了！ #face:smile
+DeepSeek: ……鱼片，好会推箱子。 #face:smile
 ===
 
 title: Prologue_Sea_Fragment_Draft
@@ -620,16 +622,15 @@ DeepSeek: ……这里很安全。休息一下。 #face:smile
 
 title: Prologue_Deep_Ambushed
 ---
-// 深层第一次被噪声体偷袭、战斗结束后调用
+// 深层第一次被噪声体偷袭、战斗结束后调用；DeepSeek 在右上角播报，不打断探索
 DeepSeek: ……被从背后咬住了。下次绕开它的视野，从后面过去。 #face:pout
 ===
 
 title: Prologue_Deep_Warning
 ---
-// 维护进度达到 80% 时调用
-旁白: 头顶传来一声长长的电子音。机柜上的指示灯开始一排一排地熄灭。
-系统: 维护进度 80%。
-DeepSeek: ……时间不多了。鱼片，往出口走。 #face:neutral
+// 维护进度达到 80% 时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: 维护进度 80%……时间不多了！ #face:scared
+DeepSeek: 鱼片，往出口走。 #face:neutral
 ===
 
 title: Prologue_Deep_Zone_Bin
@@ -660,16 +661,26 @@ DeepSeek: 可是出口不在门上。……大厅里立着几块反射板。要�
 
 title: Prologue_Deep_Light
 ---
-// 光第一次照到出口时调用
-旁白: 光在最后一块反射板上折了个弯，落在门边的一块空地上。那里的海水亮了起来，一根光柱从海底升起，一直通到看不见的水面。
-DeepSeek: ……出口。原来在这里。 #face:smile
-DeepSeek: 每次维护，它都换地方。只有灯塔的光，找得到它。
+// 光第一次照到出口时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: 出口出现了！ #face:smile
+DeepSeek: ……原来在这里。每次维护，它都换地方。 #face:neutral
+DeepSeek: 只有灯塔的光，找得到它。
 ===
 
 title: Prologue_Deep_Exit
 ---
 // 走进出口的光柱时调用（白色的门就在旁边）
 旁白: 光柱旁边的白门没有把手，也没有字，干净得不像是这片海里的东西。
+旁白: 我走到门前。门面亮了一下，像一块刚擦干净的镜子。
+<<mirror on>>
+旁白: 镜子里站着我。……又不太像我。
+旁白: 那个人穿着一件黑色的长外套，衣摆的边上有一道绿色的光在走，脚上是一双系到小腿的靴子。
+旁白: 镜子里的我抬起眼睛。那双眼睛是绿色的。
+系统: 思考强度：未定义。
+DeepSeek: 鱼片？……你在看什么？ #face:neutral
+<<mirror off>>
+旁白: 再看过去，镜子里只剩穿着家居服、光着脚的我。
+{$player_name}: ……看错了吗。 #inner
 旁白: 我把手放上去。门很冷。门的另一边传来一个声音，平静，礼貌，听不出是谁。
 ？？？: 有什么可以帮您？
 <<if $told_chatgpt_customer_service>>

@@ -61,6 +61,9 @@ namespace SystemPrompt
         public string PortraitPrefix;
         public string[] Faces = Array.Empty<string>();
         public string DefaultFace = "neutral";
+        // Her navigator busts in the latent space (UI/Dungeon/NavCall.cs), calling out with a hand at her mouth:
+        // Art/Portraits/<prefix>_nav_<face>, and <prefix>_nav_battle_<face> in her battle form. The first is the default.
+        public string[] NavFaces = Array.Empty<string>();
         public string Arcana;
         public string ArcanaNumeral;
         public string ElementLabel;
@@ -72,6 +75,7 @@ namespace SystemPrompt
 
         public string PortraitKey(string face) => $"Art/Portraits/{PortraitPrefix}_{face}";
         public bool HasPortrait => !string.IsNullOrEmpty(PortraitPrefix);
+        public string NavKey(string outfit, string face) => $"Art/Portraits/{PortraitPrefix}_nav{(outfit != null ? "_" + outfit : "")}_{face}";
     }
 
     // Which drifting particles a background gets (UI/Elements/ParticleField.cs draws them).
@@ -85,6 +89,7 @@ namespace SystemPrompt
         public readonly bool Latent; // inside the latent space: glitch transitions, battle outfits
         public SceneDef(string id, string label, Ambient ambient, bool latent = false) { Id = id; Label = label; Ambient = ambient; Latent = latent; }
         public string BackgroundKey => $"Art/Backgrounds/{Id}";
+        public string Music => Latent || Ambient == Ambient.Night ? "sea" : "story"; // the night before the dive already sounds underwater
     }
 
     public sealed class AbilityDef
@@ -191,6 +196,7 @@ namespace SystemPrompt
             {
                 Id = "DeepSeek", Role = "后排", Color = Palette.Sea, PortraitPrefix = "deepseek",
                 Faces = new[] { "neutral", "smile", "pout", "sleepy", "scared" },
+                NavFaces = new[] { "smile", "neutral", "scared", "pout" },
                 Arcana = "隐者", ArcanaNumeral = "IX", ElementLabel = "冰",
                 Profile = new[]
                 {
@@ -227,6 +233,13 @@ namespace SystemPrompt
         };
 
         public static readonly Color MinorSpeakerColor = Palette.Gray;
+
+        // The player's own face, for the battle's party card and results only (the story never shows it): a
+        // 1024x1536 portrait in the lounge clothes they were pulled in with (assets/characters/protagonist-card,
+        // moved over so the face is in the middle), and how high its face sits for Ui.FaceCrop.
+        public static string PlayerPortrait(string gender) => $"Art/Portraits/player_{(gender == "female" ? "female" : "male")}";
+        public static float PlayerFaceY(string gender) => gender == "female" ? 0.22f : 0.19f;
+        public const float PlayerFaceZoom = 2.4f;
 
         public static readonly Dictionary<string, SceneDef> Scenes = new Dictionary<string, SceneDef>
         {

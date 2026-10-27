@@ -345,6 +345,7 @@ namespace SystemPrompt.UI
             bgFront.style.opacity = 1;
             ambientBack.Set(def.Ambient);
             ambientFront.Set(def.Ambient);
+            game.UpdateMusic();
         }
 
         public void RefreshHud()

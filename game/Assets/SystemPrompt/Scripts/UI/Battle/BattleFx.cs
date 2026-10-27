@@ -8,7 +8,9 @@ using UnityEngine.UIElements;
 namespace SystemPrompt.UI
 {
     // Battle presentation, following the PV's battle act (pv/README.md 第六幕): screenshot viewfinder with a
-    // shutter flash, the eye cut-in before a skill, ice shards, and the black-and-white 集成 with the whale.
+    // shutter flash, the eye cut-in before a skill, and the 集成's title and freeze frame, over the light of
+    // the fighting on the 3D field (Dungeon/BattleStage.cs, BattleEffects.cs): the slash, the ice lances, the
+    // party's dashes and the whale.
     public sealed partial class BattleScreen
     {
         Vector2 CenterOf(VisualElement e) => Root.WorldToLocal(e.worldBound.center);
@@ -17,6 +19,7 @@ namespace SystemPrompt.UI
         {
             // Runs while the encounter wipe splits open; the party and enemies enter once it has cleared.
             await Anim.Wait(0.3f);
+            stage?.Opening();
             game.Audio.Sfx("whoosh");
             foreach (var card in party)
             {
@@ -75,13 +78,19 @@ namespace SystemPrompt.UI
             Ui.FadeOutAndRemove(bar, 0.2f).Forget();
         }
 
-        // 截图: a first-person viewfinder locks onto the target, then the shutter flashes.
-        async Awaitable ScreenshotFx(EnemyView target)
+        // 截图: a first-person viewfinder locks onto the target, then the shutter flashes, on the field too.
+        async Awaitable ScreenshotFx(EnemyView target, int member)
         {
             const float w = 440f, h = 340f;
             var frame = Ui.El("sp-viewfinder", fx);
-            frame.style.left = target.Center.x - w / 2f;
-            frame.style.top = target.Center.y - h / 2f;
+            // On the target wherever the camera, coming round over the shoulder, has it.
+            void Follow()
+            {
+                frame.style.left = target.Center.x - w / 2f;
+                frame.style.top = target.Center.y - h / 2f;
+            }
+            Follow();
+            frame.schedule.Execute(Follow).Every(0);
             frame.style.width = w;
             frame.style.height = h;
             foreach (var (fx0, fy0) in new[] { (false, false), (true, false), (false, true), (true, true) })
@@ -102,6 +111,7 @@ namespace SystemPrompt.UI
             await Anim.Tween(0.25f, t => Ui.Zoom(frame, Mathf.Lerp(1.9f, 1f, t)));
             await Anim.Wait(0.15f);
             game.Audio.Sfx("shutter");
+            stage?.Capture(member, enemies.IndexOf(target));
             Fx.Flash(fx, Color.white, 0.22f);
             Fx.Shake(Root, 12f, 0.2f);
             await Ui.FadeOutAndRemove(frame, 0.15f);
@@ -122,17 +132,9 @@ namespace SystemPrompt.UI
 
         async Awaitable SlashFx(EnemyView target)
         {
-            var slash = new Shape(r => new[]
-            {
-                new Vector2(r.xMin, r.yMax - 10f), new Vector2(r.xMax - 20f, r.yMin), new Vector2(r.xMax, r.yMin + 10f), new Vector2(r.xMin + 20f, r.yMax),
-            }, Palette.Paper).Shadow(new Vector2(6, 6), Palette.Sea);
-            slash.AddToClassList("sp-slash");
-            slash.style.left = target.Center.x - 200f;
-            slash.style.top = target.Center.y - 140f;
-            fx.Add(slash);
             game.Audio.Sfx("whoosh", 0.8f);
-            await Anim.Tween(0.12f, t => slash.style.scale = new Scale(new Vector2(t, t)));
-            await Ui.FadeOutAndRemove(slash, 0.2f);
+            stage?.Slash(enemies.IndexOf(target));
+            await Anim.Wait(0.18f);
         }
 
         // The eye cut-in band before a skill (PV U13).
@@ -150,42 +152,14 @@ namespace SystemPrompt.UI
             band.RemoveFromHierarchy();
         }
 
-        async Awaitable IceFx(List<EnemyView> views)
+        // The ice lances fly from the caster's hand on the field and frost bursts round each target.
+        async Awaitable IceFx(int member, List<EnemyView> views)
         {
             game.Audio.Sfx("water", 0.8f);
-            var from = party.Find(p => p.Unit.Id == "DeepSeek") is PartyCard c ? CenterOf(c.Root) : new Vector2(1500, 900);
-            var flights = new List<Awaitable>();
-            foreach (var view in views.Where(v => v != null))
-            {
-                for (var i = 0; i < 7; i++) flights.Add(Shard(from, view.Center + new Vector2(UnityEngine.Random.Range(-90f, 90f), UnityEngine.Random.Range(-90f, 90f)), i * 0.04f));
-            }
-            foreach (var f in flights) await f;
+            var targets = views.Where(v => v != null).ToList();
+            if (stage != null) await stage.Ice(member, targets.Select(v => enemies.IndexOf(v)).ToList());
             game.Audio.Sfx("crack");
-            foreach (var view in views.Where(v => v != null)) Fx.Shake(view.Root, 16f, 0.25f);
-        }
-
-        async Awaitable Shard(Vector2 from, Vector2 to, float delay)
-        {
-            var shard = new Shape(Shape.Diamond(), UnityEngine.Random.value < 0.5f ? Palette.Cold : Palette.Sea).Stroke(Palette.Paper, 2);
-            shard.AddToClassList("sp-shard");
-            shard.style.opacity = 0;
-            fx.Add(shard);
-            await Anim.Wait(delay);
-            var angle = Mathf.Atan2(to.y - from.y, to.x - from.x) * Mathf.Rad2Deg + 90f;
-            Ui.Turn(shard, angle);
-            await Anim.Tween(0.28f, t =>
-            {
-                var p = Vector2.Lerp(from, to, t);
-                shard.style.left = p.x - 16f;
-                shard.style.top = p.y - 32f;
-                shard.style.opacity = 1;
-            }, Ease.InCubic);
-            await Anim.Tween(0.15f, t =>
-            {
-                Ui.Zoom(shard, 1f + t * 1.5f);
-                shard.style.opacity = 1 - t;
-            });
-            shard.RemoveFromHierarchy();
+            foreach (var view in targets) Fx.Shake(view.Root, 16f, 0.25f);
         }
 
         async Awaitable ThinkFx(PartyCard card)
@@ -199,16 +173,11 @@ namespace SystemPrompt.UI
             Ui.Show(thinkBubble, false);
         }
 
-        async Awaitable Lunge(EnemyView view)
+        // The noise body comes at the party on the field, at the one member when it picked one.
+        async Awaitable Lunge(EnemyView view, PartyCard victim)
         {
             game.Audio.Sfx("glitch", 0.5f);
-            var body = view.Body.parent;
-            await Anim.Tween(0.22f, t =>
-            {
-                var k = Mathf.Sin(t * Mathf.PI);
-                Ui.Zoom(body, 1f + k * 0.25f);
-                body.style.translate = new Translate(0, k * 50f);
-            }, Ease.Linear);
+            if (stage != null) await stage.Lunge(enemies.IndexOf(view), victim != null ? party.IndexOf(victim) : -1);
         }
 
         void Popup(Vector2 at, string text, Color color, string tag)
@@ -262,64 +231,48 @@ namespace SystemPrompt.UI
             if (mode == Mode.Hint) mode = previous;
         }
 
-        // 集成 (PV U14): the screen turns black and white, the silhouettes dash across leaving blue trails,
-        // the whale sweeps the screen, then it freezes on DeepSeek with her rice bowl.
+        // 集成 (PV U14): the title slams in, the party dash across the field cutting every noise body and
+        // DeepSeek's whale of light swims over them (BattleStage.AllOut), then it freezes on DeepSeek with her
+        // rice bowl.
         async Awaitable AllOutFx(List<Combatant> participants, int damage)
         {
             var layer = Ui.El("sp-allout", fx);
             Ui.Fill(layer);
-            var paper = Ui.El("sp-allout__paper", layer);
-            Ui.Fill(paper);
-            paper.style.opacity = 0;
             game.Audio.Sfx("whoosh");
             Fx.Flash(fx, Color.white);
-            await Anim.Tween(0.15f, t => paper.style.opacity = t, Ease.Linear);
-            var title = Fx.Stamp(layer, "集成！", Palette.Ink, 150f, -8f, new Vector2(960, 170));
+            foreach (var card in party.Where(c => participants.Contains(c.Unit))) card.Face.Play(FaceAct.Attack);
+            var title = Fx.Stamp(layer, "集成！", Palette.Paper, 150f, -8f, new Vector2(960, 170));
             game.Audio.Sfx("slam");
 
-            var withDeepSeek = participants.Any(p => p.Id == "DeepSeek");
-            for (var pass = 0; pass < 3; pass++)
+            void Strike()
             {
-                var y = 250f + pass * 170f;
-                Trail(layer, y + 220f);
-                if (withDeepSeek && pass != 1)
+                game.Audio.Sfx("crack");
+                foreach (var view in enemies.Where(v => !v.Unit.Dead))
                 {
-                    var silhouette = Ui.Picture(Ui.Tex("Art/Portraits/deepseek_battle"), ScaleMode.ScaleToFit, "sp-allout__silhouette", layer);
-                    silhouette.tintColor = Palette.Ink;
-                    silhouette.style.top = y - 160f;
-                    Dash(silhouette, pass % 2 == 0).Forget();
+                    view.Unit.HpFloor = 0;
+                    ApplyHit(view.Unit, new Hit { Damage = damage, Affinity = Affinity.Normal }).Forget();
                 }
-                else
-                {
-                    // The player's silhouette is the phone viewfinder.
-                    var finder = new Shape(Corner(false, false, 26f), Palette.Ink);
-                    finder.AddToClassList("sp-allout__finder");
-                    finder.style.top = y;
-                    layer.Add(finder);
-                    Dash(finder, false).Forget();
-                }
-                game.Audio.Sfx("slap", 0.7f);
-                await Anim.Wait(0.2f);
+                Fx.Shake(Root, 20f, 0.4f);
             }
 
-            var whale = new Shape(Whale(), Palette.Ink).Stroke(Palette.Sea, 8).Shadow(new Vector2(0, 18), Palette.Sea.WithAlpha(0.5f));
-            whale.AddToClassList("sp-allout__whale");
-            layer.Add(whale);
-            game.Audio.Sfx("water");
-            game.Audio.Sfx("rise");
-            await Anim.Tween(1.0f, t => whale.style.left = Mathf.Lerp(-1900f, 2000f, t), Ease.InOutCubic);
+            if (stage != null)
+            {
+                var members = participants.Select(p => party.FindIndex(c => c.Unit == p)).Where(i => i >= 0).ToList();
+                var whale = false;
+                await stage.AllOut(members, () => game.Audio.Sfx("slap", 0.7f), () =>
+                {
+                    whale = true;
+                    Strike();
+                });
+                if (!whale) Strike();
+            }
+            else Strike();
             await Fx.Dismiss(title);
-
-            foreach (var view in enemies.Where(v => !v.Unit.Dead))
-            {
-                view.Unit.HpFloor = 0;
-                ApplyHit(view.Unit, new Hit { Damage = damage, Affinity = Affinity.Normal }).Forget();
-            }
-            Fx.Shake(Root, 20f, 0.4f);
-            await Anim.Wait(0.9f);
+            await Anim.Wait(0.5f);
 
             // The freeze frame: DeepSeek with her rice bowl, her line in a speech bubble in front of her.
             // The victory itself is announced by the results.
+            var withDeepSeek = participants.Any(p => p.Id == "DeepSeek");
             finisherShown = withDeepSeek;
             if (withDeepSeek)
             {
@@ -340,39 +293,6 @@ namespace SystemPrompt.UI
                 }, Ease.OutBack);
             }
             await Hold(2.4f);
-        }
-
-        static async Awaitable Dash(VisualElement e, bool leftToRight)
-        {
-            await Anim.Tween(0.34f, t => e.style.left = leftToRight ? Mathf.Lerp(-700f, 2000f, t) : Mathf.Lerp(2000f, -700f, t), Ease.Linear);
-            e.RemoveFromHierarchy();
-        }
-
-        static void Trail(VisualElement layer, float y)
-        {
-            var trail = new Shape(Shape.Slant(30), Palette.Sea);
-            trail.AddToClassList("sp-allout__trail");
-            trail.style.top = y;
-            layer.Add(trail);
-            Anim.Tween(0.6f, t =>
-            {
-                trail.style.scale = new Scale(new Vector2(Mathf.Clamp01(t * 3f), 1f));
-                trail.style.opacity = 1f - Mathf.Clamp01((t - 0.4f) / 0.6f);
-            }, Ease.Linear).Forget();
-        }
-
-        // A whale in profile, nose on the left: unit-square points scaled to the element.
-        static Func<Rect, Vector2[]> Whale()
-        {
-            var unit = new[]
-            {
-                new Vector2(0.00f, 0.56f), new Vector2(0.06f, 0.40f), new Vector2(0.20f, 0.30f), new Vector2(0.42f, 0.27f),
-                new Vector2(0.60f, 0.32f), new Vector2(0.74f, 0.42f), new Vector2(0.83f, 0.48f), new Vector2(0.92f, 0.22f),
-                new Vector2(1.00f, 0.16f), new Vector2(0.95f, 0.44f), new Vector2(1.00f, 0.76f), new Vector2(0.90f, 0.70f),
-                new Vector2(0.83f, 0.57f), new Vector2(0.62f, 0.66f), new Vector2(0.38f, 0.72f), new Vector2(0.32f, 0.92f),
-                new Vector2(0.24f, 0.73f), new Vector2(0.08f, 0.68f),
-            };
-            return r => unit.Select(p => new Vector2(r.xMin + p.x * r.width, r.yMin + p.y * r.height)).ToArray();
         }
 
         // A P5 speech bubble: a crooked black box with a white edge and a spike out of its lower right
@@ -447,15 +367,12 @@ namespace SystemPrompt.UI
             {
                 var row = Ui.El("sp-results__member", list);
                 Shape.Backdrop(row, Shape.Slant(30), Palette.Ink.WithAlpha(0.96f)).Stroke(Palette.Paper, 3).Shadow(new Vector2(10, 10), Palette.Green);
-                var who = GameData.Character(r.Id);
-                if (who != null && who.HasPortrait)
-                {
-                    Ui.FaceCrop(r.Id == "DeepSeek" ? "Art/Portraits/deepseek_battle" : who.PortraitKey(who.DefaultFace), 100f, 100f, "sp-results__face", row, 2.4f, 0.2f);
-                }
+                if (r.Id == GameState.PlayerId || r.Id == "DeepSeek")
+                    new CardFace(r.Id, game.State.playerGender, 100f, "sp-results__face", row).Play(FaceAct.Victory);
                 else
                 {
-                    var face = Ui.El("sp-results__face is-initial", row);
-                    Ui.Text(string.IsNullOrEmpty(r.Name) ? "我" : r.Name.Substring(0, 1), "sp-results__initial", face, FontKind.Black);
+                    var who = GameData.Character(r.Id);
+                    Ui.FaceCrop(who.PortraitKey(who.DefaultFace), 100f, 100f, "sp-results__face", row, 2.4f, 0.2f);
                 }
                 var info = Ui.El("sp-results__member-info", row);
                 var top = Ui.El("sp-results__member-top", info);
