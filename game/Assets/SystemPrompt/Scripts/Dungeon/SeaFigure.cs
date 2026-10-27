@@ -19,9 +19,12 @@ namespace SystemPrompt.Dungeon
     // skirt and tail on spring bones (SeaSprings).
     public sealed class SeaFigure
     {
-        const float WalkSpeed = 1.6f;   // m/s where the walk plays at its own pace
+        const float WalkSpeed = 1.6f;   // m/s by which the walk has taken over from the idle
         const float RunFrom = 3.2f;     // the run has fully taken over by here
-        const float RunSpeed = 6.2f;    // and plays at its own pace here
+        // How fast the planted foot of the walk and of the run goes back at their own pace, per metre of the avatar's
+        // human scale (about its hips' height): Quaternius' Walk_Loop and Jog_Fwd_Loop, measured over each footfall
+        // on the VRoid models.
+        const float WalkPace = 0.87f, RunPace = 5.7f;
         const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
         const float RiceGrow = 0.15f; // the 道具's rice ball coming into the hand and going, in seconds
@@ -76,6 +79,7 @@ namespace SystemPrompt.Dungeon
         readonly AnimationMixerPlayable mixer;
         readonly AnimationLayerMixerPlayable layers; // the idle, walk and run under the motion playing over them
         readonly AnimationClipPlayable walk, run;
+        readonly float stride; // the avatar's human scale in metres as the model is sized, which the paces scale by
         AnimationClipPlayable idle, action;
         float actionTime, actionLength, actionWeight; // length infinite for a loop, which plays until Stop
         readonly Material look; // null on a VRoid model, whose parts each bring their own
@@ -122,11 +126,16 @@ namespace SystemPrompt.Dungeon
 
         // The player of the chosen gender: in the lounge clothes they were pulled in with (4-lounge), or in the
         // latent-space battle coat (5-battle) that the white door's mirror shows. Each has a fighting stance of
-        // their own, both with the phone in the right hand.
+        // their own, both with the phone in the right hand. The lounge models are made in VRoid and keep their own
+        // size (162 and 175 cm, a few more to the tip of the ahoge); having no idle of their own, they take that of
+        // the Tripo models they replaced, the boy's with the legs opened so his wide trousers don't meet
+        // (Motions/IdlePlayerMaleLounge, Editor/StancePoser.cs), and their face box sits as DeepSeek's VRoid one does.
         public static SeaFigure Player(string gender, bool battle, Transform parent) =>
             gender == "female"
-                ? new SeaFigure("PlayerFemale" + (battle ? "Battle" : ""), parent, 1.62f, "StancePlayerFemale", true)
-                : new SeaFigure("PlayerMale" + (battle ? "Battle" : ""), parent, 1.72f, "StancePlayer", true);
+                ? battle ? new SeaFigure("PlayerFemaleBattle", parent, 1.62f, "StancePlayerFemale", true)
+                    : new SeaFigure("PlayerFemaleLounge", parent, 0f, "StancePlayerFemale", true, 0.05f, "PlayerFemale")
+                : battle ? new SeaFigure("PlayerMaleBattle", parent, 1.72f, "StancePlayer", true)
+                    : new SeaFigure("PlayerMaleLounge", parent, 0f, "StancePlayer", true, 0.05f);
 
         // DeepSeek in her school uniform under the whale hoodie (1-uniform, made in VRoid) before the lighthouse,
         // her battle dress (4-battle) after; the Tripo weekend hoodie dress (3-casual, DeepSeekCasual) is no longer
@@ -204,6 +213,7 @@ namespace SystemPrompt.Dungeon
             this.height = (high - low) * scale;
             body.transform.localScale *= scale;
             body.transform.localPosition = new Vector3(0f, -low * scale, 0f);
+            stride = Animator.humanScale * body.transform.lossyScale.y;
 
             // The tail at rest, as the file has it: down from the hips and along the floor behind the figure.
             var tailBones = new List<Transform>();
@@ -249,7 +259,7 @@ namespace SystemPrompt.Dungeon
             graph.Connect(mixer, 0, layers, 0);
             layers.SetInputWeight(0, 1f);
             AnimationPlayableOutput.Create(graph, model, Animator).SetSourcePlayable(layers);
-            idle = Connect(Idle(idleOf ?? model, path), 0);
+            idle = Connect(Idle(idleOf ?? model), 0);
             walk = Connect(Motion("Walk"), 1);
             run = Connect(Motion("Run"), 2);
             mixer.SetInputWeight(0, 1f);
@@ -413,8 +423,10 @@ namespace SystemPrompt.Dungeon
             mixer.SetInputWeight(0, 1f - moving);
             mixer.SetInputWeight(1, moving * (1f - running));
             mixer.SetInputWeight(2, moving * running);
-            walk.SetSpeed(Mathf.Clamp(speed / WalkSpeed, 0.7f, 1.5f));
-            run.SetSpeed(Mathf.Clamp(speed / RunSpeed, 0.7f, 1.45f));
+            // Each at the rate whose planted foot keeps up with the ground going by, so the feet don't slide: the run
+            // 1.1 to 1.25 times its own pace at 6.2 m/s, 1.6 to 1.8 at the 9 m/s sprint.
+            walk.SetSpeed(Mathf.Clamp(speed / (WalkPace * stride), 0.6f, 2.2f));
+            run.SetSpeed(Mathf.Clamp(speed / (RunPace * stride), 0.6f, 1.9f));
             if (action.IsValid())
             {
                 actionTime += dt;
@@ -670,12 +682,13 @@ namespace SystemPrompt.Dungeon
             return clip;
         }
 
-        // The model's own idle: the take in its file (Tripo exports one per model), or for a model rigged elsewhere
-        // without one, Motions/Idle<model> (DeepSeek's battle dress keeps the idle of the Tripo model it replaced).
-        static AnimationClip Idle(string model, string path)
+        // The model's idle: Motions/Idle<model> where there is one (DeepSeek's battle dress, rigged in Blender, keeps
+        // the idle of the Tripo model it replaced), else the take in its file (Tripo exports one per model). The VRoid
+        // models have neither and ask for another model's (idleOf).
+        static AnimationClip Idle(string model)
         {
             var own = Resources.Load<AnimationClip>("Models/Motions/Idle" + model);
-            return own != null ? own : Clip(path);
+            return own != null ? own : Clip("Models/Characters/" + model);
         }
 
         // The take inside a model file (Tripo exports one per file).

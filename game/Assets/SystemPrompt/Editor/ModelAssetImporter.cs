@@ -49,11 +49,6 @@ namespace SystemPrompt.EditorTools
             ["Cast"] = (0.8f, 4.4f, false),
             ["Hit"] = (0f, 0f, false),
             ["Cheer"] = (0f, 0f, true),
-            // Not the battle's: exploration's run (Dungeon/SeaFigure.cs), cut and centred the same way. At 0.7–1 s
-            // the take drops into a crouch (the hips down to under half their height, the shoes 40 cm through the
-            // floor), and from its root node the hips sit 0.9 m ahead and swing half a metre to the side and back
-            // each stride. What is kept is the one whole stride before the crouch, right footfall to right footfall.
-            ["Run"] = (0.02f, 0.625f, true),
         };
 
         void OnPreprocessAnimation()

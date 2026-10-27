@@ -174,6 +174,14 @@ namespace SystemPrompt.EditorTools
         const string PlayerFemaleName = "StancePlayerFemale";
         const float LegsIn = -0.12f;
 
+        // The boy in his lounge clothes (PlayerMaleLounge, made in VRoid) has no idle of his own and took the one
+        // in the Tripo daily model's file, whose feet stand almost together: there his wide trouser legs went
+        // 11 cm into each other. IdlePlayerMaleLounge is that idle with both thighs opened by LoungeLegsOut, the
+        // least at which the two legs no longer meet (at 0.1 they still crossed 3 cm at the knees).
+        const string LoungeIdleSource = "Assets/SystemPrompt/Resources/Models/Characters/PlayerMale.fbx";
+        const string LoungeIdleName = "IdlePlayerMaleLounge";
+        const float LoungeLegsOut = 0.15f;
+
         // ------------------------------------------------------------------ the actions (Name + the stance's kind)
 
         // 防御, the player (guard-player.png): dropped low with the feet wide, the left shoulder leading and the
@@ -632,6 +640,32 @@ namespace SystemPrompt.EditorTools
             foreach (var kv in fist) Set(CurveName(kv.Key), AnimationCurve.Constant(0f, clip.length, kv.Value));
             Save(clip);
             Debug.Log($"{PlayerFemaleName}：来自 {source.name}，{clip.length:F2} 秒一循环，双腿内收 {LegsIn}，右手握拳");
+        }
+
+        // Not part of Run (which would also rewrite the stances): from the menu, or in batchmode with
+        // -executeMethod SystemPrompt.EditorTools.StancePoser.MakeLoungeIdle.
+        [MenuItem("System Prompt/生成男主角家居服待机")]
+        public static void MakeLoungeIdle()
+        {
+            var source = AssetDatabase.LoadAllAssetsAtPath(LoungeIdleSource).OfType<AnimationClip>()
+                .FirstOrDefault(c => !c.name.StartsWith("__preview__"))
+                ?? throw new InvalidOperationException($"{LoungeIdleSource} 里没有待机动作");
+            var clip = UnityEngine.Object.Instantiate(source);
+            clip.name = LoungeIdleName;
+            foreach (var side in new[] { "Left", "Right" })
+            {
+                var binding = EditorCurveBinding.FloatCurve("", typeof(Animator), $"{side} Upper Leg In-Out");
+                var curve = AnimationUtility.GetEditorCurve(clip, binding)
+                    ?? throw new InvalidOperationException($"{LoungeIdleSource} 的待机里没有曲线 {binding.propertyName}");
+                var keys = curve.keys;
+                for (var i = 0; i < keys.Length; i++) keys[i].value += LoungeLegsOut;
+                curve.keys = keys;
+                AnimationUtility.SetEditorCurve(clip, binding, curve);
+            }
+            Save(clip);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"{LoungeIdleName}：来自 {source.name}，{clip.length:F2} 秒，循环 {AnimationUtility.GetAnimationClipSettings(clip).loopTime}"
+                + $"（原动作 {AnimationUtility.GetAnimationClipSettings(source).loopTime}），双腿外张 {LoungeLegsOut}");
         }
 
         // The muscle's name as an animation curve calls it: the fingers' go under their hand.

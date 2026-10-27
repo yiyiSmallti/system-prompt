@@ -1,0 +1,2225 @@
+{
+    "springs": [
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_L_Bust1",
+                    "stiffness": 0.75,
+                    "gravity": 0.0,
+                    "drag": 0.05000000074505806,
+                    "radius": 0.01369215827435255,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_L_Bust2",
+                    "stiffness": 0.75,
+                    "gravity": 0.0,
+                    "drag": 0.05000000074505806,
+                    "radius": 0.01369215827435255,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_L_Bust2_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": []
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_R_Bust1",
+                    "stiffness": 0.75,
+                    "gravity": 0.0,
+                    "drag": 0.05000000074505806,
+                    "radius": 0.01369215827435255,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_R_Bust2",
+                    "stiffness": 0.75,
+                    "gravity": 0.0,
+                    "drag": 0.05000000074505806,
+                    "radius": 0.01369215827435255,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_R_Bust2_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": []
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_L_HoodString2_01",
+                    "stiffness": 0.25999999046325686,
+                    "gravity": 0.25,
+                    "drag": 0.0,
+                    "radius": 0.013692187145352364,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_L_HoodString2_end_01",
+                    "stiffness": 0.25999999046325686,
+                    "gravity": 0.25,
+                    "drag": 0.0,
+                    "radius": 0.013692187145352364,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_L_HoodString2_end_01_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": []
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_R_HoodString2_01",
+                    "stiffness": 0.25999999046325686,
+                    "gravity": 0.25,
+                    "drag": 0.0,
+                    "radius": 0.013692187145352364,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_R_HoodString2_end_01",
+                    "stiffness": 0.25999999046325686,
+                    "gravity": 0.25,
+                    "drag": 0.0,
+                    "radius": 0.013692187145352364,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_R_HoodString2_end_01_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": []
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_C_Hood_01",
+                    "stiffness": 0.75,
+                    "gravity": 0.0,
+                    "drag": 0.05000000074505806,
+                    "radius": 0.013692295178771019,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_C_Hood_end_01",
+                    "stiffness": 0.75,
+                    "gravity": 0.0,
+                    "drag": 0.05000000074505806,
+                    "radius": 0.013692295178771019,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_C_Hood_end_01_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": []
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_01",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006655007600785,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_01",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006655007600785,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_01",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006655007600785,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_01_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_02",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006651282310486,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_02",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006651282310486,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_02",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006651282310486,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_02_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_03",
+                    "stiffness": 0.5041666626930237,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_03",
+                    "stiffness": 0.5041666626930237,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_03",
+                    "stiffness": 0.5041666626930237,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_03_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_04",
+                    "stiffness": 0.5041676759719849,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_04",
+                    "stiffness": 0.5041676759719849,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_04",
+                    "stiffness": 0.5041676759719849,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_04_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_05",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.020013293251395227,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_05",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.020013293251395227,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_05",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.020013293251395227,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_05_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_06",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.015009974129498005,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_06",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.015009974129498005,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_06",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.015009974129498005,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_06_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_07",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.015009977854788304,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_07",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.015009977854788304,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_07",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.015009977854788304,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_07_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_08",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_08",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_08",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_08_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_09",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006653144955635,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_09",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006653144955635,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_09",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006653144955635,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_09_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_10",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.003713729325681925,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_10",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.003713729325681925,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_10",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.003713729325681925,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_10_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_11",
+                    "stiffness": 0.8018698692321777,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.005428766366094351,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_11",
+                    "stiffness": 0.8018698692321777,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.005428766366094351,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_11",
+                    "stiffness": 0.8018698692321777,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.005428766366094351,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_11_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_12",
+                    "stiffness": 0.8036776185035706,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004693267866969109,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_12",
+                    "stiffness": 0.8036776185035706,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004693267866969109,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_12",
+                    "stiffness": 0.8036776185035706,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004693267866969109,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_12_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_15",
+                    "stiffness": 0.8016140460968018,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_15",
+                    "stiffness": 0.8016140460968018,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_15",
+                    "stiffness": 0.8016140460968018,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_15_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_16",
+                    "stiffness": 0.8049055337905884,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.003262862330302596,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_16",
+                    "stiffness": 0.8049055337905884,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.003262862330302596,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_16",
+                    "stiffness": 0.8049055337905884,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.003262862330302596,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_16_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_17",
+                    "stiffness": 0.8032684326171875,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004595992621034384,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_17",
+                    "stiffness": 0.8032684326171875,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004595992621034384,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_17",
+                    "stiffness": 0.8032684326171875,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004595992621034384,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_17_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_13",
+                    "stiffness": 0.8031487464904785,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004427047912031412,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_13",
+                    "stiffness": 0.8031487464904785,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004427047912031412,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_13",
+                    "stiffness": 0.8031487464904785,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004427047912031412,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_13_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_14",
+                    "stiffness": 0.7961229085922241,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004548215307295322,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_14",
+                    "stiffness": 0.7961229085922241,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004548215307295322,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_14",
+                    "stiffness": 0.7961229085922241,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.004548215307295322,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_14_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_18",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006646625697613,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_18",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006646625697613,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_18",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.010006646625697613,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_18_end",
+                    "stiffness": 3.0,
+                    "gravity": 0.0,
+                    "drag": 0.699999988079071,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_19",
+                    "stiffness": 0.6041666865348816,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_19",
+                    "stiffness": 0.6041666865348816,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_19",
+                    "stiffness": 0.6041666865348816,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair4_19",
+                    "stiffness": 0.6041666865348816,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006656870245934,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair4_19_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_20",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006650350987912,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_20",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006650350987912,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_20",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006650350987912,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair4_20",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.010006650350987912,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair4_20_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        },
+        {
+            "center": "Root",
+            "level": false,
+            "joints": [
+                {
+                    "bone": "J_Sec_Hair1_21",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.01000665407627821,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair2_21",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.01000665407627821,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair3_21",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.01000665407627821,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair4_21",
+                    "stiffness": 0.4000000059604645,
+                    "gravity": 0.0,
+                    "drag": 0.4000000059604645,
+                    "radius": 0.01000665407627821,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                },
+                {
+                    "bone": "J_Sec_Hair4_21_end",
+                    "stiffness": 1.0,
+                    "gravity": 0.0,
+                    "drag": 0.5,
+                    "radius": 0.0,
+                    "gravityDir": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    }
+                }
+            ],
+            "colliders": [
+                5,
+                6,
+                7,
+                8,
+                14,
+                15,
+                16,
+                9,
+                10,
+                11,
+                12,
+                17,
+                18,
+                19,
+                20,
+                13,
+                21,
+                1,
+                2,
+                3,
+                0,
+                4
+            ]
+        }
+    ],
+    "colliders": [
+        {
+            "bone": "J_Bip_C_Spine",
+            "offset": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.11344026029109955,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_C_UpperChest",
+            "offset": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.00945335440337658
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.09453354775905609,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_C_UpperChest",
+            "offset": {
+                "x": -0.047266773879528049,
+                "y": 0.06144680082798004,
+                "z": -0.00945335440337658
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.0661734789609909,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_C_UpperChest",
+            "offset": {
+                "x": 0.047266773879528049,
+                "y": 0.06144680082798004,
+                "z": -0.00945335440337658
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.0661734789609909,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_C_Neck",
+            "offset": {
+                "x": 0.0,
+                "y": 0.02836006134748459,
+                "z": 0.012289360165596009
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726677015423775,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_C_Head",
+            "offset": {
+                "x": 0.0,
+                "y": 0.10006656497716904,
+                "z": -0.014409584924578667
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.10006656497716904,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_UpperArm",
+            "offset": {
+                "x": 0.0,
+                "y": -0.009453356266021729,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726678133010864,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_UpperArm",
+            "offset": {
+                "x": -0.07090017199516297,
+                "y": -0.009453356266021729,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726678133010864,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_UpperArm",
+            "offset": {
+                "x": -0.14180034399032594,
+                "y": -0.009453356266021729,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726678133010864,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_LowerArm",
+            "offset": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_LowerArm",
+            "offset": {
+                "x": -0.04726678133010864,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.03308674693107605,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_LowerArm",
+            "offset": {
+                "x": -0.09453356266021729,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_LowerArm",
+            "offset": {
+                "x": -0.14180034399032594,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_L_Hand",
+            "offset": {
+                "x": -0.018906712532043458,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_UpperArm",
+            "offset": {
+                "x": 0.0,
+                "y": -0.009453356266021729,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726678133010864,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_UpperArm",
+            "offset": {
+                "x": 0.07090017199516297,
+                "y": -0.009453356266021729,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726678133010864,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_UpperArm",
+            "offset": {
+                "x": 0.14180034399032594,
+                "y": -0.009453356266021729,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.04726678133010864,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_LowerArm",
+            "offset": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_LowerArm",
+            "offset": {
+                "x": 0.04726678133010864,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.03308674693107605,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_LowerArm",
+            "offset": {
+                "x": 0.09453356266021729,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_LowerArm",
+            "offset": {
+                "x": 0.14180034399032594,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        },
+        {
+            "bone": "J_Bip_R_Hand",
+            "offset": {
+                "x": 0.018906712532043458,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "tail": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "radius": 0.028360068798065187,
+            "capsule": false
+        }
+    ]
+}

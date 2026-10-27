@@ -98,7 +98,7 @@ game/Tools/e2e.sh
 | `Assets/SystemPrompt/Scenes/` | 空的启动场景 |
 | `Assets/SystemPrompt/Resources/UI/` | `SystemPrompt.uss` 样式表和 UI Toolkit 主题 |
 | `Assets/SystemPrompt/Resources/Shaders/` | 潜空间的着色器：三渲二（描边、两段色阶、边缘光；人物不描边，否则刘海和下巴的外壳会变成压在脸上的粗黑线；人物的光从镜头上方打来，脸不会背光，皮肤的明暗分界放宽，生成模型的脸不会被切成斑块；表情图集从正面投到脸上）、机柜墙（柜面的缝、托盘、把手、通风格和立柱按程序算出的高度求法线，主光加主角身上的点光，带高光；按区域换指示灯颜色）、海床（按区域染色，地板缝和通风孔；墙的位置由 `DungeonWorld` 画成一张小图传进来，用来算墙脚的接触阴影；地砖倒角的反光）、墙脚杂物、接地阴影、发光体、光柱和光束（`Shaft`：一条绕自身轴线转向镜头的带子，白芯、柔光和顺着光走的条纹，用在信标、碎片和终端的光柱、灯塔落下的光、反射光路和出口）、场景里的文字、噪声体（标题党型用逐块闪烁、会跳出的像素方块）、白门的镜子、全息（集成里的光之鲸），雾在着色器里算 |
-| `Assets/SystemPrompt/Resources/Models/` | 潜空间的角色模型：`Characters/` 是男女主角的家居服和战斗服、DeepSeek 的便服和战斗服（FBX 带 Mixamo 骨骼和各自的待机动作，DeepSeek 战斗服另有 6 节尾骨、没有自带待机；旁边是基础色贴图、表情图集和正脸深度），`Motions/` 是三人共用的行走、跑步和战斗动作（斩击、施法、受击、欢呼，Tripo 在女主角战斗服上生成后逐条导出；`IdleDeepSeek.anim` 是原来 Tripo 版 DeepSeek 战斗服的待机，给现在的战斗服用；战斗待机是 `Editor/StancePoser.cs` 照姿势图摆的 `StancePlayer.anim`（男主角）和 `StanceDeepSeek.anim`，以及它从动作库的施法待机改出来的女主角 `StancePlayerFemale.anim`；防御、道具和深度思考也是它摆的，按待机分 `GuardPlayer`、`GuardPlayerFemale`、`GuardDeepSeek`、`ItemPlayer`、`ItemPlayerFemale`、`ItemDeepSeek` 和 `ThinkDeepSeek`），`Props/` 是 Tripo 生成的道具（倒下的机柜、线缆堆、线缆盘、电路板珊瑚、旧显示器、硬盘堆、数据晶簇、鲸鱼），每个一张基础色贴图 |
+| `Assets/SystemPrompt/Resources/Models/` | 潜空间的角色模型：`Characters/` 是男女主角的家居服和战斗服、DeepSeek 觉醒前的校服和战斗服。战斗服是 FBX（带 Mixamo 骨骼和各自的待机动作，DeepSeek 战斗服另有 6 节尾骨、没有自带待机；旁边是基础色贴图、表情图集和正脸深度）；家居服 `PlayerFemaleLounge`、`PlayerMaleLounge` 和校服 `DeepSeekUniform` 是 VRoid Studio 做的，各是一个预制体加一份弹簧骨数据 `_Springs.json`，网格、材质和贴图在 `Assets/SystemPrompt/Characters/<模型名>/`，表情用模型自带的形态键。VRoid 模型没有自己的待机，用被它替换的 Tripo 模型的：`PlayerFemale.fbx` 和 `PlayerMale.fbx` 是原来的 Tripo 家居服，游戏里不再显示，留着给家居服提供待机，也是 `Editor/StancePoser.cs` 摆姿势用的身体。家居服按设定图做，上衣是 VRoid 卫衣去掉兜帽和抽绳后填成深灰；女主角的低马尾没做出来，还是外翘短发，男主角的裤脚没有收口；`Motions/` 是三人共用的行走、跑步和战斗动作（行走 `Walk.anim` 和跑步 `Run.anim` 是 Quaternius 通用动作库的 `Walk_Loop` 和 `Jog_Fwd_Loop`（库里的 `Sprint_Loop` 两只脚着地时一快一慢，总有一只打滑，没用），`SeaFigure` 按角色的人形比例换算播放速度，让着地的脚跟上移动速度、不打滑；斩击、施法、受击、欢呼是 Tripo 在女主角战斗服上生成后逐条导出的；`IdleDeepSeek.anim` 是原来 Tripo 版 DeepSeek 战斗服的待机，给现在的战斗服用；`IdlePlayerMaleLounge.anim` 是 Tripo 男主角家居服的待机两腿张开 0.15（`StancePoser.MakeLoungeIdle` 生成），原来双脚几乎并拢，VRoid 男主角的宽裤腿会互相穿进去 11 cm；战斗待机是 `Editor/StancePoser.cs` 照姿势图摆的 `StancePlayer.anim`（男主角）和 `StanceDeepSeek.anim`，以及它从动作库的施法待机改出来的女主角 `StancePlayerFemale.anim`；防御、道具和深度思考也是它摆的，按待机分 `GuardPlayer`、`GuardPlayerFemale`、`GuardDeepSeek`、`ItemPlayer`、`ItemPlayerFemale`、`ItemDeepSeek` 和 `ThinkDeepSeek`），`Props/` 是 Tripo 生成的道具（倒下的机柜、线缆堆、线缆盘、电路板珊瑚、旧显示器、硬盘堆、数据晶簇、鲸鱼），每个一张基础色贴图 |
 | `Assets/SystemPrompt/Resources/Art/` | 立绘、背景、战斗收尾特写 |
 | `Assets/SystemPrompt/Resources/Audio/` | BGM（标题曲和剧情、潜空间、战斗三段循环）和 8bit 音效 |
 | `Assets/SystemPrompt/Resources/Fonts/` | Noto Sans SC 三个字重、JetBrains Mono 两个字重和字体许可 |
@@ -108,7 +108,7 @@ game/Tools/e2e.sh
 | `Tools/face_expressions.py`、`Tools/FaceArt/` | 画角色表情图集的脚本，以及它用的正脸照片和五官位置 |
 | `Music/` | 剧情、潜空间和战斗 BGM 的 Suno 原曲（WAV），提示词、选曲和循环点见其中的 README |
 | `E2E/` | 端到端验证的报告和截图，每次运行一个文件夹 |
-| `Archive/` | 没用上的素材，放在 `Assets` 外面，不导入也不打包：`Motions/Shoot.fbx` 是 Tripo 的跪姿拍照动作（出手的一段在 2.3–4.4 秒，挪回 `Resources/Models/Motions/` 时在 `Editor/ModelAssetImporter.cs` 的战斗动作表里补上这一段）；`Motions/BattleStance.fbx` 是原来三人共用的 Tripo 战斗待机（深蹲、一只手挡在嘴前），已换成 `Stance*.anim` |
+| `Archive/` | 没用上的素材，放在 `Assets` 外面，不导入也不打包：`Motions/Shoot.fbx` 是 Tripo 的跪姿拍照动作（出手的一段在 2.3–4.4 秒，挪回 `Resources/Models/Motions/` 时在 `Editor/ModelAssetImporter.cs` 的战斗动作表里补上这一段）；`Motions/BattleStance.fbx` 是原来三人共用的 Tripo 战斗待机（深蹲、一只手挡在嘴前），已换成 `Stance*.anim`；`Motions/Walk.fbx` 和 `Run.fbx` 是原来的 Tripo 行走和跑步，跑步落地的脚只有约 3.5 m/s，按 6.2 m/s 移动时脚底打滑一半，已换成动作库的 `Walk.anim` 和 `Run.anim`（`Run.fbx` 挪回来时只取 0.02–0.625 秒那一步，在 `ModelAssetImporter` 的动作表里补上，并且不锁根节点的水平位置） |
 
 界面固定按 1920×1080 布局，窗口比例不同时加黑边。斜切面板、网点、爆炸框等用 Painter2D 在代码里画（`UI/Elements/Shape.cs`），USS 负责尺寸、位置、文字和各种 `is-*` 状态。界面配色和字体沿用 PV 的设计，见 [pv/README.md](../pv/README.md)。
 
@@ -197,6 +197,7 @@ game/Tools/e2e.sh
 | BGM | 标题用 PV 配乐去掉主唱的分轨（`pv/music/a1-without-lead-vocal.wav`）整首。剧情、潜空间和战斗是 Suno 生成的纯音乐「校园日常」「缓存海」「噪声体来袭」，原曲和提示词在 [Music/](Music/README.md)，`Tools/bgm_loops.py` 从中截出 56、24、80 小节的循环（约 101、72、116 秒）；「缓存海」在玩家房间的夜里也用 |
 | 音效 | PV 的 8bit 音效（`pv/sfx/`，由 `pv/scripts/sfx.py` 合成） |
 | 潜空间角色模型 | [Tripo](https://studio.tripo3d.uk) 生成：先按 `assets/characters/turnarounds` 的正面图生成 T 字姿势的图（手臂和衣服分开，绑骨后不粘连），再转成约 4 万面的模型，自动绑定 Mixamo 人形骨骼，动作用 Tripo 的预设（站立待机、行走、跑步）。男女主角是家居服（4-lounge）和镜子里的战斗服（5-battle），DeepSeek 是周末便服（3-casual）和潜空间战斗服（4-battle）。DeepSeek 战斗服后来换成 Tripo 多视角生成（正、左、后三张 3D 渲染风 T 字图）的约 185 万面高模，在 Blender 里减到约 10 万面、烘焙贴图、绑 Mixamo 骨骼加 6 节尾骨（流程在 `claude/vibrant-gauss-5cdv9b` 分支的 `assets/characters/highpoly/blender/`） |
+| 角色动作 | 行走、跑步和女主角的战斗待机取自 [Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)（Standard 免费版，CC0）；斩击、施法、受击、欢呼是 Tripo 的预设；防御、道具、深度思考和其余战斗待机由 `Editor/StancePoser.cs` 摆出 |
 | 字体 | [Noto Sans SC](https://fonts.google.com/noto/specimen/Noto+Sans+SC) 和 [JetBrains Mono](https://www.jetbrains.com/lp/mono/)，SIL Open Font License 1.1，见 `Resources/Fonts/OFL.txt` |
 
 基于设定稿角色形象制作的立绘、特写和 3D 模型沿用原设定稿的 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 协议，仅限非商业用途，详见根目录 [README](../README.md#封面与角色形象)。主角目前没有立绘，战斗里用名字首字代替头像。
