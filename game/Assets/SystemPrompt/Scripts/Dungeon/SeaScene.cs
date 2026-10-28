@@ -146,6 +146,13 @@ namespace SystemPrompt.Dungeon
             lamp.sharedMaterials = looks;
         }
 
+        // Its looks, with the area or the battle field taken down: Parts.Free only finds those a piece still
+        // wears, and Light takes the lamp's off it.
+        public void Dispose()
+        {
+            foreach (var m in materials.Values) Object.Destroy(m);
+        }
+
         static GameObject Prefab(string path)
         {
             var prefab = Resources.Load<GameObject>(path);

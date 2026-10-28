@@ -11,7 +11,8 @@ namespace SystemPrompt.Dungeon
     {
         readonly Transform parent;
         readonly Camera camera;
-        readonly Material white, dot, ring, beam; // shared; arcs and lances fade by vertex colour
+        readonly Material white, dot, ring, beam, bubble; // shared; arcs and lances fade by vertex colour
+        readonly Mesh quad; // the rings' and flashes'
         Mesh lance;
         GameObject whale;
 
@@ -26,6 +27,16 @@ namespace SystemPrompt.Dungeon
             dot.mainTextureOffset = new Vector2(cell.z, cell.w);
             ring = SeaArt.Glow(SeaArt.Ring, Color.white);
             beam = SeaArt.Glow(SeaArt.Beam, Color.white);
+            bubble = SeaArt.Glow(SeaArt.Atlas, Color.white);
+            quad = SeaArt.Quad();
+        }
+
+        // The shared materials and meshes, when the field is taken down (BattleStage.Drop); what is playing then
+        // goes with the field.
+        public void Dispose()
+        {
+            foreach (var o in new Object[] { white, dot, ring, beam, bubble, quad, lance })
+                if (o != null) Object.Destroy(o);
         }
 
         // ------------------------------------------------------------------ slash
@@ -151,7 +162,7 @@ namespace SystemPrompt.Dungeon
         // A ring of light spreading from `at` across the plane facing `normal`, out to `radius`.
         public void Ring(Vector3 at, Vector3 normal, Color color, float radius, float seconds = 0.45f)
         {
-            var shape = Parts.Shape("Ring", parent, SeaArt.Quad(), new Material(ring) { color = color });
+            var shape = Parts.Shape("Ring", parent, quad, new Material(ring) { color = color });
             shape.transform.SetPositionAndRotation(at, Quaternion.LookRotation(normal));
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
@@ -164,7 +175,7 @@ namespace SystemPrompt.Dungeon
         // A round flash at `at`, turned to the camera.
         public void Flash(Vector3 at, Color color, float size, float seconds = 0.28f)
         {
-            var shape = Parts.Shape("Flash", parent, SeaArt.Quad(), new Material(dot) { color = color });
+            var shape = Parts.Shape("Flash", parent, quad, new Material(dot) { color = color });
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
             {
@@ -177,7 +188,8 @@ namespace SystemPrompt.Dungeon
         // A column of light standing up out of the seabed at `at`.
         public void Pillar(Vector3 at, Color color, float radius, float height, float seconds = 0.8f)
         {
-            var shape = Parts.Shape("Pillar", parent, SeaArt.Tube(radius, radius * 0.6f, 1f, 24), new Material(beam) { color = color });
+            var tube = SeaArt.Tube(radius, radius * 0.6f, 1f, 24);
+            var shape = Parts.Shape("Pillar", parent, tube, new Material(beam) { color = color });
             shape.transform.position = new Vector3(at.x, 0f, at.z);
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
@@ -185,7 +197,11 @@ namespace SystemPrompt.Dungeon
                 var rise = Ease.OutCubic(Mathf.Clamp01(t / 0.3f));
                 shape.transform.localScale = new Vector3(1f + t * 0.4f, height * rise, 1f + t * 0.4f);
                 material.color = color * (1f - Mathf.Clamp01((t - 0.35f) / 0.65f));
-            }, () => Object.Destroy(material));
+            }, () =>
+            {
+                Object.Destroy(material);
+                Object.Destroy(tube);
+            });
         }
 
         // ------------------------------------------------------------------ ice
@@ -329,6 +345,7 @@ namespace SystemPrompt.Dungeon
             if (body == null) return;
             bubbles.Stop();
             Object.Destroy(wake.gameObject, 0.6f);
+            Object.Destroy(bubbles.gameObject, 0.6f);
             whale.SetActive(false);
         }
 
@@ -358,7 +375,7 @@ namespace SystemPrompt.Dungeon
             sheet.numTilesY = 1;
             sheet.frameOverTime = new ParticleSystem.MinMaxCurve((SeaArt.AtlasBubble + 0.5f) / 4f);
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = SeaArt.Glow(SeaArt.Atlas, Color.white);
+            renderer.sharedMaterial = bubble;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             ps.Play();
             return ps;

@@ -43,6 +43,26 @@ namespace SystemPrompt.E2E
             public string Shot;
         }
 
+        // A screen transition as it ran, by the wall clock (Seconds) and by the game's own (Game, the frames'
+        // Time.unscaledDeltaTime, which the wipe runs on). A wipe counts a frame longer than 0.1 s as 0.1 s
+        // (Transitions.Step), so Over, what its frames ran past that, is time pressing Confirm can't hurry.
+        sealed class WipeTiming
+        {
+            public Wipe Style;
+            public float At, Seconds, Game, Slowest, Over;
+            public int Frames;
+            public bool Hurried;
+        }
+
+        // The meshes, materials and textures made at run time (Made) when a battle or a dive starts and once the
+        // screen it came from is back, the battle field or the area gone.
+        sealed class Leftovers
+        {
+            public string What;
+            public float At;
+            public int Meshes, Materials, Textures, MeshesAfter = -1, MaterialsAfter = -1, TexturesAfter = -1;
+        }
+
         string outDir;
         Keyboard keyboard;
         GameRoot game;
@@ -52,6 +72,11 @@ namespace SystemPrompt.E2E
         readonly List<string> passes = new List<string>();
         readonly List<string> logErrors = new List<string>();
         readonly List<string> logWarnings = new List<string>();
+        readonly List<WipeTiming> wipeTimings = new List<WipeTiming>();
+        readonly List<Leftovers> leftovers = new List<Leftovers>();
+        WipeTiming wipe;
+        Leftovers battle, dive;
+        bool inBattle, inDungeon;
         float started;
         int shotCount;
         int hold;
@@ -99,7 +124,50 @@ namespace SystemPrompt.E2E
                 Fail($"整体超时（{RunTimeout:0} 秒）");
                 Finish();
             }
+            if (game == null || finished) return;
+            TimeWipe();
+            battle = CountLeftovers(battle, game.InBattle, ref inBattle, "战斗");
+            dive = CountLeftovers(dive, game.InDungeon, ref inDungeon, "潜入");
         }
+
+        void TimeWipe()
+        {
+            var wipes = game.Transitions;
+            if (wipe != null)
+            {
+                var dt = Time.unscaledDeltaTime;
+                wipe.Frames++;
+                wipe.Seconds = Now - wipe.At;
+                wipe.Game += dt;
+                wipe.Slowest = Mathf.Max(wipe.Slowest, dt);
+                wipe.Over += Mathf.Max(0f, dt - 0.1f);
+                wipe.Hurried |= wipes.Hurried;
+                if (!wipes.Busy || wipes.Style != wipe.Style) wipe = null;
+            }
+            if (wipe == null && wipes.Busy) wipeTimings.Add(wipe = new WipeTiming { Style = wipes.Style, At = Now });
+        }
+
+        // A battle or a dive should leave no meshes or materials behind (BattleStage.Drop, DungeonWorld.Drop); a
+        // few may be the UI's own (a font's glyph page). Textures are only listed: the story's portraits and the
+        // sea's shared pictures are made on the way. `open` is the count waiting for its end; returns it, or null
+        // once checked.
+        Leftovers CountLeftovers(Leftovers open, bool on, ref bool was, string what)
+        {
+            if (on && !was)
+                leftovers.Add(open = new Leftovers { What = what, At = Now, Meshes = Made<Mesh>(), Materials = Made<Material>(), Textures = Made<Texture>() });
+            was = on;
+            if (open == null || on || game.Transitions.Busy) return open;
+            open.MeshesAfter = Made<Mesh>();
+            open.MaterialsAfter = Made<Material>();
+            open.TexturesAfter = Made<Texture>();
+            Check(open.MeshesAfter - open.Meshes <= 4 && open.MaterialsAfter - open.Materials <= 4,
+                $"{what}没有留下网格和材质（网格 {open.Meshes} → {open.MeshesAfter}，材质 {open.Materials} → {open.MaterialsAfter}）");
+            return null;
+        }
+
+        // Made at run time (a negative instance id) and not kept for the whole run (Parts.Free, FxSurface).
+        static int Made<T>() where T : UnityEngine.Object =>
+            Resources.FindObjectsOfTypeAll<T>().Count(o => o.GetInstanceID() < 0 && (o.hideFlags & HideFlags.DontUnloadUnusedAsset) == 0);
 
         // ------------------------------------------------------------------ scenario
 
@@ -224,19 +292,22 @@ namespace SystemPrompt.E2E
             yield return Until(() => TitleReady, "掉线转场后回到标题");
 
             // 转场能跳过：开始后按确定，剩下的三倍速播完、停顿取消。机器忙时帧率会掉，
-            // 所以先完整播一遍关机转场，在同样的负载下比较用时
-            var t0 = Now;
+            // 所以先完整播一遍关机转场，在同样的负载下比较用时。都按转场自己的时钟 Time.unscaledTime 算：
+            // 窗口的帧在游戏之外被拖慢时（见「转场用时与帧时间」），墙上时间比它走得快，
+            // 按墙上时间等 0.3 秒再按，可能还在转场开头不收按键的 0.2 秒里
+            var t0 = Time.unscaledTime;
             game.ShowTitle(Wipe.Shutdown);
             yield return Until(() => !game.Transitions.Busy, "完整的关机转场结束");
-            var full = Now - t0;
+            var full = Time.unscaledTime - t0;
             yield return Until(() => TitleReady, "关机转场后回到标题");
-            t0 = Now;
+            t0 = Time.unscaledTime;
             game.ShowTitle(Wipe.Shutdown);
-            yield return Wait(0.3f);
+            yield return Until(() => Time.unscaledTime - t0 > 0.3f, "关机转场播了 0.3 秒");
             yield return Press(Key.Enter);
             yield return Until(() => !game.Transitions.Busy, "跳过的转场结束");
-            var hurried = Now - t0;
-            Check(hurried < full * 0.75f, $"按确定后转场加速（关机转场 {hurried:0.00} 秒，不跳过 {full:0.00} 秒）");
+            var hurried = Time.unscaledTime - t0;
+            Check(game.Transitions.Hurried, "关机转场收到了确定键");
+            Check(hurried < full * 0.75f, $"按确定后转场加速（游戏时间：关机转场 {hurried:0.00} 秒，不跳过 {full:0.00} 秒）");
             yield return Until(() => TitleReady, "跳过转场后回到标题");
         }
 
@@ -1168,6 +1239,25 @@ namespace SystemPrompt.E2E
             md.AppendLine();
             foreach (var p in passes) md.AppendLine($"- ✅ {p}");
             foreach (var f in failures) md.AppendLine($"- ❌ {f}");
+            md.AppendLine();
+            md.AppendLine("## 转场用时与帧时间");
+            md.AppendLine();
+            md.AppendLine("「游戏时间」是各帧 Time.unscaledDeltaTime 之和，转场按它播放；墙上时间远长于它，是帧在游戏之外被拖慢了（例如窗口被挡住），" +
+                          "游戏自己仍按每帧 1/60 秒走。转场把超过 0.1 秒的一帧只算 0.1 秒，「超出」是各帧超过 0.1 秒的部分之和，这段时间按确定也快不了。");
+            md.AppendLine();
+            md.AppendLine("| 开始 | 转场 | 墙上时间 | 游戏时间 | 帧数 | 每帧墙上时间 | 最慢帧（游戏） | 超出 | 按确定 |");
+            md.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+            foreach (var w in wipeTimings)
+                md.AppendLine($"| {w.At:0.0}s | {w.Style} | {w.Seconds:0.00}s | {w.Game:0.00}s | {w.Frames} | {(w.Frames > 0 ? w.Seconds / w.Frames * 1000f : 0f):0} ms | " +
+                              $"{w.Slowest * 1000f:0} ms | {w.Over:0.00}s | {(w.Hurried ? "是" : "")} |");
+            md.AppendLine();
+            md.AppendLine("## 战斗和潜入前后运行时生成的网格、材质和贴图");
+            md.AppendLine();
+            md.AppendLine("| 开始 | 场合 | 网格 前 → 后 | 材质 前 → 后 | 贴图 前 → 后 |");
+            md.AppendLine("| --- | --- | --- | --- | --- |");
+            static string After(int n) => n < 0 ? "—" : n.ToString();
+            foreach (var l in leftovers)
+                md.AppendLine($"| {l.At:0.0}s | {l.What} | {l.Meshes} → {After(l.MeshesAfter)} | {l.Materials} → {After(l.MaterialsAfter)} | {l.Textures} → {After(l.TexturesAfter)} |");
             md.AppendLine();
             md.AppendLine($"## 日志：{logErrors.Count} 个错误，{logWarnings.Count} 个警告");
             md.AppendLine();

@@ -48,6 +48,17 @@ namespace SystemPrompt.Dungeon
             return stage;
         }
 
+        // The field taken down with what was made for it: destroying its GameObject alone would leave its meshes
+        // and materials behind, a lot of them every battle (the seabed, the racks' batched mesh, the figures'
+        // and noise bodies' looks) and more with every hit.
+        public void Drop()
+        {
+            effects.Dispose();
+            ring.Dispose();
+            Parts.Free(gameObject);
+            Destroy(gameObject);
+        }
+
         void OnDestroy()
         {
             foreach (var m in party) m.Figure.Dispose();
@@ -289,8 +300,10 @@ namespace SystemPrompt.Dungeon
             }
         }
 
+        // Not with 画面震动 turned off in the settings, like the 2D effects' Fx.Shake.
         public void Shake(float metres, float seconds)
         {
+            if (!GameRoot.Instance.Settings.screenShake) return;
             shake = metres;
             shakeLeft = seconds;
         }

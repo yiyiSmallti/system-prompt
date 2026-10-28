@@ -38,6 +38,7 @@ namespace SystemPrompt.Dungeon
             m = SeaArt.Toon(new Color(1.15f, 1.15f, 1.2f, 1f), new Color(0.5f, 0.58f, 0.8f, 1f), new Color(0.5f, 0.9f, 1f, 1f), new Color(0.04f, 0.07f, 0.1f, 0f), 0.02f);
             m.SetFloat("_RimPower", 2.5f);
             m.mainTexture = Texture(name);
+            m.hideFlags = HideFlags.DontUnloadUnusedAsset; // shared by every copy of the model: Parts.Free leaves it
             return looks[name] = m;
         }
 

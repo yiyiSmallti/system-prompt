@@ -64,7 +64,7 @@ namespace SystemPrompt.Dungeon
         void OnDestroy()
         {
             twin?.Dispose();
-            if (picture != null) picture.Release();
+            if (picture != null) Destroy(picture); // releases it too; Release alone leaves the texture object
             if (view != null) view.cullingMask |= 1 << DoubleLayer;
             if (avatar != null) SetLayer(avatar, 0);
         }

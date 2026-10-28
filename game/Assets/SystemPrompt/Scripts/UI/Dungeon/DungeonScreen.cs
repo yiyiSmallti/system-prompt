@@ -255,7 +255,7 @@ namespace SystemPrompt.UI
             Lock(false);
             nav.Clear();
             nav.Companion = null;
-            if (world != null) UnityEngine.Object.Destroy(world.gameObject);
+            if (world != null) world.Drop();
             world = null;
             minimap.Attach(null);
         }

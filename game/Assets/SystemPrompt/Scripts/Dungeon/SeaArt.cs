@@ -157,7 +157,8 @@ namespace SystemPrompt.Dungeon
         // material for all of it, its glyph texture swapped in whenever the font's dynamic atlas grows.
         public static TextMesh Text(string name, Transform parent, string words, float height, Color color, Vector3 local = default)
         {
-            if (text == null) text = new Material(Load("Text"));
+            // Kept for the whole run: Parts.Free leaves it to the next words.
+            if (text == null) text = new Material(Load("Text")) { hideFlags = HideFlags.DontUnloadUnusedAsset };
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = local;
@@ -813,8 +814,10 @@ namespace SystemPrompt.Dungeon
         // shadows), `size` across.
         public static MeshRenderer Shadow(Transform parent, float size)
         {
+            // Shared by every shadow in the maze and the battle field, so kept for the whole run (Parts.Free).
             if (shadowMesh == null) shadowMesh = Decal(1f);
             if (shadow == null) shadow = Plain("Shadow");
+            shadowMesh.hideFlags = shadow.hideFlags = HideFlags.DontUnloadUnusedAsset;
             var r = Parts.Shape("Shadow", parent, shadowMesh, shadow, new Vector3(0f, 0.02f, 0f));
             r.transform.localScale = new Vector3(size, 1f, size);
             return r;

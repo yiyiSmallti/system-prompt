@@ -68,6 +68,7 @@ namespace SystemPrompt.UI
 
         public bool Busy => busy > 0;
         public Wipe Style { get; private set; }
+        public bool Hurried => hurried; // Confirm or Cancel caught during the wipe running, or the last one
 
         public Transitions(GameRoot game, VisualElement frame)
         {

@@ -25,6 +25,22 @@ namespace SystemPrompt.Dungeon
             r.receiveShadows = false;
             return r;
         }
+
+        // Destroying a GameObject leaves the meshes and materials made for it behind; this takes those under
+        // root with it. Only the ones made at run time go (a negative instance id: models and materials read
+        // from files have a positive one), and not what SeaArt keeps for everyone, marked DontUnloadUnusedAsset.
+        public static void Free(GameObject root)
+        {
+            var made = new HashSet<Object>();
+            foreach (var f in root.GetComponentsInChildren<MeshFilter>(true)) made.Add(f.sharedMesh);
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is SkinnedMeshRenderer skin) made.Add(skin.sharedMesh);
+                foreach (var m in r.sharedMaterials) made.Add(m);
+            }
+            foreach (var o in made)
+                if (o != null && o.GetInstanceID() < 0 && (o.hideFlags & HideFlags.DontUnloadUnusedAsset) == 0) Object.Destroy(o);
+        }
     }
 
     // The player in the latent space, in the turnarounds' lounge clothes (4-lounge) of the chosen gender.
@@ -612,7 +628,11 @@ namespace SystemPrompt.Dungeon
                 parts.Add((twig, Matrix4x4.TRS(fork + dir * 0.12f, turn, Vector3.one)));
                 parts.Add((head, Matrix4x4.TRS(fork + dir * 0.24f, turn, Vector3.one)));
             }
-            return SeaArt.Combine("Forked Arrow", parts);
+            var arrow = SeaArt.Combine("Forked Arrow", parts);
+            Object.Destroy(stem);
+            Object.Destroy(twig);
+            Object.Destroy(head);
+            return arrow;
         }
 
         // Bobbing and the rest of its life. alert 0..1 heats the glitch (its eyes wide open while it looks)

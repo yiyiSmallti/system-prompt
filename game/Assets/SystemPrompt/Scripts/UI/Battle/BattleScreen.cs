@@ -155,7 +155,7 @@ namespace SystemPrompt.UI
 
         void DropStage()
         {
-            if (stage != null) UnityEngine.Object.Destroy(stage.gameObject);
+            if (stage != null) stage.Drop();
             stage = null;
         }
 

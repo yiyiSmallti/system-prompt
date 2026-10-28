@@ -50,6 +50,7 @@ namespace SystemPrompt.Dungeon
         string gender;
         Transform door, doorSeam, doorMist; // the white door at the deep exit, if the area has one
         SeaMirror mirror;
+        Texture2D zones, walls; // the seabed's, made for this area
 
         public float Time => time;
 
@@ -69,7 +70,7 @@ namespace SystemPrompt.Dungeon
             }
             catch
             {
-                Destroy(go);
+                world.Drop();
                 throw;
             }
             GC.KeepAlive(files);
@@ -86,6 +87,18 @@ namespace SystemPrompt.Dungeon
             var requests = files.ConvertAll(f => Resources.LoadAsync(f.path, f.type));
             foreach (var r in requests) await Awaitable.FromAsyncOperation(r);
             return requests;
+        }
+
+        // The area taken down with what was made for it, as BattleStage.Drop: destroying its GameObject alone would
+        // leave every dive's meshes, materials (the scenery's batched mesh and looks, the racks, the noise bodies,
+        // the figures) and the seabed's textures behind.
+        public void Drop()
+        {
+            scene?.Dispose();
+            Parts.Free(gameObject);
+            if (zones != null) Destroy(zones);
+            if (walls != null) Destroy(walls);
+            Destroy(gameObject);
         }
 
         void OnDestroy()
@@ -148,9 +161,11 @@ namespace SystemPrompt.Dungeon
             var size = Mathf.Max(Map.Width, Map.Height) * Dungeons.Cell + 260f;
             var floor = Parts.Shape("Seabed", transform, SeaArt.Plane(size), SeaArt.Plain("Seabed"), Centre);
             floor.sharedMaterial.SetFloat("_Cell", Dungeons.Cell);
-            floor.sharedMaterial.SetTexture("_ZoneTex", decor.FloorLight(out var rect));
+            zones = decor.FloorLight(out var rect);
+            walls = WallMask();
+            floor.sharedMaterial.SetTexture("_ZoneTex", zones);
             floor.sharedMaterial.SetVector("_ZoneRect", rect);
-            floor.sharedMaterial.SetTexture("_WallTex", WallMask());
+            floor.sharedMaterial.SetTexture("_WallTex", walls);
             sky = Parts.Shape("Sky", transform, SeaArt.Sphere(1f, 0f, 32, 20), SeaArt.Plain("Sky")).transform;
             sky.localScale = Vector3.one * 420f;
         }

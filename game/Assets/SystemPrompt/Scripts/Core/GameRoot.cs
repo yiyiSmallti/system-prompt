@@ -341,7 +341,7 @@ namespace SystemPrompt
                     UpdateMusic();
                     explore = Dungeon.Run(id, run, world);
                 }
-                else if (world != null) Destroy(world.gameObject);
+                else if (world != null) world.Drop();
             }
             finally
             {
