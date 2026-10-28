@@ -659,6 +659,56 @@ namespace SystemPrompt.E2E
             }
         }
 
+        // The player's next turn in the battle GuardAndEat played: the 辣条 the shallows' pair dropped, thrown
+        // at the noise body (the watcher films it flying alight and bursting into flame). DeepSeek attacks if
+        // her turn comes first.
+        IEnumerator ThrowStrip()
+        {
+            Check(game.State.ItemCount("spicy_strip") > 0, $"背包里有浅层掉落的辣条（{game.State.ItemCount("spicy_strip")}）");
+            if (game.State.ItemCount("spicy_strip") == 0) yield break;
+            var t0 = Now;
+            var quiet = Now;
+            while (!finished && game.InBattle && Now - t0 < StepTimeout)
+            {
+                if (hold > 0 || !Visible(ui.Q(className: "sp-battle__menu")))
+                {
+                    if (hold == 0 && Now - quiet > 3f)
+                    {
+                        yield return Press(Key.Enter);
+                        quiet = Now;
+                    }
+                    else yield return null;
+                    continue;
+                }
+                var mine = ui.Q<Label>(className: "sp-battle__banner-text").text == "我的回合";
+                var want = mine ? "道具" : "攻击";
+                for (var i = 0; i < 6 && !CommandSelected(want); i++) yield return Press(Key.DownArrow);
+                if (!CommandSelected(want))
+                {
+                    Fail($"指令里选不到「{want}」");
+                    yield break;
+                }
+                yield return Press(Key.Enter);
+                quiet = Now;
+                if (!mine)
+                {
+                    yield return Wait(0.4f);
+                    continue;
+                }
+                yield return Wait(0.3f);
+                for (var i = 0; i < 6 && !ItemSelected("辣条"); i++) yield return Press(Key.DownArrow);
+                Check(ItemSelected("辣条"), "道具列表里选中辣条");
+                yield return Press(Key.Enter);
+                yield return Wait(0.5f);
+                yield return Press(Key.Enter);
+                var thrown = Now;
+                while (!finished && game.InBattle && game.State.ItemCount("spicy_strip") > 0 && Now - thrown < 10f) yield return null;
+                Check(game.State.ItemCount("spicy_strip") == 0, "扔出了辣条");
+                yield break;
+            }
+            Check(false, "先制战斗结束前轮到主角扔辣条");
+        }
+
         bool CommandSelected(string label) =>
             ui.Query(className: "sp-command").ToList().Any(c => c.ClassListContains("is-selected") && c.Q<Label>(className: "sp-command__text")?.text == label);
 
@@ -698,7 +748,12 @@ namespace SystemPrompt.E2E
             yield return Snap(shot, title);
             yield return Press(Key.Enter);
             yield return Pump(() => game.InBattle, "先制攻击进入战斗");
-            if (game.State.party.Count > 1 && !Seen("battle-pose-item")) yield return GuardAndEat(); // both, once DeepSeek fights
+            // Both, once DeepSeek fights, and then the 辣条 the shallows' pair dropped.
+            if (game.State.party.Count > 1 && !Seen("battle-pose-item"))
+            {
+                yield return GuardAndEat();
+                yield return ThrowStrip();
+            }
             yield return Pump(() => !game.InBattle && Maze.Exploring, "先制战斗结束，回到迷宫");
             Check(!dozing.Active, "打倒的噪声体从迷宫里消失");
         }
@@ -1022,8 +1077,15 @@ namespace SystemPrompt.E2E
             Watch("battle-screenshot", "截图攻击", () => Exists("sp-viewfinder"), 0.15f, false);
             // The 3D effects on the field (Dungeon/BattleEffects.cs), each caught while it is up.
             Watch("battle-slash", "DeepSeek 冲上去斩击（刀光、火花）", () => game.InBattle && !Seen("battle-prompt") && OnStage("Slash"), 0.06f, false);
-            Watch("battle-ice", "技能：冰枪齐射", () => OnStage("Lance"), 0.12f, false);
-            Watch("battle-frost", "技能：冰刺炸开", () => OnStage("Frost"), 0.15f, false);
+            // Each skill's and attack's own look (design/skills.md 战斗特效), filmed while it plays.
+            Film("battle-capture", "截图：取景框收紧在噪声体上，连同打下的像素飞回手机，缩略图从画面中央缩到左下角", () => OnStage("Snap"), 12, 0.12f);
+            Film("battle-current", "寒流：冰晶寒流从掌心横穿画面、镜头横移跟随，噪声体结冰碎裂", () => OnStage("Stream"), 12, 0.08f);
+            Film("battle-maelstrom", "深海潜流：冰蓝漩涡卷起噪声体、镜头后拉，全体冻结碎裂", () => OnStage("Vortex"), 14, 0.12f);
+            Watch("battle-impact", "打中弱点：放射光线和冲击环", () => OnStage("Impact"), 0.05f, false);
+            Film("battle-popups", "标题党型「震惊！」：弹窗广告砸向队员", () => OnStage("Popup"), 8, 0.08f);
+            Film("battle-forward", "转发型「转发保平安」：分叉箭头升空分裂、落向全队", () => OnStage("Forward"), 10, 0.08f);
+            Film("battle-toss", "道具：冰镇汽水翻滚着飞过去、炸开泡沫和冰霜", () => OnStage("Can"), 10, 0.08f);
+            Film("battle-blaze", "道具：辣条着火飞过去、炸成火球", () => OnStage("Strip"), 10, 0.08f);
             Watch("battle-skill", "技能列表", () => Visible(ui.Q(className: "sp-battle__skills")), 0.2f);
             Watch("battle-cutin", "技能特写", () => Exists("sp-cutin"), 0.2f, false);
             Watch("battle-weak", "对抗样本", () => StampShown("对抗样本！"), 0.15f, false);
@@ -1031,8 +1093,8 @@ namespace SystemPrompt.E2E
             // The poses struck in place (Editor/StancePoser.cs), filmed from the skill bar on: DeepSeek's
             // 深度思考 in the tutorial, the player's 防御 and DeepSeek eating the 白米饭 in the first
             // preemptive battle (GuardAndEat).
-            Film("battle-pose-think", "深度思考：两指按太阳穴、低头闭眼", () => SkillBarSays("深度思考"), 8, 0.15f, null, 640, 360, 4);
-            Film("battle-pose-guard", "防御：压低身体、前臂挡在脸前", () => SkillBarSays("防御"), 8, 0.11f, null, 640, 360, 4);
+            Film("battle-pose-think", "深度思考：两指按太阳穴、低头闭眼，思考字样绕着头飘起，脚下留下蓄力光阵", () => SkillBarSays("深度思考"), 8, 0.15f, null, 640, 360, 4);
+            Film("battle-pose-guard", "防御：压低身体、前臂挡在脸前，面前立起六边形光盾", () => SkillBarSays("防御"), 8, 0.11f, null, 640, 360, 4);
             Film("battle-pose-item", "道具：DeepSeek 双手捧着白米饭", () => SkillBarSays("白米饭"), 8, 0.15f, null, 640, 360, 4);
             Watch("battle-think", "深度思考", () => Visible(ui.Q(className: "sp-battle__think")), 0.25f);
             Watch("battle-down", "全员倒地", () => StampShown("全员倒地！"), 0.2f);

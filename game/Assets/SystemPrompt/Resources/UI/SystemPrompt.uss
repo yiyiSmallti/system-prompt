@@ -3176,6 +3176,21 @@
     position: absolute;
 }
 
+/* The screenshot just taken, like a phone's thumbnail of it (BattleScreen.Thumbnail). */
+.sp-shot {
+    position: absolute;
+    width: 352px;
+    height: 198px;
+    border-width: 6px;
+    border-color: var(--paper);
+    background-color: var(--ink);
+    transform-origin: center;
+}
+
+.sp-shot__image {
+    flex-grow: 1;
+}
+
 .sp-viewfinder__corner {
     position: absolute;
     width: 70px;

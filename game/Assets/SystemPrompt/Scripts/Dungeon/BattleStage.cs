@@ -134,10 +134,12 @@ namespace SystemPrompt.Dungeon
             {
                 if (f.Gone) continue;
                 f.Heat = Mathf.MoveTowards(f.Heat, 0f, dt * 2.5f);
-                f.Look.Animate(time, f.Seed, Mathf.Max(f.Heat, f.Down * 0.4f));
-                // Knocked down: over onto its side, sunk into the seabed a little.
-                f.Root.localPosition = f.At + new Vector3(0f, -0.55f * f.Down, 0f);
-                f.Root.localRotation = Quaternion.Euler(0f, 180f, f.Down * 70f);
+                // Frozen solid: still, as it was when the ice closed on it.
+                if (!f.Frozen) f.Look.Animate(time, f.Seed, Mathf.Max(f.Heat, f.Down * 0.4f));
+                // Knocked down: over onto its side, sunk into the seabed a little. Carried round in a whirlpool:
+                // lifted off the seabed, turning.
+                f.Root.localPosition = f.At + new Vector3(0f, f.Lift - 0.55f * f.Down, 0f);
+                f.Root.localRotation = Quaternion.Euler(0f, 180f + f.Spin, f.Down * 70f);
                 f.Shadow.localPosition = new Vector3(f.At.x, 0.02f, f.At.z);
                 f.Shadow.localScale = new Vector3(1f, 0f, 1f) * (NoiseLook.ShadowSize * f.Root.localScale.x) + Vector3.up;
             }
@@ -381,7 +383,9 @@ namespace SystemPrompt.Dungeon
             var yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
             m.Yaw = yaw;
             Move(Charge(member, foe), 0.25f);
+            var wake = effects.Streak(m.Root, Sea, 0.7f, 0.22f, "Wake");
             await Anim.Tween(0.3f, t => m.At = Vector3.Lerp(m.Home, stop, t), Ease.InOutCubic);
+            if (wake != null) Destroy(wake.gameObject, 0.25f);
             var length = m.Figure.Play("Slash", SlashPace);
             await Anim.Wait(SlashLands);
             Back().Forget();
@@ -395,12 +399,15 @@ namespace SystemPrompt.Dungeon
             }
         }
 
-        // The blade's light across the noise body: two crescents crossing, sparks and a ring.
+        // The 饭勺's blade of seawater across the noise body: three crescents, the deep blue one back the other
+        // way, water thrown off it, sparks and a ring.
         public void Slash(int foe)
         {
             var at = FoePoint(foe) + Vector3.down * 0.15f;
             effects.Slash(at, Sea, 1.25f, -32f);
             effects.Slash(at, Color.white, 1.0f, -20f, 0.26f);
+            effects.Slash(at, new Color(0.15f, 0.45f, 1f), 1.5f, 150f, 0.4f);
+            effects.Splash(at, Sea);
             effects.Sparks(at, Sea, 28, 8f);
             effects.Flash(at, Sea, 2.2f);
             effects.Ring(at, (Camera.transform.position - at).normalized, Sea, 1.3f, 0.35f);
@@ -434,40 +441,217 @@ namespace SystemPrompt.Dungeon
             }
         }
 
-        // The shutter: a flash at the phone, and the noise body lit white, shedding pixels of its colours.
+        // The shutter: a flash at the phone, and a frame of light snapping shut on the noise body, lit white, and
+        // flying back into the phone with the pixels it took off it.
         public void Capture(int member, int foe)
         {
             var at = FoePoint(foe);
-            effects.Flash(Hand(member), Color.white, 0.9f, 0.2f);
+            var phone = Hand(member);
+            effects.Flash(phone, Color.white, 0.9f, 0.2f);
             effects.Flash(at, Color.white, 3.2f, 0.3f);
-            effects.Pixels(at, foes[foe].Look.Tint, Lens, 40, 5f);
+            effects.Snap(at, phone, Lens, foes[foe].Look.Tint, Lens);
             effects.Ring(at, (Camera.transform.position - at).normalized, Lens, 1.6f, 0.4f);
             Shake(0.05f, 0.15f);
         }
 
-        // Steps out and casts (an attack item is thrown the same way); done as the arm is thrown out at the noise
-        // bodies.
-        public async Awaitable Cast(int member, bool fire = false)
+        // What the phone saw at the shutter, `width` by `height`: the noise body from the member's hand, close,
+        // for the thumbnail of the shot (BattleScreen.ScreenshotFx). The caller releases it.
+        public RenderTexture Photo(int member, int foe, int width, int height)
+        {
+            var photo = new RenderTexture(width, height, 24) { name = "Screenshot" };
+            var target = FoePoint(foe);
+            var eye = Camera.transform;
+            Vector3 position = eye.position;
+            Quaternion rotation = eye.rotation;
+            var lens = Camera.fieldOfView;
+            eye.position = target + (Hand(member) - target).normalized * 3f;
+            eye.rotation = Quaternion.LookRotation(target - eye.position);
+            Camera.fieldOfView = 34f;
+            Camera.aspect = (float)width / height;
+            Camera.targetTexture = photo;
+            Camera.Render();
+            Camera.targetTexture = null;
+            Camera.ResetAspect();
+            Camera.fieldOfView = lens;
+            eye.SetPositionAndRotation(position, rotation);
+            return photo;
+        }
+
+        // Out on the member's outer side and behind as she casts at the noise body, then running alongside her
+        // cast up the field to it: 寒流 (pv/README.md S15, 镜头快速横移跟随).
+        Shot Alongside(int member, Vector3 target, bool there)
+        {
+            var m = party[member].Home;
+            var run = target - m;
+            run.y = 0f;
+            run.Normalize();
+            var side = new Vector3(run.z, 0f, -run.x) * (m.x >= 0f ? 1f : -1f);
+            var roll = m.x >= 0f ? -8f : 8f;
+            return there
+                ? new Shot(target - run * 2.2f + side * 3.4f + Vector3.down * 0.2f, target, roll * 0.75f, 46f)
+                : new Shot(m + side * 3.4f - run * 1.3f + Vector3.up * 1.1f, Vector3.Lerp(m + Vector3.up * 1.2f, target, 0.35f), roll, 50f, 0.02f);
+        }
+
+        // Steps out and casts, a ring of cold at her feet, wider charged; done as the arm is thrown out.
+        async Awaitable Cast(int member, bool charged)
         {
             var m = party[member];
-            Move(Beside(member), 0.4f);
             m.Figure.Play("Cast", CastPace);
             Step(member).Forget();
-            effects.Ring(m.Home + Vector3.up * 0.05f, Vector3.up, fire ? Flame : Frozen, 1.4f, 0.8f);
+            effects.Ring(m.Home + Vector3.up * 0.05f, Vector3.up, Frozen, charged ? 2.1f : 1.4f, 0.8f);
+            if (charged) effects.Pillar(m.Home, Frozen, 0.9f, 3.5f, 0.7f);
             await Anim.Wait(CastLands);
         }
 
-        // 防御: braced where they stand, a ring of light held up between them and the noise bodies.
+        // 寒流 (S15): her palm thrown out at the noise body and a current of cold carrying crystals of ice from
+        // it, the camera running along beside it; the noise body frozen solid where it stands (`frozen` called
+        // then), and a moment later the ice bursting. Done as it bursts, for the hit.
+        public async Awaitable Current(int member, int foe, bool charged, System.Action frozen)
+        {
+            var target = FoePoint(foe);
+            Move(Alongside(member, target, false), 0.35f);
+            await Cast(member, charged);
+            if (this == null) return;
+            const float Flight = 0.42f;
+            var hand = Hand(member);
+            effects.Flash(hand, Frozen, charged ? 1.8f : 1.3f, 0.25f);
+            Move(Alongside(member, target, true), Flight + 0.15f, Ease.InOutCubic);
+            await effects.Stream(hand, target, Frozen, charged ? 0.6f : 0.38f, Flight);
+            if (this == null) return;
+            var f = foes[foe];
+            var shell = effects.Freeze(target, Frozen, charged ? 1.25f : 1.05f);
+            f.Frozen = true;
+            frozen?.Invoke();
+            Shake(0.08f, 0.2f);
+            Punch(4f, 0.3f);
+            await Anim.Wait(0.38f);
+            if (this == null) return;
+            Break(f, shell);
+        }
+
+        // 深海潜流 (S16): a whirlpool of cold light opening under the noise bodies, the camera down in it so it
+        // fills the view, carrying them round and up in it as the camera pulls fast back to take it all in; all frozen together as it bursts (`frozen`
+        // called then), the ice on each bursting one after another and the noise bodies back where they stood.
+        // Done as the last bursts, for the hits.
+        public async Awaitable Maelstrom(int member, IList<int> targets, bool charged, System.Action frozen)
+        {
+            Move(Beside(member), 0.4f);
+            await Cast(member, charged);
+            if (this == null) return;
+            effects.Flash(Hand(member), Frozen, 1.6f, 0.3f);
+            var centre = FoeCentre;
+            centre.y = 0f;
+            Cut(new Shot(centre + new Vector3(-1.8f, 1.1f, -4.6f), centre + Vector3.up * 1.4f, -10f, 66f));
+            var pulled = false;
+            var carried = new List<Foe>();
+            foreach (var i in targets) if (!foes[i].Gone) carried.Add(foes[i]);
+            await effects.Maelstrom(centre, 4.2f * (charged ? 1.15f : 1f), Frozen, 1.25f, t =>
+            {
+                if (!pulled && t > 0.16f)
+                {
+                    pulled = true;
+                    Move(new Shot(centre + new Vector3(-3.2f, 4.4f, -10f), centre + Vector3.up * 1.2f, -6f, 56f, 0.03f), 1f);
+                }
+                // Round the way the whirlpool turns (clockwise from above), drawn in toward its middle.
+                var k = Ease.InOutCubic(t);
+                foreach (var f in carried)
+                {
+                    var off = f.Home - centre;
+                    off.y = 0f;
+                    f.At = centre + Quaternion.Euler(0f, 50f * k, 0f) * off * (1f - 0.15f * k);
+                    f.Spin = 720f * k * k;
+                    f.Lift = 0.7f * Mathf.Sin(Mathf.Min(1f, t * 1.3f) * Mathf.PI * 0.5f);
+                    f.Heat = 1f;
+                }
+            });
+            if (this == null) return;
+            var shells = new List<Transform>();
+            foreach (var f in carried)
+            {
+                shells.Add(effects.Freeze(f.Root.position + Vector3.up * NoiseLook.Height, Frozen, charged ? 1.2f : 1f));
+                f.Frozen = true;
+            }
+            frozen?.Invoke();
+            Shake(0.12f, 0.3f);
+            Punch(5f, 0.35f);
+            await Anim.Wait(0.3f);
+            for (var i = 0; i < carried.Count; i++)
+            {
+                if (this == null) return;
+                Break(carried[i], shells[i]);
+                Settle(carried[i]).Forget();
+                await Anim.Wait(0.1f);
+            }
+        }
+
+        // The ice round a frozen noise body bursting and the noise body free again, for the hit.
+        void Break(Foe f, Transform shell)
+        {
+            effects.Shatter(shell, Frozen);
+            f.Frozen = false;
+            f.Heat = 1f;
+            Shake(0.1f, 0.25f);
+            Punch(5f, 0.3f);
+        }
+
+        // A noise body the whirlpool carried off back where it stood, set down and turned to face the party.
+        static async Awaitable Settle(Foe f)
+        {
+            var at = f.At;
+            var spin = f.Spin;
+            var lift = f.Lift;
+            var facing = Mathf.Round(spin / 360f) * 360f;
+            await Anim.Tween(0.35f, t =>
+            {
+                f.At = Vector3.Lerp(at, f.Home, t);
+                f.Spin = Mathf.Lerp(spin, facing, t);
+                f.Lift = Mathf.Lerp(lift, 0f, t);
+            });
+            f.Spin = 0f;
+        }
+
+        // A 冰镇汽水 (or a 辣条, alight) thrown overarm at the noise body: it arcs over, turning, and bursts on it in
+        // foam and frost (or a ball of flame). Done as it bursts, for the hit.
+        public async Awaitable Toss(int member, int foe, bool fire)
+        {
+            var m = party[member];
+            var color = fire ? Flame : Frozen;
+            Move(Beside(member), 0.4f);
+            m.Figure.Play("Cast", CastPace);
+            Step(member).Forget();
+            await Anim.Wait(CastLands);
+            if (this == null) return;
+            var target = FoePoint(foe);
+            await effects.Toss(fire, Hand(member), target, color, 0.5f);
+            if (this == null) return;
+            if (fire) effects.Blaze(target, color);
+            else effects.Fizz(target, color);
+            foes[foe].Heat = 1f;
+            Shake(0.08f, 0.25f);
+            Punch(3f, 0.25f);
+        }
+
+        // 防御: braced where they stand, a shield of cells of light raised between them and the noise bodies and
+        // held there until their next turn (Unguard), flaring where a blow lands on it.
         public async Awaitable Guard(int member)
         {
             var m = party[member];
             Move(Aside(member), 0.35f);
             m.Figure.Act("Guard");
             await Anim.Wait(0.2f);
-            var at = MemberPoint(member) + Vector3.forward * 0.6f;
-            effects.Ring(at, Vector3.forward, Sea, 0.8f, 0.5f);
+            if (this == null) return;
+            var at = MemberPoint(member) + Vector3.forward * 0.75f;
+            m.Shield?.Release();
+            m.Shield = effects.Barrier(at, Vector3.forward, Sea);
             effects.Flash(at, Sea, 1.2f, 0.25f);
             await Anim.Wait(GuardSeen - 0.2f);
+        }
+
+        public void Unguard(int member)
+        {
+            var m = party[member];
+            m.Shield?.Release();
+            m.Shield = null;
         }
 
         // 道具: the 白米饭 held up as a rice ball (eaten, by DeepSeek), gone in a flash as the one it is for is lit
@@ -491,9 +675,19 @@ namespace SystemPrompt.Dungeon
             Move(Aside(member, FaceRound), 0.4f);
             Mood(m, "think", m.Figure.Act("Think")).Forget();
             await Anim.Wait(0.35f);
+            if (this == null) return;
             effects.Ring(m.Home + Vector3.up * 0.05f, Vector3.up, Frozen, 1.2f, 0.7f);
+            effects.Thoughts(MemberPoint(member) + Vector3.up * 0.75f, Frozen, 1.4f);
             await Anim.Wait(ThinkSeen - 0.35f);
             effects.Ring(m.Home + Vector3.up * 0.05f, Vector3.up, Frozen, 0.9f, 0.6f);
+        }
+
+        // 深度思考's charge held under her feet (held) until her next skill spends it.
+        public void Charged(int member, bool held)
+        {
+            var m = party[member];
+            m.Aura?.Release();
+            m.Aura = held ? effects.Aura(m.Root, Frozen) : null;
         }
 
         // The face for as long as an action plays, then as modelled.
@@ -502,26 +696,6 @@ namespace SystemPrompt.Dungeon
             m.Mood = face;
             await Anim.Wait(seconds);
             if (m.Mood == face) m.Mood = null;
-        }
-
-        // A volley of ice lances from the caster's hand at each noise body; done when they land, frost bursting
-        // out of the seabed round each. A thrown 辣条 flies the same way in flame.
-        public async Awaitable Ice(int member, IList<int> targets, bool fire = false)
-        {
-            var from = Hand(member);
-            var color = fire ? Flame : Frozen;
-            effects.Flash(from, color, 1.2f, 0.25f);
-            var flights = new List<Awaitable>();
-            foreach (var foe in targets)
-                for (var i = 0; i < 6; i++)
-                    flights.Add(effects.Lance(from, FoePoint(foe) + Random.insideUnitSphere * 0.35f, color, i * 0.045f));
-            foreach (var flight in flights) await flight;
-            foreach (var foe in targets)
-            {
-                effects.Frost(FoePoint(foe), color, 0.75f).Forget();
-                effects.Sparks(FoePoint(foe), color, 20, 6f);
-            }
-            Shake(0.08f, 0.25f);
         }
 
         // 集成: the party dash across in front of the noise bodies one after another, trailing light and cutting
@@ -601,6 +775,7 @@ namespace SystemPrompt.Dungeon
         {
             var m = party[member];
             m.Wince = 0.7f;
+            m.Shield?.Flare();
             Punch(3f, 0.3f);
             if (m.Fall <= 0f) m.Figure.Play("Hit", 1.1f);
             effects.Sparks(MemberPoint(member), Harm, 18, 5f);
@@ -617,7 +792,12 @@ namespace SystemPrompt.Dungeon
         {
             var m = party[member];
             var from = m.Fall;
-            if (down) m.Figure.Stop();
+            if (down)
+            {
+                m.Figure.Stop();
+                Unguard(member);
+                Charged(member, false);
+            }
             Anim.Tween(0.35f, t => m.Fall = Mathf.Lerp(from, down ? 1f : 0f, t)).Forget();
         }
 
@@ -633,6 +813,20 @@ namespace SystemPrompt.Dungeon
                 var k = Mathf.Sin(t * Mathf.PI) * (1f - t);
                 f.At = f.Home + new Vector3(Random.Range(-0.08f, 0.08f), 0f, 0.5f * k);
             }, Ease.Linear).Forget();
+        }
+
+        // A blow on a weakness or a critical, lit in the colour of what struck it.
+        public void Impact(int foe, SystemPrompt.Battle.Element element, bool critical)
+        {
+            var color = element switch
+            {
+                SystemPrompt.Battle.Element.Ice => Frozen,
+                SystemPrompt.Battle.Element.Fire => Flame,
+                _ => critical ? Harm : Lens,
+            };
+            effects.Impact(FoePoint(foe), color, critical);
+            Punch(6f, 0.35f);
+            Shake(0.1f, 0.25f);
         }
 
         public void Down(int foe, bool down)
@@ -717,6 +911,30 @@ namespace SystemPrompt.Dungeon
             Anim.Tween(0.35f, t => f.At = Vector3.Lerp(reach, f.Home, t), Ease.OutCubic).Forget();
         }
 
+        // 标题党型's 震惊！: it comes at the member and flings pop-up windows at them; done as the last hits.
+        public async Awaitable Bait(int foe, int member)
+        {
+            Lunge(foe, member).Forget();
+            await Anim.Wait(0.12f);
+            if (this == null) return;
+            await effects.Popups(FoePoint(foe), MemberPoint(member), 4, foes[foe].Look.Tint, Palette.Hex("#FFD23F"));
+        }
+
+        // 转发型's 转发保平安: forked arrows shot up out of it that split and come down on the whole party, the
+        // camera back to take in the field. Done when all have landed.
+        public async Awaitable Forward(int foe, IList<int> members)
+        {
+            foes[foe].Heat = 1f;
+            Move(Overview, 0.35f);
+            await Anim.Wait(0.2f);
+            if (this == null) return;
+            var targets = new List<Vector3>();
+            foreach (var i in members) targets.Add(MemberPoint(i));
+            await effects.Forward(FoePoint(foe) + Vector3.up * 0.4f, targets, foes[foe].Look.Tint);
+            if (this == null) return;
+            Shake(0.1f, 0.3f);
+        }
+
         public readonly struct Shot
         {
             public readonly Vector3 Position, Look;
@@ -742,6 +960,7 @@ namespace SystemPrompt.Dungeon
             public float Wince;  // seconds left of the face pulled at a hit
             public string Mood;  // the face otherwise (SeaFigure's names), null as modelled
             public Transform Shadow; // on the seabed, apart so it stays flat when they fall
+            public BattleEffects.Held Shield, Aura; // 防御's shield, 深度思考's charge
         }
 
         sealed class Foe
@@ -750,7 +969,8 @@ namespace SystemPrompt.Dungeon
             public NoiseLook Look;
             public Vector3 Home, At;
             public float Seed, Heat, Down;
-            public bool Gone;
+            public float Spin, Lift; // carried round in 深海潜流's whirlpool
+            public bool Gone, Frozen;
             public Transform Shadow;
         }
     }

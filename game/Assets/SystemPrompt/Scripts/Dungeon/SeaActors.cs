@@ -613,8 +613,9 @@ namespace SystemPrompt.Dungeon
             return cells;
         }
 
-        // The 转发型's arrow, along +y from `from` inside the core: a stem forking into two arrowheads.
-        static Mesh ForkedArrow(float from)
+        // The 转发型's arrow, along +y from `from` inside the core: a stem forking into two arrowheads. Its
+        // 转发保平安 shoots them (BattleEffects.Forward).
+        internal static Mesh ForkedArrow(float from)
         {
             // Round rods, standing on their foot (SeaArt.Cylinder runs from 0 up).
             var stem = SeaArt.Cylinder(0.045f, 0.04f, 0.3f, 8);

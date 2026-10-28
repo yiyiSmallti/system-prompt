@@ -358,6 +358,7 @@ namespace SystemPrompt.UI
             var s = session;
             var unit = card.Unit;
             unit.Guarding = false;
+            stage?.Unguard(party.IndexOf(card));
             card.Refresh();
             var oneMore = false;
             try
@@ -653,8 +654,9 @@ namespace SystemPrompt.UI
                     await CutIn(unit, skill.Name);
                     var hitTargets = skill.AllTargets ? enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit).ToList() : new List<Combatant> { action.Target };
                     card?.Face.Play(FaceAct.Attack);
-                    if (stage != null) await stage.Cast(member);
-                    await IceFx(member, hitTargets.Select(ViewOf).ToList());
+                    // The charge of 深度思考 goes into the cast.
+                    if (unit.Charged) stage?.Charged(member, false);
+                    await SpellFx(skill, member, hitTargets.Select(ViewOf).ToList(), unit.Charged);
                     var hits = hitTargets.Select(t => (t, DamageCalc.Compute(unit, t, skill, def))).ToList();
                     if (unit.Charged)
                     {
@@ -684,6 +686,7 @@ namespace SystemPrompt.UI
                     await SkillBar(unit, "深度思考");
                     unit.Charged = true;
                     card?.Refresh();
+                    stage?.Charged(member, true);
                     await ThinkFx(card);
                     if (posed != null) await posed;
                     return false;
@@ -718,8 +721,8 @@ namespace SystemPrompt.UI
             return false;
         }
 
-        // An attack item thrown like a cast at one noise body, its volley in the item's colour (冰镇汽水 ice, 辣条
-        // flame). True when it knocked the noise body down (One More).
+        // An attack item thrown at one noise body, bursting on it in foam and frost (冰镇汽水) or in flame (辣条).
+        // True when it knocked the noise body down (One More).
         async Awaitable<bool> Throw(Combatant unit, ItemDef item, Combatant target)
         {
             var card = CardOf(unit);
@@ -730,9 +733,8 @@ namespace SystemPrompt.UI
             card?.Face.Play(FaceAct.Attack);
             if (stage != null)
             {
-                await stage.Cast(member, fire);
+                await stage.Toss(member, enemies.IndexOf(view), fire);
                 game.Audio.Sfx(fire ? "whoosh" : "water", 0.8f);
-                await stage.Ice(member, new[] { enemies.IndexOf(view) }, fire);
             }
             game.Audio.Sfx("crack");
             if (view != null) Fx.Shake(view.Root, 16f, 0.25f);
@@ -770,6 +772,7 @@ namespace SystemPrompt.UI
                 view.Refresh();
                 Fx.Shake(view.Root, 18f, 0.3f);
                 stage?.Hit(foe);
+                if (hit.Affinity == Affinity.Weak || hit.Critical) stage?.Impact(foe, hit.Element, hit.Critical);
                 if (hit.KnockedDown)
                 {
                     target.Down = true;
@@ -827,7 +830,7 @@ namespace SystemPrompt.UI
             if (victims.Count == 1) stage?.Move(stage.Threat(foe, party.IndexOf(victims[0])), 0.35f);
             else stage?.Move(stage.Watch(foe), 0.4f);
             await EnemyBar(view, skill.Name);
-            await Lunge(view, victims.Count == 1 ? victims[0] : null);
+            await StrikeFx(view, skill, victims);
             foreach (var card in victims)
             {
                 var hit = DamageCalc.Compute(e, card.Unit, skill, def);

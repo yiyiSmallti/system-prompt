@@ -53,6 +53,14 @@ namespace SystemPrompt.Dungeon
             return m;
         }
 
+        // Clear ice, tinted: what 寒流 and 深海潜流 freeze a noise body into.
+        public static Material Ice(Color color)
+        {
+            var m = new Material(Load("Ice"));
+            m.SetColor("_Color", color);
+            return m;
+        }
+
         public static Material Plain(string shader) => new Material(Load(shader));
 
         // A shaft of light (Shaders/Shaft.shader) for a Ribbon: glow round a core of the core colour, coreWidth

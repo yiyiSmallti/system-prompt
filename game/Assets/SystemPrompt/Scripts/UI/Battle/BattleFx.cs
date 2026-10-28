@@ -8,9 +8,9 @@ using UnityEngine.UIElements;
 namespace SystemPrompt.UI
 {
     // Battle presentation, following the PV's battle act (pv/README.md 第六幕): screenshot viewfinder with a
-    // shutter flash, the eye cut-in before a skill, and the 集成's title and freeze frame, over the light of
-    // the fighting on the 3D field (Dungeon/BattleStage.cs, BattleEffects.cs): the slash, the ice lances, the
-    // party's dashes and the whale.
+    // shutter flash and the shot's thumbnail, the eye cut-in before a skill, and the 集成's title and freeze
+    // frame, over the light of the fighting on the 3D field (Dungeon/BattleStage.cs, BattleEffects.cs; each
+    // skill's look in design/skills.md 战斗特效).
     public sealed partial class BattleScreen
     {
         Vector2 CenterOf(VisualElement e) => Root.WorldToLocal(e.worldBound.center);
@@ -111,10 +111,40 @@ namespace SystemPrompt.UI
             await Anim.Tween(0.25f, t => Ui.Zoom(frame, Mathf.Lerp(1.9f, 1f, t)));
             await Anim.Wait(0.15f);
             game.Audio.Sfx("shutter");
+            var photo = stage?.Photo(member, enemies.IndexOf(target), 640, 360);
             stage?.Capture(member, enemies.IndexOf(target));
             Fx.Flash(fx, Color.white, 0.22f);
             Fx.Shake(Root, 12f, 0.2f);
+            if (photo != null) Thumbnail(photo).Forget();
             await Ui.FadeOutAndRemove(frame, 0.15f);
+        }
+
+        // The shot just taken, like a phone's: big in the middle of the screen, then down to the bottom left
+        // corner, tilted, a moment there and away; the picture released after.
+        async Awaitable Thumbnail(RenderTexture photo)
+        {
+            const float w = 352f, h = 198f;
+            var shot = Ui.El("sp-shot", fx);
+            Ui.Picture(photo, ScaleMode.ScaleAndCrop, "sp-shot__image", shot);
+            try
+            {
+                Vector2 from = new Vector2(960f - w / 2f, 540f - h / 2f), to = new Vector2(60f, 790f);
+                await Anim.Tween(0.45f, t =>
+                {
+                    shot.style.left = Mathf.Lerp(from.x, to.x, t);
+                    shot.style.top = Mathf.Lerp(from.y, to.y, t);
+                    Ui.Zoom(shot, Mathf.Lerp(2.4f, 1f, t));
+                    Ui.Turn(shot, -4f * t);
+                });
+                await Anim.Wait(1f);
+                await Anim.Tween(0.25f, t => shot.style.translate = new Translate(-520f * t, 0), Ease.InCubic);
+            }
+            finally
+            {
+                shot.RemoveFromHierarchy();
+                photo.Release();
+                UnityEngine.Object.Destroy(photo);
+            }
         }
 
         // An L-shaped viewfinder corner; the flips pick which corner.
@@ -152,12 +182,18 @@ namespace SystemPrompt.UI
             band.RemoveFromHierarchy();
         }
 
-        // The ice lances fly from the caster's hand on the field and frost bursts round each target.
-        async Awaitable IceFx(int member, List<EnemyView> views)
+        // 寒流 at one noise body, 深海潜流 at all (BattleStage.Current, Maelstrom): frozen, the ice cracking as it
+        // closes and again as it bursts.
+        async Awaitable SpellFx(SkillDef skill, int member, List<EnemyView> views, bool charged)
         {
             game.Audio.Sfx("water", 0.8f);
             var targets = views.Where(v => v != null).ToList();
-            if (stage != null) await stage.Ice(member, targets.Select(v => enemies.IndexOf(v)).ToList());
+            void Frozen() => game.Audio.Sfx("crack", 0.6f);
+            if (stage != null && targets.Count > 0)
+            {
+                if (skill.AllTargets) await stage.Maelstrom(member, targets.Select(v => enemies.IndexOf(v)).ToList(), charged, Frozen);
+                else await stage.Current(member, enemies.IndexOf(targets[0]), charged, Frozen);
+            }
             game.Audio.Sfx("crack");
             foreach (var view in targets) Fx.Shake(view.Root, 16f, 0.25f);
         }
@@ -173,11 +209,15 @@ namespace SystemPrompt.UI
             Ui.Show(thinkBubble, false);
         }
 
-        // The noise body comes at the party on the field, at the one member when it picked one.
-        async Awaitable Lunge(EnemyView view, PartyCard victim)
+        // The noise body's attack on the field: 转发保平安's arrows down on the whole party, 震惊！'s pop-up windows
+        // at the one member it picked.
+        async Awaitable StrikeFx(EnemyView view, SkillDef skill, List<PartyCard> victims)
         {
             game.Audio.Sfx("glitch", 0.5f);
-            if (stage != null) await stage.Lunge(enemies.IndexOf(view), victim != null ? party.IndexOf(victim) : -1);
+            if (stage == null || victims.Count == 0) return;
+            var foe = enemies.IndexOf(view);
+            if (skill.AllTargets) await stage.Forward(foe, victims.Select(c => party.IndexOf(c)).ToList());
+            else await stage.Bait(foe, party.IndexOf(victims[0]));
         }
 
         void Popup(Vector2 at, string text, Color color, string tag)
