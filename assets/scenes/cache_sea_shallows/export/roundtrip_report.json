@@ -393,7 +393,7 @@
         }
       },
       "reimported_meshes": 2741,
-      "reimported_triangles": 580031,
+      "reimported_triangles": 582143,
       "material_slot_checks": 2741,
       "material_slot_mismatches": [],
       "fbx_metadata": {
@@ -644,13 +644,13 @@
     },
     "CacheBlock": {
       "max_bounds_error_m": 2.384185791015625e-07,
-      "triangles": 228,
+      "triangles": 260,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "DataChest": {
       "max_bounds_error_m": 5.960464477539063e-08,
-      "triangles": 122,
+      "triangles": 154,
       "material_slot_checks": 2,
       "material_slot_mismatches": []
     },
@@ -674,7 +674,7 @@
     },
     "Firewall": {
       "max_bounds_error_m": 2.980232238769531e-07,
-      "triangles": 306,
+      "triangles": 370,
       "material_slot_checks": 2,
       "material_slot_mismatches": []
     },
@@ -698,19 +698,19 @@
     },
     "Gate": {
       "max_bounds_error_m": 2.980232238769531e-07,
-      "triangles": 110,
+      "triangles": 174,
       "material_slot_checks": 2,
       "material_slot_mismatches": []
     },
     "GraveLowPair": {
       "max_bounds_error_m": 1.1920928955078125e-07,
-      "triangles": 1816,
+      "triangles": 1880,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "GraveTall": {
       "max_bounds_error_m": 5.960464477539062e-07,
-      "triangles": 1250,
+      "triangles": 1346,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -722,13 +722,13 @@
     },
     "Lighthouse": {
       "max_bounds_error_m": 2.86102294921875e-06,
-      "triangles": 13922,
+      "triangles": 14146,
       "material_slot_checks": 2,
       "material_slot_mismatches": []
     },
     "LowRack": {
       "max_bounds_error_m": 1.5061831959428673e-07,
-      "triangles": 508,
+      "triangles": 540,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -782,7 +782,7 @@
     },
     "ResetConsole": {
       "max_bounds_error_m": 8.940696716308594e-08,
-      "triangles": 182,
+      "triangles": 246,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -812,7 +812,7 @@
     },
     "Terminal": {
       "max_bounds_error_m": 8.940696716308594e-08,
-      "triangles": 93,
+      "triangles": 157,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -886,8 +886,8 @@
     ],
     "independently_rerun_this_round": false
   },
-  "export_seconds": 9.029,
-  "total_seconds": 11.573,
+  "export_seconds": 7.507,
+  "total_seconds": 9.753,
   "bounds_before": {
     "min": [
       -0.08872891962528229,
@@ -1229,7 +1229,7 @@
     }
   },
   "reimported_meshes": 2741,
-  "reimported_triangles": 580031,
+  "reimported_triangles": 582143,
   "material_slot_checks": 2741,
   "material_slot_mismatches": [],
   "fbx_axis_units": {

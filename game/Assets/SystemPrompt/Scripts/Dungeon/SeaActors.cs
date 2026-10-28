@@ -578,7 +578,7 @@ namespace SystemPrompt.Dungeon
             }
             eyeL = Parts.Node("EyeL", Body, new Vector3(-eyeAt.x, eyeAt.y, eyeAt.z));
             eyeR = Parts.Node("EyeR", Body, eyeAt);
-            var eye = SeaArt.Box(eyeSize);
+            var eye = SeaArt.Box(eyeSize, eyeSize.y * 0.45f); // rounded off: a slit of light, not a block
             Parts.Shape("Eye", eyeL, eye, eyes);
             Parts.Shape("Eye", eyeR, eye, eyes);
             snore = SeaArt.Text("Snore", Body, "Z", 0.3f, new Color(0.7f, 0.9f, 1f, 0f));
@@ -616,16 +616,17 @@ namespace SystemPrompt.Dungeon
         // The 转发型's arrow, along +y from `from` inside the core: a stem forking into two arrowheads.
         static Mesh ForkedArrow(float from)
         {
-            var stem = SeaArt.Box(new Vector3(0.08f, 0.3f, 0.08f));
-            var twig = SeaArt.Box(new Vector3(0.06f, 0.26f, 0.06f));
+            // Round rods, standing on their foot (SeaArt.Cylinder runs from 0 up).
+            var stem = SeaArt.Cylinder(0.045f, 0.04f, 0.3f, 8);
+            var twig = SeaArt.Cylinder(0.034f, 0.03f, 0.26f, 8);
             var head = SeaArt.Cone(0.11f, 0.2f, 8);
             var fork = new Vector3(0f, from + 0.28f, 0f);
-            var parts = new List<(Mesh, Matrix4x4)> { (stem, Matrix4x4.Translate(new Vector3(0f, from + 0.15f, 0f))) };
+            var parts = new List<(Mesh, Matrix4x4)> { (stem, Matrix4x4.Translate(new Vector3(0f, from, 0f))) };
             foreach (var lean in new[] { -30f, 30f })
             {
                 var turn = Quaternion.Euler(0f, 0f, lean);
                 var dir = turn * Vector3.up;
-                parts.Add((twig, Matrix4x4.TRS(fork + dir * 0.12f, turn, Vector3.one)));
+                parts.Add((twig, Matrix4x4.TRS(fork - dir * 0.01f, turn, Vector3.one)));
                 parts.Add((head, Matrix4x4.TRS(fork + dir * 0.24f, turn, Vector3.one)));
             }
             var arrow = SeaArt.Combine("Forked Arrow", parts);

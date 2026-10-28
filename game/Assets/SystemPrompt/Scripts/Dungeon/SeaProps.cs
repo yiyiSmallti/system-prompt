@@ -67,37 +67,73 @@ namespace SystemPrompt.Dungeon
                 }
                 case PropKind.Chest:
                 {
+                    // A data chest: a bevelled case on four feet, an arched lid hinged at the back, two steel straps
+                    // over both, a lock plate with a lit keyhole in front, and a band of light where the lid closes.
                     color = new Color(1f, 0.76f, 0.3f, 1f);
                     var shell = SeaArt.Toon(Palette.Hex("#2B3C66"), Palette.Hex("#131B33"), new Color(1f, 0.78f, 0.3f, 1f), Palette.Hex("#0A1020"));
-                    Parts.Shape("Base", Root, SeaArt.Box(new Vector3(1.2f, 0.62f, 0.8f)), shell, new Vector3(0, 0.31f, 0));
-                    lid = Parts.Node("Lid", Root, new Vector3(0, 0.62f, -0.4f));
-                    Parts.Shape("Top", lid, SeaArt.Box(new Vector3(1.24f, 0.2f, 0.84f)), shell, new Vector3(0, 0.1f, 0.4f));
+                    var steel = SeaArt.Toon(Palette.Hex("#C9D6EE"), Palette.Hex("#6A7A9A"), new Color(1f, 0.85f, 0.5f, 1f), Palette.Hex("#141C2C"), 0.02f);
+                    for (var i = 0; i < 4; i++)
+                        Parts.Shape("Foot", Root, SeaArt.Box(new Vector3(0.18f, 0.1f, 0.18f)), steel, new Vector3((i & 1) * 0.92f - 0.46f, 0.05f, (i >> 1) * 0.56f - 0.28f));
+                    Parts.Shape("Case", Root, SeaArt.Box(new Vector3(1.16f, 0.52f, 0.76f)), shell, new Vector3(0, 0.36f, 0));
+                    lid = Parts.Node("Lid", Root, new Vector3(0, 0.62f, -0.39f));
+                    Parts.Shape("Top", lid, SeaArt.Prism(SeaArt.Arch(0.8f, 0.26f), 1.2f), shell, new Vector3(0, 0f, 0.39f));
+                    foreach (var x in new[] { -0.36f, 0.36f })
+                    {
+                        Parts.Shape("Strap", Root, SeaArt.Box(new Vector3(0.1f, 0.54f, 0.8f)), steel, new Vector3(x, 0.36f, 0));
+                        Parts.Shape("Strap", lid, SeaArt.Prism(SeaArt.Arch(0.84f, 0.29f), 0.1f), steel, new Vector3(x, 0f, 0.39f));
+                    }
+                    Parts.Shape("Lock", Root, SeaArt.Box(new Vector3(0.24f, 0.22f, 0.06f)), steel, new Vector3(0, 0.5f, 0.4f));
                     glow = SeaArt.Glow(SeaArt.White, new Color(1f, 0.8f, 0.35f, 0.9f));
-                    Parts.Shape("Seam", Root, SeaArt.Box(new Vector3(1.26f, 0.05f, 0.86f)), glow, new Vector3(0, 0.62f, 0));
+                    Parts.Shape("Keyhole", Root, SeaArt.Quad(0.06f, 0.11f), glow, new Vector3(0, 0.49f, 0.435f)).transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                    Parts.Shape("Seam", Root, SeaArt.Box(new Vector3(1.19f, 0.04f, 0.79f)), glow, new Vector3(0, 0.62f, 0));
                     Ring(2.2f, color);
                     break;
                 }
                 case PropKind.Terminal:
                 {
+                    // The maintenance terminal: an eight-sided plinth, a tapering column with a lit stripe, a monitor
+                    // housing tipped back toward whoever walks up, and a keyboard ledge under it.
                     color = new Color(0.3f, 1f, 0.6f, 1f);
                     var shell = SeaArt.Toon(Palette.Hex("#22324F"), Palette.Hex("#0F1729"), new Color(0.3f, 1f, 0.6f, 1f), Palette.Hex("#08101C"));
-                    Parts.Shape("Pillar", Root, SeaArt.Box(new Vector3(0.7f, 1.5f, 0.5f)), shell, new Vector3(0, 0.75f, 0));
+                    var trim = SeaArt.Toon(Palette.Hex("#C9D6EE"), Palette.Hex("#6A7A9A"), Color.white, Palette.Hex("#141C2C"), 0.02f);
+                    Parts.Shape("Plinth", Root, SeaArt.Cylinder(0.56f, 0.5f, 0.16f, 8), shell);
+                    Parts.Shape("Column", Root, SeaArt.Cylinder(0.22f, 0.16f, 0.86f, 6), shell, new Vector3(0, 0.16f, 0));
+                    var head = Parts.Node("Head", Root, new Vector3(0, 1.24f, 0.04f));
+                    head.localRotation = Quaternion.Euler(-20f, 0f, 0f);
+                    Parts.Shape("Housing", head, SeaArt.Box(new Vector3(0.78f, 0.56f, 0.2f)), shell);
+                    Parts.Shape("Back", head, SeaArt.Box(new Vector3(0.5f, 0.36f, 0.16f)), shell, new Vector3(0, 0f, -0.16f));
+                    Parts.Shape("Bezel", head, SeaArt.Box(new Vector3(0.68f, 0.46f, 0.03f)), trim, new Vector3(0, 0f, 0.1f));
                     glow = SeaArt.Glow(SeaArt.White, new Color(0.3f, 1f, 0.6f, 0.75f));
-                    var screen = Parts.Shape("Screen", Root, SeaArt.Quad(0.56f, 0.4f), glow, new Vector3(0, 1.25f, 0.26f));
-                    screen.transform.localRotation = Quaternion.Euler(-20f, 180f, 0f);
+                    Parts.Shape("Screen", head, SeaArt.Quad(0.58f, 0.38f), glow, new Vector3(0, 0f, 0.12f)).transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                    var ledge = Parts.Shape("Keys", Root, SeaArt.Box(new Vector3(0.62f, 0.06f, 0.26f)), trim, new Vector3(0, 0.9f, 0.24f)).transform;
+                    ledge.localRotation = Quaternion.Euler(14f, 0f, 0f);
+                    Parts.Shape("Stripe", Root, SeaArt.Box(new Vector3(0.05f, 0.7f, 0.05f)), glow, new Vector3(0, 0.55f, 0.18f));
                     Ring(2.2f, color);
                     Beam(color, 0.8f, 12f, 0.1f);
                     break;
                 }
                 case PropKind.Console:
                 {
+                    // The reset console: a bevelled cabinet with a dark kick plate, a desk sloping down toward the
+                    // player with the screen set into it, and a big round button beside the screen.
                     color = new Color(1f, 0.66f, 0.2f, 1f);
                     var shell = SeaArt.Toon(Palette.Hex("#22324F"), Palette.Hex("#0F1729"), color, Palette.Hex("#08101C"));
-                    Parts.Shape("Desk", Root, SeaArt.Box(new Vector3(1.1f, 1f, 0.7f)), shell, new Vector3(0, 0.5f, 0));
+                    var dark = SeaArt.Toon(Palette.Hex("#0F1729"), Palette.Hex("#070C16"), Color.clear, Palette.Hex("#04070E"));
+                    var trim = SeaArt.Toon(Palette.Hex("#C9D6EE"), Palette.Hex("#6A7A9A"), color, Palette.Hex("#141C2C"), 0.02f);
+                    Parts.Shape("Cabinet", Root, SeaArt.Box(new Vector3(1.04f, 0.78f, 0.62f)), shell, new Vector3(0, 0.39f, -0.02f));
+                    Parts.Shape("Kick", Root, SeaArt.Box(new Vector3(0.9f, 0.14f, 0.06f)), dark, new Vector3(0, 0.09f, 0.29f));
+                    Parts.Shape("Desk", Root, SeaArt.Prism(new[] { new Vector2(-0.36f, 0f), new Vector2(0.36f, 0f), new Vector2(0.38f, 0.07f), new Vector2(-0.34f, 0.36f) }, 1.12f),
+                        trim, new Vector3(0, 0.76f, 0f));
                     glow = SeaArt.Glow(SeaArt.White, new Color(1f, 0.66f, 0.2f, 0.7f));
-                    var screen = Parts.Shape("Screen", Root, SeaArt.Quad(0.9f, 0.5f), glow, new Vector3(0, 1.15f, 0.1f));
-                    screen.transform.localRotation = Quaternion.Euler(-35f, 180f, 0f);
-                    SeaArt.Text("Words", Root, "RESET", 0.18f, new Color(1f, 0.85f, 0.6f, 1f), new Vector3(0, 1.16f, 0.08f)).transform.localRotation = Quaternion.Euler(-35f, 180f, 0f);
+                    // On the slope: it rises 0.29 m over 0.72 m toward the back, so the screen's top leans away.
+                    var tilt = Mathf.Atan2(0.29f, 0.72f) * Mathf.Rad2Deg;
+                    var slope = Quaternion.Euler(tilt, 180f, 0f);
+                    var screen = Parts.Shape("Screen", Root, SeaArt.Quad(0.62f, 0.38f), glow, new Vector3(-0.14f, 0.983f, 0.023f));
+                    screen.transform.localRotation = slope;
+                    SeaArt.Text("Words", Root, "RESET", 0.14f, new Color(1f, 0.85f, 0.6f, 1f), new Vector3(-0.14f, 0.992f, 0.027f)).transform.localRotation = slope;
+                    var button = Parts.Shape("Button", Root, SeaArt.Cylinder(0.11f, 0.09f, 0.06f, 12), SeaArt.Toon(color, color * 0.6f, Color.white, color * 0.8f, 0.01f),
+                        new Vector3(0.36f, 0.94f, 0.1f));
+                    button.transform.localRotation = Quaternion.Euler(tilt, 0f, 0f);
                     Ring(2.2f, color);
                     break;
                 }

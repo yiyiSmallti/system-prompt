@@ -31,7 +31,8 @@ namespace SystemPrompt.UI
 
         public readonly VisualElement Root;
         readonly GameRoot game;
-        readonly Label areaName, areaLayer, areaTag, areaZone, objective;
+        readonly Label areaName, areaLayer, areaTag, areaZone, objective, pearlCount;
+        const int PearlSp = 5; // SP back for each member with each 数据珍珠
         readonly VisualElement banner;
         readonly Label bannerTag;
         readonly SplitText bannerName;
@@ -40,6 +41,8 @@ namespace SystemPrompt.UI
         readonly Label meterText;
         readonly VisualElement partyRow;
         readonly VisualElement keys;
+        readonly Label keysText;
+        const string Keys = "WASD 移动　Shift 冲刺　Q/E·鼠标 视角　Enter 调查/攻击　Esc 菜单";
         readonly VisualElement marks;
         readonly VisualElement prompt;
         readonly Label promptVerb;
@@ -61,7 +64,7 @@ namespace SystemPrompt.UI
         bool hintRunning; // the story's one hint runner is busy with a node (a talk, or one read into the nav)
         float meter;
         float travelledAtLastTick;
-        bool spottedTold, firewallTold, beaconTold, ambushTold, warned;
+        bool spottedTold, firewallTold, beaconTold, ambushTold, stuckTold, warned;
         ZoneDef zone;
         readonly HashSet<ZoneDef> visited = new HashSet<ZoneDef>();
         int bannerShown;
@@ -77,7 +80,9 @@ namespace SystemPrompt.UI
         public int Preemptive { get; private set; }
         public int Ambushed { get; private set; }
         public int Pushes { get; private set; }
+        public int Undos { get; private set; }
         public int Turns { get; private set; }
+        public int PearlsTaken { get; private set; }
         public ZoneDef Zone => zone;
         public int ZonesVisited => visited.Count;
         public NavCall Nav => nav;
@@ -100,6 +105,7 @@ namespace SystemPrompt.UI
             areaName = Ui.Text("", "sp-dungeon__area-name", nameRow, FontKind.Black);
             areaLayer = Ui.Text("", "sp-dungeon__area-layer", nameRow, FontKind.Black);
             areaZone = Ui.Text("", "sp-dungeon__area-zone", area, FontKind.Bold);
+            pearlCount = Ui.Text("", "sp-dungeon__pearls", area, FontKind.MonoBold);
 
             // A new zone slams its name across the left of the screen.
             banner = Ui.El("sp-dungeon__zone", Root);
@@ -137,7 +143,7 @@ namespace SystemPrompt.UI
             partyRow = Ui.El("sp-dungeon__party", Root);
 
             keys = Ui.El("sp-dungeon__keys", Root);
-            Ui.Text("WASD 移动　Shift 冲刺　Q/E·鼠标 视角　Enter 调查/攻击　Esc 菜单", "sp-dungeon__keys-text", keys, FontKind.MonoBold);
+            keysText = Ui.Text(Keys, "sp-dungeon__keys-text", keys, FontKind.MonoBold);
 
             prompt = Ui.El("sp-dungeon__prompt", Root);
             Shape.Backdrop(prompt, Shape.Slant(12), Palette.Ink).Stroke(Palette.Paper, 2).Shadow(new Vector2(6, 6), Palette.Green);
@@ -202,8 +208,8 @@ namespace SystemPrompt.UI
             hintRunning = false;
             var stealth = game.State.abilities.Contains("deep_dive") ? 0.6f : 1f; // DeepSeek's 深海潜行
             foreach (var e in world.Enemies) e.VisionScale = stealth;
-            spottedTold = firewallTold = beaconTold = ambushTold = warned = false;
-            FragmentsRead = ChestsOpened = Battles = Preemptive = Ambushed = Pushes = Turns = 0;
+            spottedTold = firewallTold = beaconTold = ambushTold = stuckTold = warned = false;
+            FragmentsRead = ChestsOpened = Battles = Preemptive = Ambushed = Pushes = Undos = Turns = PearlsTaken = 0;
             meter = def.MeterStart;
             travelledAtLastTick = 0f;
             areaName.text = def.Area;
@@ -222,6 +228,10 @@ namespace SystemPrompt.UI
             Ui.Show(prompt, false);
             RestoreParty(); // the way in counts as a beacon: no fight carries over
             BuildParty();
+            // Pearls taken on an earlier dive stay taken.
+            foreach (var p in world.Pearls)
+                if (game.State.HasPearl(def.Id, p.Index)) p.Take(-10f);
+            ShowPearls();
             minimap.Attach(world);
             marks.Clear();
             alertMarks.Clear();
@@ -353,6 +363,13 @@ namespace SystemPrompt.UI
                 return;
             }
 
+            var pearl = world.PearlInReach();
+            if (pearl != null) TakePearl(pearl);
+            if (GameInput.Consume(Btn.Undo))
+            {
+                TakeBack();
+                return;
+            }
             if (!GameInput.Consume(Btn.Confirm) && !GameInput.Consume(Btn.Interact)) return;
             var enemy = world.EnemyInReach(AttackReach);
             if (enemy != null)
@@ -391,6 +408,74 @@ namespace SystemPrompt.UI
             }
             Pushes++;
             game.Audio.Sfx(world.Puzzles.InSocket(block) ? "confirm" : "whoosh", 0.6f);
+            if (world.Puzzles.Solved && !wasSolved) GateOpened(session).Forget();
+            else if (world.Puzzles.Stuck(block) && !stuckTold && def.StuckNode != null)
+            {
+                // Into a corner it can't come out of: it turns red, and DeepSeek says how to get it back.
+                stuckTold = true;
+                game.Audio.Sfx("glitch", 0.5f);
+                Call(def.StuckNode, session).Forget();
+            }
+        }
+
+        // 数据珍珠: taken by walking into it, a little SP back for everyone; the area's last one brings its reward.
+        void TakePearl(SeaPearl pearl)
+        {
+            world.Take(pearl);
+            game.State.TakePearl(def.Id, pearl.Index);
+            PearlsTaken++;
+            game.Audio.Sfx("coin", 0.8f);
+            foreach (var id in game.State.party)
+            {
+                var m = game.State.Member(id);
+                m.sp = Mathf.Min(CombatStats.ForCharacter(id, m.level).MaxSp, m.sp + PearlSp);
+            }
+            BuildParty();
+            ShowPearls();
+            var count = game.State.PearlsIn(def.Id);
+            if (count >= def.Pearls.Length && def.PearlReward != null)
+            {
+                var reward = def.PearlReward;
+                if (reward.Item != null) game.State.AddItem(reward.Item, reward.Count);
+                game.State.tokens += reward.Tokens;
+                game.Audio.Sfx("levelup", 0.7f);
+                game.Notice("数据珍珠全部找到！获得：" + reward.Label);
+                if (def.PearlsNode != null) Call(def.PearlsNode, session).Forget();
+                return;
+            }
+            game.Notice($"数据珍珠 {count}/{def.Pearls.Length}　SP +{PearlSp}");
+            if (count == 1 && def.PearlNode != null) Call(def.PearlNode, session).Forget();
+        }
+
+        void ShowPearls()
+        {
+            Ui.Show(pearlCount, def.Pearls.Length > 0);
+            var count = game.State.PearlsIn(def.Id);
+            pearlCount.text = $"◆ 数据珍珠 {count}/{def.Pearls.Length}";
+            pearlCount.EnableInClassList("is-full", count >= def.Pearls.Length);
+        }
+
+        // Backspace: a light plate in reach turns back an eighth; otherwise the last push is taken back (a thud
+        // when something stands where the block was).
+        void TakeBack()
+        {
+            var plate = world.PlateInReach();
+            if (plate != null)
+            {
+                Turns++;
+                game.Audio.Sfx("key", 0.7f);
+                if (world.Turn(plate, -1)) LightFound(session).Forget();
+                return;
+            }
+            if (!world.Puzzles.CanUndo) return;
+            var wasSolved = world.Puzzles.Solved;
+            if (!world.Undo())
+            {
+                game.Audio.Sfx("slap", 0.5f);
+                return;
+            }
+            Undos++;
+            game.Audio.Sfx("whoosh", 0.5f);
             if (world.Puzzles.Solved && !wasSolved) GateOpened(session).Forget();
         }
 
@@ -751,6 +836,11 @@ namespace SystemPrompt.UI
 
             var exploring = mode == Mode.Explore;
             Lock(exploring && !game.ModalOpen && !game.Transitions.Busy && Application.isFocused);
+            // Backspace's use where there is one: a plate in reach turns back, else a push can be taken back.
+            keysText.text = !exploring ? Keys
+                : world.PlateInReach() != null ? Keys + "　Backspace 反转"
+                : world.Puzzles.CanUndo ? Keys + "　Backspace 撤回"
+                : Keys;
             // The text box takes the bottom of the screen while someone talks.
             Ui.Show(partyRow, mode != Mode.Talk);
             Ui.Show(keys, mode != Mode.Talk);

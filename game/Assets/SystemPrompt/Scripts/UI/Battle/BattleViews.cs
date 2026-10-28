@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using SystemPrompt.Battle;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -18,6 +19,7 @@ namespace SystemPrompt.UI
         readonly Label weakness;
         readonly VisualElement weakTag;
         readonly VisualElement cursor;
+        readonly Label forecast;
         readonly VisualElement downTag;
         readonly Label[] words;
         bool frozen;
@@ -50,6 +52,8 @@ namespace SystemPrompt.UI
             cursor.AddToClassList("sp-enemy__cursor");
             Root.Add(cursor);
             Ui.Show(cursor, false);
+            forecast = Ui.Text("", "sp-enemy__forecast", Root, FontKind.Black);
+            Ui.Show(forecast, false);
 
             Root.schedule.Execute(Twitch).Every(140);
             Refresh();
@@ -75,16 +79,22 @@ namespace SystemPrompt.UI
         public void Refresh()
         {
             hpFill.style.width = Length.Percent(100f * Unit.Hp / Mathf.Max(1, Unit.MaxHp));
-            weakness.text = $"弱点：{Unit.WeaknessLabel}";
+            // Resistances once a hit has shown them (a 辣条 thrown at 标题党型's fake 「弱点：火」 shows 耐性：火).
+            var resists = string.Concat(Unit.Affinities.Where(a => a.Value == Affinity.Resist && Unit.Known.Contains(a.Key)).Select(a => Battles.ElementLabel(a.Key)));
+            weakness.text = resists.Length > 0 ? $"弱点：{Unit.WeaknessLabel}　耐性：{resists}" : $"弱点：{Unit.WeaknessLabel}";
             weakTag.EnableInClassList("is-true", Unit.WeaknessLabel == Unit.TrueWeakness);
         }
 
-        // The aimed-at plate turns paper (USS turns its name ink and scales it up).
-        public void SetTargeted(bool on)
+        // The aimed-at plate turns paper (USS turns its name ink and scales it up), with what the aimed attack is
+        // known to do to it over the cursor (WEAK / RESIST, after Persona 5), or nothing while that is unknown.
+        public void SetTargeted(bool on, string known = null)
         {
             plate.Fill(on ? Palette.Paper : Palette.Ink).Shadow(new Vector2(6, 6), on ? Palette.Red : Palette.Green);
             Ui.Show(cursor, on);
             Root.EnableInClassList("is-targeted", on);
+            forecast.text = known ?? "";
+            forecast.EnableInClassList("is-weak", known == "WEAK");
+            Ui.Show(forecast, on && known != null);
         }
 
         public void SetDown(bool down)

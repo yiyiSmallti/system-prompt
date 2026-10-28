@@ -81,15 +81,22 @@ namespace SystemPrompt.Dungeon
         }
 
         // Yarn nodes run by the dungeon (story/00-prologue.yarn); any may be null. FirstBattleNode runs before
-        // the area's first battle and FirstWinNode after it; GateNode when the cache blocks open their gate;
-        // LightNode when the light first reaches the goal.
+        // the area's first battle and FirstWinNode after it; GateNode when the cache blocks open their gate,
+        // StuckNode the first time one is pushed into a corner it can't come out of; LightNode when the light
+        // first reaches the goal.
         public string StartNode, SpottedNode, FirewallNode, TerminalNode, BeaconNode;
-        public string FirstBattleNode, FirstWinNode, GateNode, LightNode;
+        public string FirstBattleNode, FirstWinNode, GateNode, StuckNode, LightNode;
         public string AmbushHintNode, WarningNode, GoalNode, TimeoutNode;
         public string[] FragmentNodes = new string[0];
         public string[] FragmentTitles = new string[0];
         public ChestDef[] Chests = new ChestDef[0];
         public EnemySpawn[] Enemies = new EnemySpawn[0];
+        // 数据珍珠 (SeaPearl): floor cells off the main ways, kept apart from the map so the modelled scenes
+        // built from it stay as they are; all of an area's together give PearlReward. PearlNode runs at the
+        // first one taken, PearlsNode at the last.
+        public Vector2Int[] Pearls = new Vector2Int[0];
+        public ChestDef PearlReward;
+        public string PearlNode, PearlsNode;
     }
 
     public static class Dungeons
@@ -155,6 +162,7 @@ namespace SystemPrompt.Dungeon
                 FirstWinNode = "Prologue_Sea_FirstWin",
                 FirewallNode = "Prologue_Sea_Firewall",
                 GateNode = "Prologue_Sea_Gate",
+                StuckNode = "Prologue_Sea_Stuck",
                 TerminalNode = "Prologue_Sea_Terminal",
                 BeaconNode = "Prologue_Sea_Beacon",
                 AmbushHintNode = "Prologue_Sea_Ambushed",
@@ -164,6 +172,12 @@ namespace SystemPrompt.Dungeon
                 {
                     new ChestDef { Item = "white_rice", Count = 1, Label = "白米饭 ×1" },
                 },
+                // Beside the start, the coral's far corner, the graveyard's, the east end of the ridge and the
+                // canyon's side passage.
+                Pearls = new[] { new Vector2Int(15, 20), new Vector2Int(1, 21), new Vector2Int(1, 1), new Vector2Int(18, 1), new Vector2Int(22, 4) },
+                PearlReward = new ChestDef { Item = "ice_soda", Count = 2, Tokens = 200, Label = "冰镇汽水 ×2、200 token" },
+                PearlNode = "Prologue_Sea_Pearl",
+                PearlsNode = "Prologue_Sea_Pearls",
                 Enemies = new[]
                 {
                     // At the mouth of the reef, its back to the start: the first battle, and a free round.
@@ -242,6 +256,12 @@ namespace SystemPrompt.Dungeon
                     new ChestDef { Item = "white_rice", Count = 2, Label = "白米饭 ×2" },
                     new ChestDef { Tokens = 500, Label = "500 token" },
                 },
+                // On the ways both routes share, so either can find them all if the meter allows: beside the start in
+                // the rift, the server room's north-east and south-east corners, the white hall's north-east corner
+                // and its west wall.
+                Pearls = new[] { new Vector2Int(13, 22), new Vector2Int(19, 9), new Vector2Int(19, 18), new Vector2Int(19, 2), new Vector2Int(9, 5) },
+                PearlReward = new ChestDef { Item = "spicy_strip", Count = 2, Tokens = 300, Label = "辣条 ×2、300 token" },
+                PearlsNode = "Prologue_Deep_Pearls",
                 Enemies = new[]
                 {
                     // At the server room's door, its back to the rift: the first preemptive strike.
@@ -257,5 +277,15 @@ namespace SystemPrompt.Dungeon
         };
 
         public static DungeonDef Get(string id) => id != null && All.TryGetValue(id, out var d) ? d : null;
+
+        public static int PearlTotal
+        {
+            get
+            {
+                var n = 0;
+                foreach (var d in All.Values) n += d.Pearls.Length;
+                return n;
+            }
+        }
     }
 }

@@ -32,6 +32,7 @@ namespace SystemPrompt.UI
 
         const int NoPick = -2;
         const int Cancelled = -1;
+        const int MaxSummons = 2; // 标题党型 the 转发型 call in, in one battle
         static readonly Regex ThinkTimer = new Regex(@"^思考中……（已思考 (.+) 秒）$");
 
         public readonly VisualElement Root;
@@ -80,6 +81,13 @@ namespace SystemPrompt.UI
         List<Combatant> targets = new List<Combatant>();
         int targetIndex;
         bool oneMoreHintShown;
+        bool seenThrough;        // 标题党型's fake weakness is exposed: ones called in later show the true one
+        int summons;             // called in by the 转发型 this battle
+        public int CalledIn { get; private set; } // in every battle so far, for the end-to-end run
+        int earned;              // EXP for each member standing at the end, the called-in ones' included
+        Element? aiming;         // the element of the action whose target is being picked, for the plates' forecast
+        readonly HashSet<Combatant> calledLastTurn = new HashSet<Combatant>();
+        readonly Dictionary<string, Combatant> lastTarget = new Dictionary<string, Combatant>(); // per member, this battle
 
         public BattleScreen(GameRoot game, VisualElement parent)
         {
@@ -181,6 +189,10 @@ namespace SystemPrompt.UI
             oneMoreHintShown = false;
             finisherShown = false;
             results = null;
+            seenThrough = false;
+            summons = 0;
+            calledLastTurn.Clear();
+            lastTarget.Clear();
             Setup();
             await Intro();
             if (s.Over) return;
@@ -193,7 +205,7 @@ namespace SystemPrompt.UI
 
             for (var turn = 1; !s.Over; turn++)
             {
-                if (def.Tutorial) await TutorialBeats(turn);
+                await TurnBeats(turn);
                 foreach (var card in party.Where(c => !c.Unit.Dead).OrderByDescending(c => c.Unit.Agi).ToList())
                 {
                     if (s.Over) return;
@@ -241,18 +253,7 @@ namespace SystemPrompt.UI
             var units = def.Enemies.Select(Battles.Spawn).ToList();
             DropStage();
             stage = BattleStage.Create(game.State.playerGender, game.State.party, units.Select(u => u.Kind).ToList());
-            foreach (var unit in units)
-            {
-                unit.HpFloor = def.Tutorial ? 1 : 0;
-                var view = new EnemyView(unit, enemyLayer);
-                view.Root.RegisterCallback<PointerEnterEvent>(_ => HoverTarget(view.Unit));
-                view.Root.RegisterCallback<ClickEvent>(e =>
-                {
-                    e.StopPropagation();
-                    ClickTarget(view.Unit);
-                });
-                enemies.Add(view);
-            }
+            foreach (var unit in units) AddEnemy(unit);
 
             var state = game.State;
             foreach (var id in state.party)
@@ -268,6 +269,21 @@ namespace SystemPrompt.UI
                 });
                 party.Add(card);
             }
+        }
+
+        // A noise body's plate, after the stage's noise bodies: the plate of the nth goes over the nth on the field.
+        EnemyView AddEnemy(Combatant unit)
+        {
+            unit.HpFloor = def.Tutorial ? 1 : 0;
+            var view = new EnemyView(unit, enemyLayer);
+            view.Root.RegisterCallback<PointerEnterEvent>(_ => HoverTarget(view.Unit));
+            view.Root.RegisterCallback<ClickEvent>(e =>
+            {
+                e.StopPropagation();
+                ClickTarget(view.Unit);
+            });
+            enemies.Add(view);
+            return view;
         }
 
         bool AllEnemiesDead => enemies.All(v => v.Unit.Dead);
@@ -307,15 +323,13 @@ namespace SystemPrompt.UI
             return card != null ? CenterOf(card.Root) : new Vector2(1500, 840);
         }
 
-        async Awaitable TutorialBeats(int turn)
+        // 标题党型's weakness tag lies until the second turn (design/systems.md 假弱点) in every battle; in the
+        // tutorial its hints run as scripted.
+        async Awaitable TurnBeats(int turn)
         {
             var s = session;
-            if (turn == 2)
-            {
-                game.Audio.Sfx("crack");
-                foreach (var v in enemies.Where(v => v.Unit.WeaknessLabel != v.Unit.TrueWeakness)) v.Shatter().Forget();
-                await Anim.Wait(0.6f);
-            }
+            if (turn == 2) await Expose();
+            if (!def.Tutorial || s.Over) return;
             var node = Tutorial.HintAtTurnStart(turn);
             if (node != null && !s.Over) await story.RunHint(node, this);
             if (turn == 1 && !s.Over)
@@ -324,6 +338,18 @@ namespace SystemPrompt.UI
                 game.Audio.Sfx("glitch", 0.6f);
                 foreach (var v in enemies.Where(v => v.Unit.WeaknessLabel != v.Unit.TrueWeakness)) await v.Flicker("？？？");
             }
+        }
+
+        // The lying weakness tags shatter into the truth on every noise body standing: at the second turn, or as
+        // soon as a hit lands on the true weakness.
+        async Awaitable Expose()
+        {
+            seenThrough = true;
+            var liars = enemies.Where(v => !v.Unit.Dead && v.Unit.WeaknessLabel != v.Unit.TrueWeakness).ToList();
+            if (liars.Count == 0) return;
+            game.Audio.Sfx("crack");
+            foreach (var v in liars) v.Shatter().Forget();
+            await Anim.Wait(0.6f);
         }
 
         // Returns true when the battle is won.
@@ -385,8 +411,9 @@ namespace SystemPrompt.UI
                 {
                     case "attack":
                     {
-                        var t = await ChooseTarget(enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit));
-                        if (t != null) return new BattleAction { Command = "attack", Skill = Skills.NormalAttack(unit.Id), Target = t };
+                        var attack = Skills.NormalAttack(unit.Id);
+                        var t = await ChooseTarget(enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit), attack.Element);
+                        if (t != null) return new BattleAction { Command = "attack", Skill = attack, Target = t };
                         break;
                     }
                     case "skill":
@@ -394,7 +421,7 @@ namespace SystemPrompt.UI
                         var skill = await ChooseSkill(unit, rule);
                         if (skill == null) break;
                         if (skill.AllTargets) return new BattleAction { Command = "skill", Skill = skill };
-                        var t = await ChooseTarget(enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit));
+                        var t = await ChooseTarget(enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit), skill.Element);
                         if (t != null) return new BattleAction { Command = "skill", Skill = skill, Target = t };
                         break;
                     }
@@ -406,7 +433,11 @@ namespace SystemPrompt.UI
                     {
                         var item = await ChooseItem();
                         if (item == null) break;
-                        var t = await ChooseTarget(party.Where(p => !p.Unit.Dead).Select(p => p.Unit));
+                        // Food for a member, an attack item at a noise body.
+                        var used = GameData.Items[item];
+                        var t = used.Attacks
+                            ? await ChooseTarget(enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit), used.Element)
+                            : await ChooseTarget(party.Where(p => !p.Unit.Dead).Select(p => p.Unit));
                         if (t != null) return new BattleAction { Command = "item", ItemId = item, Target = t };
                         break;
                     }
@@ -458,7 +489,7 @@ namespace SystemPrompt.UI
             item.style.translate = new Translate(on ? 34f : 0f, 0);
         }
 
-        bool HasUsableItems() => game.State.inventory.Any(st => GameData.Items.TryGetValue(st.id, out var d) && d.HealHp > 0 && st.count > 0);
+        bool HasUsableItems() => game.State.inventory.Any(st => GameData.Items.TryGetValue(st.id, out var d) && (d.Heals || d.Attacks) && st.count > 0);
 
         async Awaitable<SkillDef> ChooseSkill(Combatant unit, TurnRule rule)
         {
@@ -490,7 +521,7 @@ namespace SystemPrompt.UI
             itemChoices.Clear();
             foreach (var stack in game.State.inventory)
             {
-                if (!GameData.Items.TryGetValue(stack.id, out var item) || item.HealHp <= 0) continue;
+                if (!GameData.Items.TryGetValue(stack.id, out var item) || !item.Heals && !item.Attacks) continue;
                 var row = ModalParts.Row(itemList, "sp-skillrow");
                 Ui.Text(item.Name, "sp-skillrow__name", row, FontKind.Black);
                 Ui.Text(item.Description, "sp-skillrow__element", row, FontKind.Bold);
@@ -505,24 +536,44 @@ namespace SystemPrompt.UI
             return i >= 0 ? itemChoices[i] : null;
         }
 
-        async Awaitable<Combatant> ChooseTarget(IEnumerable<Combatant> candidates)
+        // `element` is what the action would hit with, for the forecast over the plate aimed at. The cursor starts
+        // on the noise body this member went for last while it still stands (not in the scripted tutorial), else
+        // on the first standing.
+        async Awaitable<Combatant> ChooseTarget(IEnumerable<Combatant> candidates, Element? element = null)
         {
             var list = candidates.ToList();
             if (list.Count == 0) return null;
             targets = list;
-            targetIndex = Mathf.Max(0, list.FindIndex(t => !t.Down));
+            aiming = element;
+            var who = actor >= 0 ? party[actor].Unit.Id : null;
+            var last = !def.Tutorial && who != null && lastTarget.TryGetValue(who, out var before) && !before.Down ? list.IndexOf(before) : -1;
+            targetIndex = last >= 0 ? last : Mathf.Max(0, list.FindIndex(t => !t.Down));
             RefreshTargets();
             var i = await WaitPick(Mode.Target);
             targets = new List<Combatant>();
+            aiming = null;
             RefreshTargets();
             if (i < 0 && actor >= 0) stage?.Move(stage.Behind(actor), 0.3f);
-            return i >= 0 && i < list.Count ? list[i] : null;
+            if (i < 0 || i >= list.Count) return null;
+            if (who != null && list[i].IsEnemy) lastTarget[who] = list[i];
+            return list[i];
+        }
+
+        // What the aimed element is known to do to a noise body: shown by a hit before, or by its weakness tag
+        // once that tells the truth. Unknown till then, so a 标题党型's fake 「弱点：火」 gets no WEAK.
+        string Forecast(Combatant c)
+        {
+            if (aiming == null || !c.IsEnemy) return null;
+            var e = aiming.Value;
+            var known = c.Known.Contains(e) || c.WeaknessLabel == c.TrueWeakness && Battles.ElementLabel(e) == c.TrueWeakness;
+            if (!known) return null;
+            return c.AffinityTo(e) switch { Affinity.Weak => "WEAK", Affinity.Resist => "RESIST", Affinity.Null => "BLOCK", _ => null };
         }
 
         void RefreshTargets()
         {
             var current = targets.Count > 0 ? targets[targetIndex] : null;
-            foreach (var v in enemies) v.SetTargeted(v.Unit == current);
+            foreach (var v in enemies) v.SetTargeted(v.Unit == current, v.Unit == current ? Forecast(v.Unit) : null);
             foreach (var p in party) p.Root.EnableInClassList("is-targeted", p.Unit == current);
             // The camera turns over the shoulder to the noise body under the cursor.
             var foe = enemies.FindIndex(v => v.Unit == current);
@@ -650,6 +701,7 @@ namespace SystemPrompt.UI
                 {
                     var item = GameData.Items[action.ItemId];
                     if (!game.State.UseItem(action.ItemId)) return false;
+                    if (item.Attacks) return await Throw(unit, item, action.Target);
                     var target = CardOf(action.Target);
                     var posed = stage?.UseItem(member, party.IndexOf(target));
                     await SkillBar(unit, item.Name);
@@ -664,6 +716,35 @@ namespace SystemPrompt.UI
                 }
             }
             return false;
+        }
+
+        // An attack item thrown like a cast at one noise body, its volley in the item's colour (冰镇汽水 ice, 辣条
+        // flame). True when it knocked the noise body down (One More).
+        async Awaitable<bool> Throw(Combatant unit, ItemDef item, Combatant target)
+        {
+            var card = CardOf(unit);
+            var member = party.IndexOf(card);
+            var view = ViewOf(target);
+            var fire = item.Element == Element.Fire;
+            await SkillBar(unit, item.Name);
+            card?.Face.Play(FaceAct.Attack);
+            if (stage != null)
+            {
+                await stage.Cast(member, fire);
+                game.Audio.Sfx(fire ? "whoosh" : "water", 0.8f);
+                await stage.Ice(member, new[] { enemies.IndexOf(view) }, fire);
+            }
+            game.Audio.Sfx("crack");
+            if (view != null) Fx.Shake(view.Root, 16f, 0.25f);
+            var hit = DamageCalc.Compute(unit, target, Skills.OfItem(item), def);
+            if (hit.Affinity == Affinity.Weak)
+            {
+                game.Audio.Sfx("slam");
+                DismissLater(Fx.Stamp(fx, "对抗样本！", Palette.Paper, 110f, -10f, new Vector2(960, 230)), 1.1f);
+            }
+            await ApplyHit(target, hit);
+            await Anim.Wait(0.3f);
+            return hit.KnockedDown;
         }
 
         async Awaitable ApplyHit(Combatant target, Hit hit)
@@ -683,6 +764,9 @@ namespace SystemPrompt.UI
             if (view != null)
             {
                 var foe = enemies.IndexOf(view);
+                // What the hit showed stays on its plate (耐性), and one on the true weakness gives the lie away.
+                if (hit.Affinity != Affinity.Normal) target.Known.Add(hit.Element);
+                if (hit.Affinity == Affinity.Weak && target.WeaknessLabel != target.TrueWeakness) Expose().Forget();
                 view.Refresh();
                 Fx.Shake(view.Root, 18f, 0.3f);
                 stage?.Hit(foe);
@@ -722,9 +806,19 @@ namespace SystemPrompt.UI
                 e.Down = false;
                 view.SetDown(false);
                 stage?.Down(foe, false);
+                calledLastTurn.Remove(e);
                 await Anim.Wait(0.4f);
                 return;
             }
+            // 转发型 calls in a 标题党型 every other turn while the line has room (design/systems.md; never in the
+            // scripted tutorial), and hits the party in between.
+            if (e.Kind == "repost" && !def.Tutorial && !calledLastTurn.Contains(e) && summons < MaxSummons && enemies.Count(v => !v.Unit.Dead) < 3)
+            {
+                calledLastTurn.Add(e);
+                await Call(view);
+                return;
+            }
+            calledLastTurn.Remove(e);
             var skill = e.Kind == "repost" ? Skills.Repost : Skills.NoiseStrike;
             var alive = party.Where(p => !p.Unit.Dead).ToList();
             if (alive.Count == 0) return;
@@ -740,6 +834,26 @@ namespace SystemPrompt.UI
                 await ApplyHit(card.Unit, hit);
             }
             await Anim.Wait(0.25f);
+        }
+
+        // A weaker 标题党型 joins the line, its weakness tag lying like the others' until the party has seen through it.
+        async Awaitable Call(EnemyView caller)
+        {
+            var from = enemies.IndexOf(caller);
+            stage?.Move(stage.Watch(from), 0.4f);
+            await EnemyBar(caller, "转发到十个群");
+            var unit = Battles.Spawn(Battles.Summoned);
+            unit.Summoned = true;
+            if (seenThrough) unit.WeaknessLabel = unit.TrueWeakness;
+            summons++;
+            CalledIn++;
+            game.Audio.Sfx("glitch");
+            stage?.Move(stage.Overview, 0.5f);
+            var rise = stage?.Summon(unit.Kind, from); // on the field before its plate, which Pin puts over it
+            var view = AddEnemy(unit);
+            if (rise != null) await rise;
+            Fx.Shake(view.Root, 12f, 0.25f);
+            await Anim.Wait(0.3f);
         }
 
         async Awaitable<bool> AllOut()
@@ -805,6 +919,7 @@ namespace SystemPrompt.UI
         {
             var state = game.State;
             var rewards = new List<Reward>();
+            earned = def.Exp + enemies.Count(v => v.Unit.Summoned && v.Unit.Dead) * Battles.SummonedExp;
             foreach (var card in party)
             {
                 var u = card.Unit;
@@ -813,7 +928,7 @@ namespace SystemPrompt.UI
                 m.sp = u.Sp;
                 var from = m.level;
                 var expFrom = m.exp;
-                if (!u.Dead) m.exp += def.Exp;
+                if (!u.Dead) m.exp += earned;
                 m.level = CombatStats.LevelForExp(m.exp);
                 if (m.level > from)
                 {

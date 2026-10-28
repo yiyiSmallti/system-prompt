@@ -108,8 +108,13 @@ namespace SystemPrompt
         public readonly string Description;
         public readonly int HealHp;
         public readonly int HealHpForDeepSeek;
-        public ItemDef(string id, string name, string description, int healHp, int healHpForDeepSeek)
-        { Id = id; Name = name; Description = description; HealHp = healHp; HealHpForDeepSeek = healHpForDeepSeek; }
+        public readonly Battle.Element Element; // an attack item's, thrown at one noise body (Power > 0)
+        public readonly int Power;
+        public ItemDef(string id, string name, string description, int healHp, int healHpForDeepSeek, Battle.Element element = Battle.Element.Almighty, int power = 0)
+        { Id = id; Name = name; Description = description; HealHp = healHp; HealHpForDeepSeek = healHpForDeepSeek; Element = element; Power = power; }
+
+        public bool Heals => HealHp > 0;
+        public bool Attacks => Power > 0;
     }
 
     public static class GameData
@@ -289,6 +294,9 @@ namespace SystemPrompt
         public static readonly Dictionary<string, ItemDef> Items = new Dictionary<string, ItemDef>
         {
             ["white_rice"] = new ItemDef("white_rice", "白米饭", "一人 HP +40；DeepSeek 吃时 +80。", 40, 80),
+            // Attack items (design/items.md 攻击道具): the 初级 single-target power of 寒流, by the thrower's 算力.
+            ["ice_soda"] = new ItemDef("ice_soda", "冰镇汽水", "冰属性，敌方一体。", 0, 0, Battle.Element.Ice, 30),
+            ["spicy_strip"] = new ItemDef("spicy_strip", "辣条", "火属性，敌方一体。", 0, 0, Battle.Element.Fire, 30),
         };
 
         public static CharacterDef Character(string id) => id != null && Characters.TryGetValue(id, out var c) ? c : null;

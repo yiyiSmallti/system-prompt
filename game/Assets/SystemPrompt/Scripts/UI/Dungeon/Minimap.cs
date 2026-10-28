@@ -6,7 +6,8 @@ namespace SystemPrompt.UI
 {
     // The corner map of the latent-space maze, north up: the cells the player has seen in their zone's
     // colour, low walls marked, what is on them (cache blocks, sockets, the gate, light plates), the
-    // lighthouse's light all the way, noise bodies close by as red dots and the player as a green arrow.
+    // lighthouse's light all the way, 数据珍珠 still to take as pink dots, noise bodies close by as red dots and
+    // the player as a green arrow.
     // The goal shows from the start, unless the light has to find it first.
     public sealed class Minimap : VisualElement
     {
@@ -164,6 +165,11 @@ namespace SystemPrompt.UI
                         break;
                 }
             }
+
+            // 数据珍珠 not yet taken, once their cell has been seen.
+            p2.fillColor = Palette.Hex("#FFC8EE");
+            foreach (var pearl in world.Pearls)
+                if (!pearl.Taken && world.Revealed[pearl.Cell.x, pearl.Cell.y]) Circle(p2, At(pearl.Cell.x + 0.5f, pearl.Cell.y + 0.5f), cell * 0.22f);
 
             p2.fillColor = Palette.Red;
             foreach (var e in world.Enemies)

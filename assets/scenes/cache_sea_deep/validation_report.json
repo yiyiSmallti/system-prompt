@@ -315,8 +315,8 @@
   "mesh_integrity_issues": [],
   "wall_facing_errors": [],
   "triangles": {
-    "Layout": 519052,
-    "Landmarks": 14066,
+    "Layout": 520684,
+    "Landmarks": 14450,
     "Outer": 44478,
     "Drift": 1326
   },
@@ -344,5 +344,5 @@
   ],
   "unique_meshes_checked": 1496,
   "preview_objects_excluded": "All floor, people, cameras and lights are in Reference; FBX selects Layout/Landmarks or Outer/Drift only.",
-  "seconds": 2.243
+  "seconds": 2.261
 }

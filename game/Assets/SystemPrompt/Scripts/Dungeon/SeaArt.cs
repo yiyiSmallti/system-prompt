@@ -567,6 +567,69 @@ namespace SystemPrompt.Dungeon
                 Quad(a, b, d, e, n);
             }
 
+            // A box of half size h round centre with every edge cut back `bevel` at 45°: six faces, a strip along
+            // each edge and a facet at each corner, all flat, so the edges catch the light and the outline the way a
+            // made thing's do. Each face has uv 0..1 over it; the strips and facets uv (0.5, 0), the seam.
+            public void Chamfered(Vector3 centre, Vector3 h, float bevel, Vector4 uv2, Color c)
+            {
+                bevel = Mathf.Clamp(bevel, 0f, Mathf.Min(h.x, Mathf.Min(h.y, h.z)) * 0.9f);
+                var seam = new Vector2(0.5f, 0f);
+                // Corner s's point on the face across `axis`.
+                Vector3 At(int axis, Vector3 s)
+                {
+                    var p = new Vector3(s.x * (h.x - bevel), s.y * (h.y - bevel), s.z * (h.z - bevel));
+                    p[axis] = s[axis] * h[axis];
+                    return centre + p;
+                }
+                for (var axis = 0; axis < 3; axis++)
+                for (var sign = -1; sign <= 1; sign += 2)
+                {
+                    var n = Vector3.zero;
+                    n[axis] = sign;
+                    int u = (axis + 1) % 3, v = (axis + 2) % 3;
+                    var q = new int[4];
+                    for (var k = 0; k < 4; k++)
+                    {
+                        var s = n;
+                        float su = k == 0 || k == 3 ? -1f : 1f, sv = k < 2 ? -1f : 1f;
+                        s[u] = su;
+                        s[v] = sv;
+                        q[k] = Add(At(axis, s), n, new Vector2((su + 1f) / 2f, (sv + 1f) / 2f), uv2, c);
+                    }
+                    Quad(q[0], q[1], q[2], q[3], n);
+                }
+                if (bevel <= 0f) return;
+                for (var w = 0; w < 3; w++)
+                {
+                    int a = (w + 1) % 3, b = (w + 2) % 3;
+                    for (var sa = -1; sa <= 1; sa += 2)
+                    for (var sb = -1; sb <= 1; sb += 2)
+                    {
+                        var n = Vector3.zero;
+                        n[a] = sa;
+                        n[b] = sb;
+                        n.Normalize();
+                        var q = new int[4];
+                        for (var k = 0; k < 2; k++)
+                        {
+                            var s = Vector3.zero;
+                            s[a] = sa;
+                            s[b] = sb;
+                            s[w] = k * 2 - 1;
+                            q[k * 2] = Add(At(a, s), n, seam, uv2, c);
+                            q[k * 2 + 1] = Add(At(b, s), n, seam, uv2, c);
+                        }
+                        Quad(q[0], q[1], q[3], q[2], n);
+                    }
+                }
+                for (var i = 0; i < 8; i++)
+                {
+                    var s = new Vector3((i & 1) * 2 - 1, (i >> 1 & 1) * 2 - 1, (i >> 2 & 1) * 2 - 1);
+                    var n = s.normalized;
+                    Tri(Add(At(0, s), n, seam, uv2, c), Add(At(1, s), n, seam, uv2, c), Add(At(2, s), n, seam, uv2, c), n);
+                }
+            }
+
             // A box from corner o along three edges at right angles, without its bottom (-up): litter on the seabed.
             public void Block(Vector3 o, Vector3 x, Vector3 up, Vector3 z, Color c)
             {
@@ -770,13 +833,13 @@ namespace SystemPrompt.Dungeon
         static Vector3 MapDir(Vector2Int d) => new Vector3(d.x, 0f, -d.y);
 
         // Cubes of `size` at the given cells (cell (x, y, z) spans x·size to (x + 1)·size), each `gap` short of
-        // its cell on every side so the seams show. For the Glitch shader's voxel mode: uv runs 0..1 over each
-        // face, uv2 holds the cube's centre and an id in (0, 1], negative for the cubes in `still`.
+        // its cell on every side so the seams show, their edges bevelled like keycaps. For the Glitch shader's voxel
+        // mode: uv runs 0..1 over each face (the bevels sit in the dark seam), uv2 holds the cube's centre and an
+        // id in (0, 1], negative for the cubes in `still`.
         public static Mesh Voxels(IList<Vector3Int> cells, float size, float gap, System.Predicate<Vector3Int> still = null)
         {
             var b = new Builder();
             var set = new HashSet<Vector3Int>(cells);
-            Vector3[] normals = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
             foreach (var c in cells)
             {
                 // Out of sight inside the others.
@@ -786,12 +849,7 @@ namespace SystemPrompt.Dungeon
                 var id = 0.05f + 0.95f * DungeonWorld.Hash(c.x * 7 + c.z * 13, c.y * 5 - c.z * 3);
                 var info = new Vector4(centre.x, centre.y, centre.z, still != null && still(c) ? -id : id);
                 var h = size / 2f - gap;
-                foreach (var n in normals)
-                {
-                    var u = Mathf.Abs(n.y) > 0.5f ? Vector3.right : Vector3.up;
-                    var v = Vector3.Cross(n, u);
-                    b.Face(centre + n * h - (u + v) * h, u * (2f * h), v * (2f * h), n, info, Color.white);
-                }
+                b.Chamfered(centre, Vector3.one * h, h * 0.24f, info, Color.white);
             }
             return b.Build("Voxels");
         }
@@ -861,25 +919,122 @@ namespace SystemPrompt.Dungeon
             return b.Build("Decal");
         }
 
-        public static Mesh Box(Vector3 size)
+        // A box with its edges bevelled (Builder.Chamfered): by default an eighth of its thinnest side, at most
+        // 7 cm, so no bare cube shows; bevel 0 for a sharp one.
+        public static Mesh Box(Vector3 size, float bevel = -1f)
         {
             var b = new Builder();
-            var h = size / 2f;
-            Vector3[] normals = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
-            foreach (var n in normals)
-            {
-                var u = Mathf.Abs(n.y) > 0.5f ? Vector3.right : Vector3.up;
-                var v = Vector3.Cross(n, u);
-                var centre = Vector3.Scale(n, h);
-                var su = Vector3.Scale(u, h);
-                var sv = Vector3.Scale(v, h);
-                var a = b.Add(centre - su - sv, n, new Vector2(0, 0));
-                var c = b.Add(centre + su - sv, n, new Vector2(1, 0));
-                var d = b.Add(centre + su + sv, n, new Vector2(1, 1));
-                var e = b.Add(centre - su + sv, n, new Vector2(0, 1));
-                b.Quad(a, c, d, e, n);
-            }
+            if (bevel < 0f) bevel = Mathf.Min(0.07f, Mathf.Min(size.x, Mathf.Min(size.y, size.z)) * 0.125f);
+            b.Chamfered(Vector3.zero, size / 2f, bevel, default, Color.white);
             return b.Build("Box");
+        }
+
+        // A scallop's half shell hinged at the origin and opening towards +z, `radius` out to its rim: ribs fanning
+        // out to a scalloped edge, domed up by `height`, with an inside as well as an outside `thickness` under it
+        // and the band of its rim between them (it is seen from both sides once it opens).
+        public static Mesh Shell(float radius, float height, float thickness = 0.04f, int ribs = 9)
+        {
+            const int Rows = 8, PerRib = 4;
+            const float Spread = 1.2f; // radians either side of +z
+            var cols = ribs * PerRib;
+            var p = new Vector3[Rows + 1, cols + 1];
+            for (var i = 0; i <= Rows; i++)
+            for (var j = 0; j <= cols; j++)
+            {
+                var s = (float)i / Rows;
+                var a = Mathf.Lerp(-Spread, Spread, (float)j / cols);
+                var rib = 0.5f - 0.5f * Mathf.Cos(2f * Mathf.PI * j / PerRib); // 0 in a groove, 1 on a ridge
+                var r = radius * s * (1f + 0.07f * rib * s);
+                p[i, j] = new Vector3(Mathf.Sin(a) * r, height * Mathf.Sin(Mathf.PI * 0.85f * s) * (1f + 0.18f * rib * s), Mathf.Cos(a) * r);
+            }
+            var n = new Vector3[Rows + 1, cols + 1];
+            for (var i = 0; i <= Rows; i++)
+            for (var j = 0; j <= cols; j++)
+            {
+                var across = p[i, Mathf.Min(cols, j + 1)] - p[i, Mathf.Max(0, j - 1)];
+                var out_ = p[Mathf.Min(Rows, i + 1), j] - p[Mathf.Max(0, i - 1), j];
+                var normal = i == 0 ? Vector3.up : Vector3.Cross(across, out_).normalized;
+                n[i, j] = normal.y < 0f ? -normal : normal;
+            }
+            var b = new Builder();
+            var outer = new int[Rows + 1, cols + 1];
+            var inner = new int[Rows + 1, cols + 1];
+            for (var i = 0; i <= Rows; i++)
+            for (var j = 0; j <= cols; j++)
+            {
+                var uv = new Vector2((float)j / cols, (float)i / Rows);
+                outer[i, j] = b.Add(p[i, j], n[i, j], uv);
+                inner[i, j] = b.Add(p[i, j] - n[i, j] * thickness, -n[i, j], uv);
+            }
+            for (var i = 0; i < Rows; i++)
+            for (var j = 0; j < cols; j++)
+            {
+                var up = (n[i, j] + n[i + 1, j + 1]).normalized;
+                b.Quad(outer[i, j], outer[i + 1, j], outer[i + 1, j + 1], outer[i, j + 1], up);
+                b.Quad(inner[i, j], inner[i + 1, j], inner[i + 1, j + 1], inner[i, j + 1], -up);
+            }
+            // The rim, and the two straight edges up from the hinge.
+            for (var j = 0; j < cols; j++)
+            {
+                var a = Mathf.Lerp(-Spread, Spread, (j + 0.5f) / cols);
+                var o = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
+                b.Quad(b.Add(p[Rows, j], o, Vector2.zero), b.Add(p[Rows, j + 1], o, Vector2.zero),
+                    b.Add(p[Rows, j + 1] - n[Rows, j + 1] * thickness, o, Vector2.zero), b.Add(p[Rows, j] - n[Rows, j] * thickness, o, Vector2.zero), o);
+            }
+            foreach (var (j, side) in new[] { (0, -1f), (cols, 1f) })
+            {
+                var a = side * Spread;
+                var o = new Vector3(Mathf.Cos(a) * side, 0f, -Mathf.Sin(a) * side);
+                for (var i = 0; i < Rows; i++)
+                    b.Quad(b.Add(p[i, j], o, Vector2.zero), b.Add(p[i + 1, j], o, Vector2.zero),
+                        b.Add(p[i + 1, j] - n[i + 1, j] * thickness, o, Vector2.zero), b.Add(p[i, j] - n[i, j] * thickness, o, Vector2.zero), o);
+            }
+            return b.Build("Shell");
+        }
+
+        // outline (z, y), convex, drawn out along x from -length/2 to length/2 with flat sides and caps: an arched
+        // lid, a sloping desk, a wedge.
+        public static Mesh Prism(IList<Vector2> outline, float length)
+        {
+            var b = new Builder();
+            var hx = length / 2f;
+            var n = outline.Count;
+            var mid = Vector2.zero;
+            foreach (var p in outline) mid += p / n;
+            for (var i = 0; i < n; i++)
+            {
+                Vector2 p0 = outline[i], p1 = outline[(i + 1) % n];
+                var edge = p1 - p0;
+                if (edge.sqrMagnitude < 1e-8f) continue;
+                var out2 = new Vector2(edge.y, -edge.x).normalized;
+                if (Vector2.Dot(out2, (p0 + p1) / 2f - mid) < 0f) out2 = -out2;
+                var nrm = new Vector3(0f, out2.y, out2.x);
+                b.Quad(b.Add(new Vector3(-hx, p0.y, p0.x), nrm, new Vector2(0, 0)), b.Add(new Vector3(hx, p0.y, p0.x), nrm, new Vector2(1, 0)),
+                    b.Add(new Vector3(hx, p1.y, p1.x), nrm, new Vector2(1, 1)), b.Add(new Vector3(-hx, p1.y, p1.x), nrm, new Vector2(0, 1)), nrm);
+            }
+            foreach (var side in new[] { -1f, 1f })
+            {
+                var nrm = Vector3.right * side;
+                var centre = b.Add(new Vector3(side * hx, mid.y, mid.x), nrm, new Vector2(0.5f, 0.5f));
+                for (var i = 0; i < n; i++)
+                {
+                    Vector2 p0 = outline[i], p1 = outline[(i + 1) % n];
+                    b.Tri(centre, b.Add(new Vector3(side * hx, p0.y, p0.x), nrm, Vector2.zero), b.Add(new Vector3(side * hx, p1.y, p1.x), nrm, Vector2.zero), nrm);
+                }
+            }
+            return b.Build("Prism");
+        }
+
+        // A half-ellipse `depth` across in z and `height` high over y = 0, as a Prism outline: an arched lid.
+        public static Vector2[] Arch(float depth, float height, int steps = 8)
+        {
+            var outline = new Vector2[steps + 1];
+            for (var i = 0; i <= steps; i++)
+            {
+                var a = Mathf.PI * i / steps;
+                outline[i] = new Vector2(Mathf.Cos(a) * depth / 2f, Mathf.Sin(a) * height);
+            }
+            return outline;
         }
 
         // A sphere, or a capsule along y when stretch > 0 (the hemispheres are pushed apart by it).

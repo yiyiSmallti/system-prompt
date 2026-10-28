@@ -33,13 +33,13 @@
     "C": 1
   },
   "triangles": {
-    "Layout": 558514,
-    "Landmarks": 14888,
-    "Props": 6629,
+    "Layout": 559986,
+    "Landmarks": 15112,
+    "Props": 7045,
     "Outer": 45226,
     "Drift": 2916
   },
-  "total_triangles": 580031,
+  "total_triangles": 582143,
   "kit": {
     "RackFacade_V01": {
       "triangles": 264,
@@ -232,7 +232,7 @@
       "description": "4x4m; sixteen bevelled 1m tiles"
     },
     "LowRack": {
-      "triangles": 508,
+      "triangles": 540,
       "min": [
         -1.9950001239776611,
         -1.9950000047683716,
@@ -384,7 +384,7 @@
       "description": "cell-contained mound and four emoji stalks"
     },
     "GraveTall": {
-      "triangles": 1250,
+      "triangles": 1346,
       "min": [
         -1.875,
         -1.875,
@@ -403,7 +403,7 @@
       "description": "two-sided Chinese mesh inscription; 7.32m"
     },
     "GraveLowPair": {
-      "triangles": 1816,
+      "triangles": 1880,
       "min": [
         -1.8300000429153442,
         -0.699999988079071,
@@ -555,7 +555,7 @@
       "description": "1.2m floating story card, independent Card"
     },
     "DataChest": {
-      "triangles": 122,
+      "triangles": 154,
       "min": [
         -0.5,
         -0.36000001430511475,
@@ -574,7 +574,7 @@
       "description": "1.0x0.7x0.7m chest; Lid origin on hinge"
     },
     "Terminal": {
-      "triangles": 93,
+      "triangles": 157,
       "min": [
         -0.550000011920929,
         -0.4099999964237213,
@@ -593,7 +593,7 @@
       "description": "1.40m green control console"
     },
     "ResetConsole": {
-      "triangles": 182,
+      "triangles": 246,
       "min": [
         -0.550000011920929,
         -0.4099999964237213,
@@ -612,7 +612,7 @@
       "description": "1.03m amber console"
     },
     "Firewall": {
-      "triangles": 306,
+      "triangles": 370,
       "min": [
         -2.0,
         -0.44999998807907104,
@@ -631,7 +631,7 @@
       "description": "4x4m frame; independently hidden Barrier"
     },
     "Gate": {
-      "triangles": 110,
+      "triangles": 174,
       "min": [
         -2.0,
         -0.44999998807907104,
@@ -650,7 +650,7 @@
       "description": "4x4m frame; independent Door"
     },
     "CacheBlock": {
-      "triangles": 228,
+      "triangles": 260,
       "min": [
         -1.25,
         -1.25,
@@ -688,7 +688,7 @@
       "description": "3x3m recessed socket frame"
     },
     "Lighthouse": {
-      "triangles": 13922,
+      "triangles": 14146,
       "min": [
         -5.673349857330322,
         -4.729401588439941,
@@ -6258,5 +6258,5 @@
   ],
   "exposed_rack_faces": 297,
   "outer_cells": 341,
-  "build_seconds": 1.717
+  "build_seconds": 1.45
 }

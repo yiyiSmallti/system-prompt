@@ -456,7 +456,7 @@ namespace SystemPrompt.UI
                 var b = Ease.OutBack(Mathf.Clamp01((time - 0.45f) / 0.25f));
                 Ui.Zoom(exp, b);
                 Ui.Turn(exp, Mathf.Lerp(-30f, -6f, b));
-                expNumber.text = $"+{Mathf.RoundToInt(def.Exp * Ease.OutCubic(Mathf.Clamp01((time - 0.55f) / 0.6f)))}";
+                expNumber.text = $"+{Mathf.RoundToInt(earned * Ease.OutCubic(Mathf.Clamp01((time - 0.55f) / 0.6f)))}";
                 partyRow.style.opacity = 1 - Mathf.Clamp01(time / 0.15f);
                 for (var i = 0; i < rows.Count; i++)
                 {

@@ -294,7 +294,7 @@
         3.9900001287460327,
         1.2999999523162842
       ],
-      "triangles": 508,
+      "triangles": 540,
       "figure_height_m": 1.75,
       "ortho_scale_m": 11.149136904540484,
       "projected_object_and_figure": {
@@ -518,7 +518,7 @@
         3.75,
         7.320000171661377
       ],
-      "triangles": 1250,
+      "triangles": 1346,
       "figure_height_m": 1.75,
       "ortho_scale_m": 12.375900584298211,
       "projected_object_and_figure": {
@@ -546,7 +546,7 @@
         1.399999976158142,
         1.2999999523162842
       ],
-      "triangles": 1816,
+      "triangles": 1880,
       "figure_height_m": 1.75,
       "ortho_scale_m": 8.243990987019508,
       "projected_object_and_figure": {
@@ -770,7 +770,7 @@
         0.7200000286102295,
         0.699999988079071
       ],
-      "triangles": 122,
+      "triangles": 154,
       "figure_height_m": 1.75,
       "ortho_scale_m": 3.8462496834439013,
       "projected_object_and_figure": {
@@ -798,7 +798,7 @@
         0.8199999928474426,
         1.3700000047683716
       ],
-      "triangles": 93,
+      "triangles": 157,
       "figure_height_m": 1.75,
       "ortho_scale_m": 4.081674742508084,
       "projected_object_and_figure": {
@@ -826,7 +826,7 @@
         0.8199999928474426,
         1.0
       ],
-      "triangles": 182,
+      "triangles": 246,
       "figure_height_m": 1.75,
       "ortho_scale_m": 4.0816746957080445,
       "projected_object_and_figure": {
@@ -854,7 +854,7 @@
         0.8999999761581421,
         4.0
       ],
-      "triangles": 306,
+      "triangles": 370,
       "figure_height_m": 1.75,
       "ortho_scale_m": 8.253407876505433,
       "projected_object_and_figure": {
@@ -882,7 +882,7 @@
         0.8999999761581421,
         4.0
       ],
-      "triangles": 110,
+      "triangles": 174,
       "figure_height_m": 1.75,
       "ortho_scale_m": 8.253407876505433,
       "projected_object_and_figure": {
@@ -910,7 +910,7 @@
         2.5,
         2.5
       ],
-      "triangles": 228,
+      "triangles": 260,
       "figure_height_m": 1.75,
       "ortho_scale_m": 7.6413020659671504,
       "projected_object_and_figure": {
@@ -966,7 +966,7 @@
         9.458803176879883,
         36.82000182569027
       ],
-      "triangles": 13922,
+      "triangles": 14146,
       "figure_height_m": 1.75,
       "ortho_scale_m": 52.833497498486494,
       "projected_object_and_figure": {
@@ -1023,300 +1023,5 @@
   "pages": [
     "kit_sheet",
     "kit_sheet_props"
-  ],
-  "manual_review": {
-    "reviewed_cells": 36,
-    "method": "Both final sheets and all six full-size rows inspected; all 36 silhouettes, small props and captions checked.",
-    "cells": {
-      "RackFacade_V01": {
-        "sheet": "kit_sheet.png",
-        "row": 0,
-        "column": 0,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackFacade_V02": {
-        "sheet": "kit_sheet.png",
-        "row": 0,
-        "column": 1,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackFacade_V03": {
-        "sheet": "kit_sheet.png",
-        "row": 0,
-        "column": 2,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackFacade_V04": {
-        "sheet": "kit_sheet.png",
-        "row": 0,
-        "column": 3,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackFacade_V05": {
-        "sheet": "kit_sheet.png",
-        "row": 0,
-        "column": 4,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackFacade_V06": {
-        "sheet": "kit_sheet.png",
-        "row": 0,
-        "column": 5,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackTop": {
-        "sheet": "kit_sheet.png",
-        "row": 1,
-        "column": 0,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "RackFan": {
-        "sheet": "kit_sheet.png",
-        "row": 1,
-        "column": 1,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Seabed_Tile": {
-        "sheet": "kit_sheet.png",
-        "row": 1,
-        "column": 2,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Seabed_Vent": {
-        "sheet": "kit_sheet.png",
-        "row": 1,
-        "column": 3,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "LowRack": {
-        "sheet": "kit_sheet.png",
-        "row": 1,
-        "column": 4,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "BubbleStack_1": {
-        "sheet": "kit_sheet.png",
-        "row": 1,
-        "column": 5,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "BubbleStack_2": {
-        "sheet": "kit_sheet.png",
-        "row": 2,
-        "column": 0,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "BubbleStack_3": {
-        "sheet": "kit_sheet.png",
-        "row": 2,
-        "column": 1,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "BubbleLow": {
-        "sheet": "kit_sheet.png",
-        "row": 2,
-        "column": 2,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "EmojiCoral_1": {
-        "sheet": "kit_sheet.png",
-        "row": 2,
-        "column": 3,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "EmojiCoral_2": {
-        "sheet": "kit_sheet.png",
-        "row": 2,
-        "column": 4,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "EmojiCoral_3": {
-        "sheet": "kit_sheet.png",
-        "row": 2,
-        "column": 5,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "GraveTall": {
-        "sheet": "kit_sheet_props.png",
-        "row": 0,
-        "column": 0,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "GraveLowPair": {
-        "sheet": "kit_sheet_props.png",
-        "row": 0,
-        "column": 1,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "SunkenPhone": {
-        "sheet": "kit_sheet_props.png",
-        "row": 0,
-        "column": 2,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "KelpEdge": {
-        "sheet": "kit_sheet_props.png",
-        "row": 0,
-        "column": 3,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "CableHanging": {
-        "sheet": "kit_sheet_props.png",
-        "row": 0,
-        "column": 4,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Beacon": {
-        "sheet": "kit_sheet_props.png",
-        "row": 0,
-        "column": 5,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Fragment_Post": {
-        "sheet": "kit_sheet_props.png",
-        "row": 1,
-        "column": 0,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Fragment_Message": {
-        "sheet": "kit_sheet_props.png",
-        "row": 1,
-        "column": 1,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Fragment_Draft": {
-        "sheet": "kit_sheet_props.png",
-        "row": 1,
-        "column": 2,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "DataChest": {
-        "sheet": "kit_sheet_props.png",
-        "row": 1,
-        "column": 3,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Terminal": {
-        "sheet": "kit_sheet_props.png",
-        "row": 1,
-        "column": 4,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "ResetConsole": {
-        "sheet": "kit_sheet_props.png",
-        "row": 1,
-        "column": 5,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Firewall": {
-        "sheet": "kit_sheet_props.png",
-        "row": 2,
-        "column": 0,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Gate": {
-        "sheet": "kit_sheet_props.png",
-        "row": 2,
-        "column": 1,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "CacheBlock": {
-        "sheet": "kit_sheet_props.png",
-        "row": 2,
-        "column": 2,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Socket": {
-        "sheet": "kit_sheet_props.png",
-        "row": 2,
-        "column": 3,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "Lighthouse": {
-        "sheet": "kit_sheet_props.png",
-        "row": 2,
-        "column": 4,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      },
-      "WallFoot_Cables": {
-        "sheet": "kit_sheet_props.png",
-        "row": 2,
-        "column": 5,
-        "shape_visible": true,
-        "caption_readable": true,
-        "figure_height_m": 1.75
-      }
-    },
-    "render_script_sha256": "b97c26653a2caa767e56040dc9ca699211e7ccfff5dbe8b22d6d797b5940c9af"
-  }
+  ]
 }

@@ -208,7 +208,7 @@
         }
       },
       "reimported_meshes": 3233,
-      "reimported_triangles": 533118,
+      "reimported_triangles": 535134,
       "material_slot_checks": 3233,
       "material_slot_mismatches": [],
       "material_face_count_mismatches": [],
@@ -429,7 +429,7 @@
       "material_count": 7
     }
   },
-  "export_seconds": 1.946,
-  "total_seconds": 4.171,
+  "export_seconds": 1.977,
+  "total_seconds": 4.482,
   "verification_scope": "Blender FBX roundtrip and FBX root/axis metadata. Unity import was not run in this task."
 }

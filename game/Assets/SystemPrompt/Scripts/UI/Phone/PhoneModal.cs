@@ -248,6 +248,9 @@ namespace SystemPrompt.UI
 
             Section(scroll, "token");
             Ui.Text($"{s.tokens:N0} token", "sp-inv__line", scroll, FontKind.MonoBold);
+
+            Section(scroll, "数据珍珠");
+            Ui.Text($"{s.pearls.Count} / {Dungeon.Dungeons.PearlTotal}", "sp-inv__line", scroll, FontKind.MonoBold);
         }
 
         static void Section(VisualElement parent, string title)

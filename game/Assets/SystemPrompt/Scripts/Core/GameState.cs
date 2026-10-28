@@ -67,6 +67,7 @@ namespace SystemPrompt
         public List<DeadlineEntry> deadlines = new List<DeadlineEntry>();
         public List<ItemStack> inventory = new List<ItemStack>();
         public int tokens;
+        public List<string> pearls = new List<string>(); // 数据珍珠 taken, "area#index" (Dungeon/SeaPearl.cs)
 
         public GameState Clone() => JsonUtility.FromJson<GameState>(JsonUtility.ToJson(this));
 
@@ -162,6 +163,15 @@ namespace SystemPrompt
         }
 
         public int DaysUntil(DeadlineEntry d) => GameData.DaysBetween(month, day, d.month, d.day);
+
+        public bool HasPearl(string area, int index) => pearls.Contains(area + "#" + index);
+
+        public void TakePearl(string area, int index)
+        {
+            if (!HasPearl(area, index)) pearls.Add(area + "#" + index);
+        }
+
+        public int PearlsIn(string area) => pearls.FindAll(p => p.StartsWith(area + "#", StringComparison.Ordinal)).Count;
 
         public int ItemCount(string id) => inventory.Find(i => i.id == id)?.count ?? 0;
 

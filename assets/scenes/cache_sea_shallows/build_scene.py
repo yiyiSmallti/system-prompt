@@ -178,13 +178,47 @@ class Geo:
             indices.append(self.lookup[key])
         for i in range(1,len(indices)-1):
             self.f.append((indices[0],indices[i],indices[i+1]));self.mi.append(self.materials.index(mat))
-    def box(self, at, size, mat, sides=(0,1,2,3,4,5), rot=0):
+    def box(self, at, size, mat, sides=(0,1,2,3,4,5), rot=0, bevel=None):
+        """A box; sides 0-5 are -z, -y, +x, +y, -x, +z. Every box at least 25 cm thick with all four walls and
+        a top has its edges cut back at 45 degrees (bevel, by default 6% of its thinnest side, 3-15 cm), so no
+        chunk of the scene is a raw cube: the edges catch the light and the outline the way a made thing's do.
+        A chamfered box leaves out only its bottom face when asked."""
         x,y,z=at; a,b,c=[v/2 for v in size]
-        cs=[(-a,-b,-c),(a,-b,-c),(a,b,-c),(-a,b,-c),(-a,-b,c),(a,-b,c),(a,b,c),(-a,b,c)]
         cr,sr=math.cos(rot),math.sin(rot)
-        vs=[(x+u*cr-v*sr,y+u*sr+v*cr,z+w) for u,v,w in cs]
-        fs=[(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]
-        for i in sides:self.face([vs[j] for j in fs[i]],mat)
+        put=lambda u,v,w:(x+u*cr-v*sr,y+u*sr+v*cr,z+w)
+        if bevel is None:
+            bevel=min(.15,max(.03,min(size)*.06)) if min(size)>=.25 and {1,2,3,4,5}<=set(sides) else 0
+        if bevel<=0:
+            cs=[(-a,-b,-c),(a,-b,-c),(a,b,-c),(-a,b,-c),(-a,-b,c),(a,-b,c),(a,b,c),(-a,b,c)]
+            vs=[put(*p) for p in cs]
+            fs=[(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]
+            for i in sides:self.face([vs[j] for j in fs[i]],mat)
+            return
+        h=(a,b,c);e=min(bevel,min(h)*.9)
+        def out(points,normal):
+            # Wound so the face points along normal (counter-clockwise seen from outside).
+            p=[Vector(q) for q in points]
+            if (p[1]-p[0]).cross(p[2]-p[0]).dot(Vector(normal))<0:points=list(reversed(points))
+            self.face([put(*q) for q in points],mat)
+        def pt(k,i,j,vk,vi,vj):
+            q=[0,0,0];q[k]=vk;q[i]=vi;q[j]=vj;return tuple(q)
+        for k in range(3):
+            i,j=[n for n in range(3) if n!=k]
+            for s in (-1,1):
+                if k==2 and s==-1 and 0 not in sides:continue
+                n=[0,0,0];n[k]=s
+                out([pt(k,i,j,s*h[k],u*(h[i]-e),v*(h[j]-e)) for u,v in ((-1,-1),(1,-1),(1,1),(-1,1))],n)
+        for k in range(3):
+            i,j=[n for n in range(3) if n!=k]
+            for si in (-1,1):
+                for sj in (-1,1):
+                    n=[0,0,0];n[i]=si;n[j]=sj
+                    out([pt(k,i,j,-(h[k]-e),si*h[i],sj*(h[j]-e)),pt(k,i,j,h[k]-e,si*h[i],sj*(h[j]-e)),
+                         pt(k,i,j,h[k]-e,si*(h[i]-e),sj*h[j]),pt(k,i,j,-(h[k]-e),si*(h[i]-e),sj*h[j])],n)
+        for sx in (-1,1):
+            for sy in (-1,1):
+                for sz in (-1,1):
+                    out([(sx*a,sy*(b-e),sz*(c-e)),(sx*(a-e),sy*b,sz*(c-e)),(sx*(a-e),sy*(b-e),sz*c)],(sx,sy,sz))
     def front(self,x,z,w,h,y,mat,bevel=0):
         if not bevel:
             self.face([(x-w/2,y,z-h/2),(x+w/2,y,z-h/2),(x+w/2,y,z+h/2),(x-w/2,y,z+h/2)],mat)

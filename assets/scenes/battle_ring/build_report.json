@@ -74,7 +74,7 @@
   ],
   "unique_meshes": 589,
   "mesh_instances": 1655,
-  "build_seconds": 0.743,
+  "build_seconds": 0.681,
   "blender_version": "5.2.3 LTS",
   "major_components_triangles": {
     "fans": 4674,

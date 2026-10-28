@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace SystemPrompt.Battle
 {
-    public enum SkillKind { Attack, Magic, Charge }
+    public enum SkillKind { Attack, Magic, Charge, Item }
 
     // How a battle in the latent space began (design/systems.md 遇敌): hitting a noise body before it has
     // seen the player gives the party a free round, being run into by one that chased the player lets the
@@ -40,6 +40,10 @@ namespace SystemPrompt.Battle
 
         public static bool CanThink(string id) => id == "DeepSeek";
 
+        // An attack item thrown (冰镇汽水, 辣条): as strong as a skill of its level, by the user's 算力
+        // (design/items.md), but no skill, so 深度思考 does not charge it.
+        public static SkillDef OfItem(ItemDef item) => new SkillDef { Id = item.Id, Name = item.Name, Element = item.Element, Power = item.Power, Kind = SkillKind.Item };
+
         // 原装镜头 20 / 命中 90 for the player (design/items.md); DeepSeek's 饭勺 is weaker.
         public static int WeaponAttack(string id) => id == GameState.PlayerId ? 20 : 15;
         public static int WeaponAccuracy(string id) => id == GameState.PlayerId ? 90 : 95;
@@ -60,6 +64,8 @@ namespace SystemPrompt.Battle
         public int HpFloor;            // tutorial: never drops below this until the finisher
         public string WeaknessLabel;   // what the nameplate shows, which may be a lie (标题党型)
         public string TrueWeakness;
+        public readonly HashSet<Element> Known = new HashSet<Element>(); // affinities a hit has shown this battle
+        public bool Summoned;          // called in by a 转发型 mid-battle
 
         public bool Dead => Hp <= 0;
         public Affinity AffinityTo(Element e) => Affinities.TryGetValue(e, out var a) ? a : Affinity.Normal;
@@ -133,6 +139,7 @@ namespace SystemPrompt.Battle
                     new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 24, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
                 },
                 Exp = 30,
+                Drops = new[] { ("ice_soda", 1) },
                 EnemyDamageScale = 0.4f,
             },
             ["shallow_repost"] = new BattleDef
@@ -155,6 +162,7 @@ namespace SystemPrompt.Battle
                     new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 22, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
                 },
                 Exp = 50,
+                Drops = new[] { ("spicy_strip", 1) },
                 EnemyDamageScale = 0.28f,
             },
             ["shallow_mixed"] = new BattleDef
@@ -178,6 +186,7 @@ namespace SystemPrompt.Battle
                     new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 26, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
                 },
                 Exp = 40,
+                Drops = new[] { ("ice_soda", 1) },
                 EnemyDamageScale = 0.4f,
             },
             ["sea_mixed"] = new BattleDef
@@ -208,6 +217,11 @@ namespace SystemPrompt.Battle
 
         public static BattleDef Get(string id) => All.TryGetValue(id, out var d) ? d : null;
 
+        // What a 转发型 calls in every other turn (design/systems.md 转发型「每回合召唤一只新的标题党型」): a
+        // weaker 标题党型, so killing the 转发型 first pays but leaving it is no wall.
+        public static readonly EnemyDef Summoned = new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 16, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" };
+        public const int SummonedExp = 10;
+
         public static Combatant Spawn(EnemyDef e)
         {
             var stat = 3f + 0.8f * e.Level;
@@ -233,6 +247,7 @@ namespace SystemPrompt.Battle
 
     public struct Hit
     {
+        public Element Element;
         public int Damage;
         public Affinity Affinity;
         public bool Critical;
@@ -247,7 +262,7 @@ namespace SystemPrompt.Battle
 
         public static Hit Compute(Combatant a, Combatant t, SkillDef s, BattleDef battle)
         {
-            var hit = new Hit { Affinity = t.AffinityTo(s.Element) };
+            var hit = new Hit { Element = s.Element, Affinity = t.AffinityTo(s.Element) };
             var tutorial = battle.Tutorial;
             var physical = s.Element == Element.Physical;
 

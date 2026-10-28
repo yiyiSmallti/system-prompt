@@ -23,7 +23,7 @@ namespace SystemPrompt.Dungeon
         // The poses struck in place (SeaFigure.Act): how long after the start each has been reached and seen,
         // when the command goes on, the 道具's rice ball used up at that moment; the way back follows by itself.
         const float GuardSeen = 0.75f, ItemUsed = 0.75f, ThinkSeen = 0.6f, FaceRound = 60f;
-        static readonly Color Sea = new Color(0.4f, 0.85f, 1f), Frozen = new Color(0.55f, 0.9f, 1f);
+        static readonly Color Sea = new Color(0.4f, 0.85f, 1f), Frozen = new Color(0.55f, 0.9f, 1f), Flame = new Color(1f, 0.5f, 0.18f);
         static readonly Color Lens = new Color(0.55f, 1f, 0.6f), Harm = new Color(1f, 0.3f, 0.35f), Heal = new Color(0.6f, 1f, 0.55f);
 
         public Camera Camera { get; private set; }
@@ -445,14 +445,15 @@ namespace SystemPrompt.Dungeon
             Shake(0.05f, 0.15f);
         }
 
-        // Steps out and casts; done as the arm is thrown out at the noise bodies.
-        public async Awaitable Cast(int member)
+        // Steps out and casts (an attack item is thrown the same way); done as the arm is thrown out at the noise
+        // bodies.
+        public async Awaitable Cast(int member, bool fire = false)
         {
             var m = party[member];
             Move(Beside(member), 0.4f);
             m.Figure.Play("Cast", CastPace);
             Step(member).Forget();
-            effects.Ring(m.Home + Vector3.up * 0.05f, Vector3.up, Frozen, 1.4f, 0.8f);
+            effects.Ring(m.Home + Vector3.up * 0.05f, Vector3.up, fire ? Flame : Frozen, 1.4f, 0.8f);
             await Anim.Wait(CastLands);
         }
 
@@ -504,20 +505,21 @@ namespace SystemPrompt.Dungeon
         }
 
         // A volley of ice lances from the caster's hand at each noise body; done when they land, frost bursting
-        // out of the seabed round each.
-        public async Awaitable Ice(int member, IList<int> targets)
+        // out of the seabed round each. A thrown 辣条 flies the same way in flame.
+        public async Awaitable Ice(int member, IList<int> targets, bool fire = false)
         {
             var from = Hand(member);
-            effects.Flash(from, Frozen, 1.2f, 0.25f);
+            var color = fire ? Flame : Frozen;
+            effects.Flash(from, color, 1.2f, 0.25f);
             var flights = new List<Awaitable>();
             foreach (var foe in targets)
                 for (var i = 0; i < 6; i++)
-                    flights.Add(effects.Lance(from, FoePoint(foe) + Random.insideUnitSphere * 0.35f, Frozen, i * 0.045f));
+                    flights.Add(effects.Lance(from, FoePoint(foe) + Random.insideUnitSphere * 0.35f, color, i * 0.045f));
             foreach (var flight in flights) await flight;
             foreach (var foe in targets)
             {
-                effects.Frost(FoePoint(foe), Frozen, 0.75f).Forget();
-                effects.Sparks(FoePoint(foe), Frozen, 20, 6f);
+                effects.Frost(FoePoint(foe), color, 0.75f).Forget();
+                effects.Sparks(FoePoint(foe), color, 20, 6f);
             }
             Shake(0.08f, 0.25f);
         }
@@ -653,6 +655,53 @@ namespace SystemPrompt.Dungeon
             f.Gone = true;
             f.Root.gameObject.SetActive(false);
             f.Shadow.gameObject.SetActive(false);
+        }
+
+        // 转发型 calls in another noise body: forked light streams from it to the free place on the line, where the
+        // new one grows out of a column of light. Added after the others, so every index stays; the new one is
+        // in the list as soon as this is called, standing once it is done.
+        public async Awaitable Summon(string kind, int caller)
+        {
+            var home = FreePlace();
+            var root = Parts.Node("Noise " + foes.Count, transform, home);
+            root.rotation = Quaternion.Euler(0f, 180f, 0f);
+            root.localScale = Vector3.zero;
+            var f = new Foe { Root = root, Look = new NoiseLook(kind, root), Home = home, At = home, Seed = foes.Count * 2.3f, Heat = 1f,
+                Shadow = SeaArt.Shadow(transform, NoiseLook.ShadowSize).transform };
+            foes.Add(f);
+            var from = FoePoint(caller);
+            var tint = foes[caller].Look.Tint;
+            foes[caller].Heat = 1f;
+            effects.Flash(from, tint, 1.4f, 0.25f);
+            var flights = new List<Awaitable>();
+            for (var i = 0; i < 4; i++)
+                flights.Add(effects.Lance(from, home + Vector3.up * (NoiseLook.Height + Random.Range(-0.3f, 0.3f)), tint, i * 0.06f, 0.35f));
+            foreach (var flight in flights) await flight;
+            effects.Pillar(home, tint, 0.8f, 4f, 0.7f);
+            effects.Pixels(home + Vector3.up * NoiseLook.Height, tint, f.Look.Tint, 36, 4f);
+            Shake(0.05f, 0.2f);
+            await Anim.Tween(0.45f, t =>
+            {
+                if (root != null) root.localScale = Vector3.one * t;
+            }, Ease.OutBack);
+        }
+
+        // Of the places a line of one to three noise bodies stands on, the one furthest from those still standing.
+        Vector3 FreePlace()
+        {
+            var best = new Vector3(0f, 0f, 6.4f);
+            var room = -1f;
+            foreach (var x in new[] { -2.8f, 2.8f, 0f, -1.7f, 1.7f })
+            {
+                var at = new Vector3(x, 0f, 6.4f);
+                var nearest = float.MaxValue;
+                foreach (var f in foes)
+                    if (!f.Gone) nearest = Mathf.Min(nearest, Vector3.Distance(f.Home, at));
+                if (nearest <= room) continue;
+                room = nearest;
+                best = at;
+            }
+            return best;
         }
 
         // Comes at the party (or the member it picked) and goes back.

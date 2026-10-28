@@ -140,3 +140,7 @@ Unity 坐标映射为 **(x,y,z) = Blender (X,Z,Y)**。回到空白 Blender 的�
 `export/battle_ring.fbx` 复制到 `game/Assets/SystemPrompt/Resources/Scenes/BattleRing/`。`BattleStage.BuildRacks()` 不再用 `SeaArt.Walls` 生成机柜，改为 `SeaScene.Ring(transform)` 把模型放在战斗场地自身坐标下，`Update` 里让顶部风扇转动。四个材质按名字换成游戏的卡通着色，`M_Rack_LED_Channel` 只留发光；雾、海面和粒子沿用原来的战斗场地。
 
 验证：完整 E2E（`game/E2E/20261027-094908/`）里所有战斗截图的背景都换成了模型机柜环，镜头总览、选人、斩击、集成、胜利都没有穿进机柜，日志 0 错误 0 警告。同机位截图拼在 [preview/unity_ingame.png](preview/unity_ingame.png)。
+
+## 方块倒角（2026-10-28）
+
+`Geo.box` 不再出直角长方体：最短边不小于 0.25m、且五个侧面都在（只可省底面）的盒子，自动按 `min(0.15, max(0.03, 最短边×0.06))` 倒角，每个面向里缩出倒角宽度，12 条棱补斜面、8 个角补三角面；更薄的板件和缺侧面的件不倒角。显式传 `bevel=` 可以覆盖。这里的机柜块本来就由倒角件拼成，重建后仍是 214,693 三角面，校验、回导和三张预览都已重跑。

@@ -6,9 +6,10 @@ namespace SystemPrompt.Dungeon
 {
     // The puzzles of a latent-space area (design/systems.md 潜空间探索·机关), built from the map:
     //   cache blocks (K) pushed a cell at a time into the sockets (O); once every socket holds one, the gate
-    //   (Y) opens for good, and the console (R) puts the blocks back where they started until then;
+    //   (Y) opens for good, and the console (R) puts the blocks back where they started until then; each push
+    //   can be taken back, and a block pushed into a corner of walls (where it can never come out) turns red;
     //   the lighthouse's light coming down at Q and running north, turned by light plates (M) a quarter of a
-    //   right angle at a time, passing over low walls and stopped by racks, until it reaches the goal.
+    //   right angle at a time either way, passing over low walls and stopped by racks, until it reaches the goal.
     // DungeonWorld asks it what is in reach and passes the player's Enter on.
     public sealed class SeaPuzzles
     {
@@ -28,6 +29,7 @@ namespace SystemPrompt.Dungeon
         static readonly Color Amber = new Color(1f, 0.66f, 0.2f), Full = new Color(0.35f, 1f, 0.6f);
 
         readonly Dictionary<Vector2Int, SocketLook> sockets = new Dictionary<Vector2Int, SocketLook>();
+        readonly Stack<(CacheBlock Block, Vector2Int From)> pushes = new Stack<(CacheBlock, Vector2Int)>(); // since the last reset
         readonly Dictionary<Vector2Int, Material> cables = new Dictionary<Vector2Int, Material>(); // by socket
         readonly List<Transform> segments = new List<Transform>();
         readonly Vector2Int? source;
@@ -105,6 +107,27 @@ namespace SystemPrompt.Dungeon
         {
             var to = block.Cell + direction;
             if (Solved || map.Solid(to) || taken(to) || map[to] == 'X' || map[to] == 'Y') return false;
+            pushes.Push((block, block.Cell));
+            Move(block, to, time);
+            return true;
+        }
+
+        public bool CanUndo => !Solved && pushes.Count > 0;
+
+        // The last push taken back: the block slides back where it was, unless something stands there now
+        // (taken: props, noise bodies, the player). True when it moved.
+        public bool Undo(Func<Vector2Int, bool> taken, float time)
+        {
+            if (!CanUndo) return false;
+            var (block, from) = pushes.Peek();
+            if (map.Solid(from) || taken(from)) return false;
+            pushes.Pop();
+            Move(block, from, time);
+            return true;
+        }
+
+        void Move(CacheBlock block, Vector2Int to, float time)
+        {
             map.Blocks.Remove(block.Cell);
             map.Blocks.Add(to);
             block.Slide(to, time);
@@ -115,8 +138,17 @@ namespace SystemPrompt.Dungeon
                 map.GateOpen = true;
                 gate?.Open(time);
             }
-            return true;
         }
+
+        // In a corner of walls and not in a socket: no push can ever bring it out again.
+        public bool Stuck(CacheBlock b)
+        {
+            if (Solved || InSocket(b)) return false;
+            bool Wall(Vector2Int c) => map.Solid(c) && !map.Blocks.Contains(c);
+            return (Wall(b.Cell + Vector2Int.up) || Wall(b.Cell + Vector2Int.down)) && (Wall(b.Cell + Vector2Int.left) || Wall(b.Cell + Vector2Int.right));
+        }
+
+        public bool AnyStuck => Blocks.Exists(Stuck);
 
         // The console: every block back to its start (not once the gate is open).
         public void ResetBlocks(float time)
@@ -125,6 +157,7 @@ namespace SystemPrompt.Dungeon
             map.Blocks.Clear();
             map.Blocks.UnionWith(map.BlockStarts);
             foreach (var b in Blocks) b.Slide(b.Start, time);
+            pushes.Clear();
             Refresh();
         }
 
@@ -184,10 +217,10 @@ namespace SystemPrompt.Dungeon
             return best;
         }
 
-        // A quarter of a right angle clockwise. True the first time the light reaches the goal.
-        public bool Turn(LightPlate plate, float time)
+        // A quarter of a right angle clockwise (step 1) or back (-1). True the first time the light reaches the goal.
+        public bool Turn(LightPlate plate, float time, int step = 1)
         {
-            plate.Turn(time);
+            plate.Turn(time, step);
             var wasLit = Lit;
             Refresh();
             return Lit && !wasLit;
@@ -236,7 +269,11 @@ namespace SystemPrompt.Dungeon
                 if (cables.TryGetValue(kv.Key, out var cable))
                     cable.SetColor("_Color", full ? Full.WithAlpha(0.6f) : Amber.WithAlpha(0.25f));
             }
-            foreach (var b in Blocks) b.SetFilled(InSocket(b));
+            foreach (var b in Blocks)
+            {
+                b.SetFilled(InSocket(b));
+                b.SetStuck(Stuck(b));
+            }
             if (!source.HasValue) return;
 
             var points = new List<Vector3>();
@@ -343,7 +380,7 @@ namespace SystemPrompt.Dungeon
     {
         public const float Size = 2.5f, Hover = 0.14f;
         const float Bar = 0.2f; // the frame's edges
-        static readonly Color Cyan = new Color(0.45f, 0.85f, 1f), Full = new Color(0.35f, 1f, 0.6f);
+        static readonly Color Cyan = new Color(0.45f, 0.85f, 1f), Full = new Color(0.35f, 1f, 0.6f), Jammed = new Color(1f, 0.36f, 0.3f);
 
         public readonly Vector2Int Start;
         public Vector2Int Cell { get; private set; }
@@ -353,7 +390,7 @@ namespace SystemPrompt.Dungeon
         readonly Material corners, panels, under;
         Vector3 from, heading;
         float movedAt = -1f;
-        bool filled;
+        bool filled, stuck;
 
         public CacheBlock(Vector2Int cell, DungeonMap map, Transform parent)
         {
@@ -413,6 +450,8 @@ namespace SystemPrompt.Dungeon
 
         public void SetFilled(bool on) => filled = on;
 
+        public void SetStuck(bool on) => stuck = on;
+
         public void Animate(float time)
         {
             var target = map.World(Cell);
@@ -431,7 +470,7 @@ namespace SystemPrompt.Dungeon
             body.localRotation = Quaternion.AngleAxis(lean, axis);
             body.localPosition = new Vector3(0, Hover + 0.05f * Mathf.Sin(time * 1.6f + Start.x), 0);
             var pulse = 0.75f + 0.25f * Mathf.Sin(time * 2.2f + Start.x);
-            var colour = filled ? Full : Cyan;
+            var colour = filled ? Full : stuck ? Jammed : Cyan;
             panels.SetColor("_Color", colour.WithAlpha(filled ? 0.95f : 0.8f * pulse));
             corners.SetColor("_Emission", colour * (filled ? 1f : 0.6f + 0.3f * pulse));
             corners.SetColor("_Color", colour);
@@ -442,7 +481,8 @@ namespace SystemPrompt.Dungeon
     // A mirror plate on a pedestal that the light bounces off: | and - stand edge on to some light and stop
     // it, / and \ turn it a right angle. Each turn is a quarter of a right angle clockwise seen from above,
     // the way the dial round the pedestal points. The mirror hangs in a fork, dark glass in a pale frame with
-    // a sheen running across it; struck by the light it brightens and flares where the light meets it.
+    // a sheen running across it; struck by the light it brightens and flares where the light meets it. It turns
+    // back the other way too.
     public sealed class LightPlate
     {
         public const string Shapes = "|/-\\";
@@ -456,7 +496,7 @@ namespace SystemPrompt.Dungeon
         readonly Transform pivot, flare;
         readonly Material sheen, band, flareLight;
         float turnedAt = -1f;
-        float fromYaw;
+        float fromYaw, turnBy;
         bool struck;
 
         public LightPlate(Vector2Int cell, int index, int facing, DungeonMap map, Transform parent)
@@ -498,10 +538,11 @@ namespace SystemPrompt.Dungeon
         // Shape | runs north-south, - east-west; / from south-west to north-east.
         static float Yaw(int facing) => -90f + 45f * facing;
 
-        public void Turn(float time)
+        public void Turn(float time, int step = 1)
         {
             fromYaw = Yaw(Facing);
-            Facing = (Facing + 1) % Shapes.Length;
+            turnBy = 45f * step;
+            Facing = ((Facing + step) % Shapes.Length + Shapes.Length) % Shapes.Length;
             turnedAt = time;
         }
 
@@ -517,7 +558,7 @@ namespace SystemPrompt.Dungeon
             if (turnedAt >= 0f)
             {
                 var t = Mathf.Clamp01((time - turnedAt) / 0.3f);
-                pivot.localRotation = Quaternion.Euler(0, Mathf.Lerp(fromYaw, fromYaw + 45f, 1f - (1f - t) * (1f - t)), 0);
+                pivot.localRotation = Quaternion.Euler(0, Mathf.Lerp(fromYaw, fromYaw + turnBy, 1f - (1f - t) * (1f - t)), 0);
                 if (t >= 1f) turnedAt = -1f;
             }
             var shimmer = Mathf.Sin(time * 1.7f + Index);

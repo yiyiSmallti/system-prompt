@@ -10,6 +10,7 @@ namespace SystemPrompt
         Confirm, Cancel, Up, Down, Left, Right,
         Auto, Skip, Log, Hide, Phone, QuickSave, QuickLoad, Menu, Delete,
         Interact, // the latent space: a left click while the cursor is locked, besides Confirm
+        Undo,     // the latent space: take back the last push, or turn a light plate back
     }
 
     // Polled once per frame by GameRoot. Works with either input backend, since a project created
@@ -101,6 +102,7 @@ namespace SystemPrompt
                 case Btn.QuickSave: return Hit(Key.F5);
                 case Btn.QuickLoad: return Hit(Key.F9);
                 case Btn.Delete: return Hit(Key.Delete) || (pad != null && pad.selectButton.wasPressedThisFrame);
+                case Btn.Undo: return (!text && Hit(Key.Backspace)) || (pad != null && pad.buttonEast.wasPressedThisFrame);
                 case Btn.Interact: return Cursor.lockState == CursorLockMode.Locked && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
             }
             return false;
@@ -174,6 +176,7 @@ namespace SystemPrompt
                 case Btn.QuickSave: return Hit(KeyCode.F5);
                 case Btn.QuickLoad: return Hit(KeyCode.F9);
                 case Btn.Delete: return Hit(KeyCode.Delete);
+                case Btn.Undo: return !text && Hit(KeyCode.Backspace);
                 case Btn.Interact: return Cursor.lockState == CursorLockMode.Locked && Input.GetMouseButtonDown(0);
             }
             return false;

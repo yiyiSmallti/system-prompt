@@ -5111,15 +5111,15 @@
     "S": 1
   },
   "triangles": {
-    "Layout": 519052,
-    "Landmarks": 14066,
+    "Layout": 520684,
+    "Landmarks": 14450,
     "Outer": 44478,
     "Drift": 1326
   },
-  "total_triangles": 533118,
+  "total_triangles": 535134,
   "outer_cells": 339,
   "exposed_faces": 442,
-  "lighthouse_triangles": 13922,
+  "lighthouse_triangles": 14146,
   "materials": [
     {
       "name": "M_Rack_Body",
@@ -5289,16 +5289,16 @@
       "edge": "E"
     }
   ],
-  "build_seconds": 2.56,
+  "build_seconds": 2.408,
   "blender_version": "5.2.3 LTS",
   "major_components_triangles": {
-    "lighthouse": 13922,
-    "white_door_frame": 144,
-    "file_piles": 14256,
+    "lighthouse": 14146,
+    "white_door_frame": 304,
+    "file_piles": 15792,
     "kelp": 840,
     "cable_bridges": 1524,
     "fans": 10830,
-    "low_white_rails": 1524,
+    "low_white_rails": 1620,
     "rift_damage": 5370
   },
   "mesh_instances": 3233,

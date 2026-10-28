@@ -556,8 +556,29 @@ title: Prologue_Sea_Zone_Maintenance
 旁白: 屋子里散落着两块一人高的方块，每一面都写着「缓存」。
 DeepSeek: 门没有通电。……要把缓存块推进插槽里。 #face:neutral
 系统: 站在缓存块后面按 Enter，可以把它往前推一格。缓存块只能推，不能拉。
-系统: 推进死角时，到角落的复位台按 Enter，缓存块会回到原来的位置。
+系统: 推错了按 Backspace，撤回上一推。推进死角时，也可以到角落的复位台按 Enter，缓存块会回到原来的位置。
 DeepSeek: 左边那个插槽，好像只有一个方向推得进去。 #face:pout
+===
+
+title: Prologue_Sea_Stuck
+---
+// 第一次把缓存块推进墙角（再也推不出来、变红）时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: ……鱼片，那块缓存卡进墙角了。红了。 #face:concerned
+DeepSeek: 按 Backspace 撤回一推。或者去复位台，全部重来。 #face:neutral
+===
+
+title: Prologue_Sea_Pearl
+---
+// 浅层第一次捡到数据珍珠时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: 数据珍珠。缓存海里沉下来的东西，被压成了一颗。 #face:neutral
+DeepSeek: 这片海域还有几颗。捡齐了……说不定有好东西。 #face:smile
+===
+
+title: Prologue_Sea_Pearls
+---
+// 浅层的数据珍珠全部捡齐时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: 浅层的珍珠，全部找到了。 #face:smile
+DeepSeek: ……鱼片，眼睛好尖。 #face:smile
 ===
 
 title: Prologue_Sea_Gate
@@ -656,7 +677,14 @@ title: Prologue_Deep_Zone_WhiteDoor
 旁白: 门没有开。光停在门上，什么也没有发生。
 DeepSeek: 那扇门……我梦见过它。每一次都只梦到这里，就醒了。 #face:scared
 DeepSeek: 可是出口不在门上。……大厅里立着几块反射板。要把光引到别的地方去。 #face:neutral
-系统: 走到反射板旁边按 Enter，反射板顺时针转 45 度。斜着的反射板把光折向一边，和光平行的让光穿过去，和光垂直的把光挡住。
+系统: 走到反射板旁边按 Enter，反射板顺时针转 45 度；按 Backspace 逆时针转回去。斜着的反射板把光折向一边，和光平行的让光穿过去，和光垂直的把光挡住。
+===
+
+title: Prologue_Deep_Pearls
+---
+// 深层的数据珍珠全部捡齐时调用；DeepSeek 在右上角播报，不打断探索（只能放她的台词）
+DeepSeek: 深层的珍珠也齐了。 #face:smile
+DeepSeek: 沉在最底下的话……原来也有人捡。 #face:distant
 ===
 
 title: Prologue_Deep_Light

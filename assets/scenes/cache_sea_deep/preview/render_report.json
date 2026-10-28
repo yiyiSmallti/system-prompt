@@ -1,6 +1,6 @@
 {
   "persp_start_rift": {
-    "seconds": 4.873,
+    "seconds": 4.009,
     "camera": [
       58,
       6.2,
@@ -46,7 +46,7 @@
     ]
   },
   "persp_servers_aisle": {
-    "seconds": 3.936,
+    "seconds": 3.397,
     "camera": [
       38,
       38,
@@ -92,7 +92,7 @@
     ]
   },
   "persp_servers_bridges": {
-    "seconds": 3.433,
+    "seconds": 3.477,
     "camera": [
       38,
       54,
@@ -138,7 +138,7 @@
     ]
   },
   "persp_recycle_files": {
-    "seconds": 3.274,
+    "seconds": 3.897,
     "camera": [
       6,
       57,
@@ -184,7 +184,7 @@
     ]
   },
   "persp_context": {
-    "seconds": 3.252,
+    "seconds": 3.623,
     "camera": [
       86,
       46,
@@ -230,7 +230,7 @@
     ]
   },
   "persp_white_hall": {
-    "seconds": 4.473,
+    "seconds": 2.564,
     "camera": [
       58,
       71,
@@ -276,7 +276,7 @@
     ]
   },
   "persp_outer_lighthouse": {
-    "seconds": 2.435,
+    "seconds": 2.608,
     "camera": [
       58,
       -47,
@@ -322,7 +322,7 @@
     ]
   },
   "topdown": {
-    "seconds": 3.107,
+    "seconds": 3.413,
     "pixels": [
       1800,
       1600
@@ -335,5 +335,5 @@
       100
     ]
   },
-  "last_run_seconds": 6.534
+  "last_run_seconds": 30.785
 }

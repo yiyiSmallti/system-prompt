@@ -24,6 +24,7 @@ namespace SystemPrompt.Dungeon
         public SeaPuzzles Puzzles { get; private set; }
         public readonly List<SeaNoise> Enemies = new List<SeaNoise>();
         public readonly List<SeaProp> Props = new List<SeaProp>();
+        public readonly List<SeaPearl> Pearls = new List<SeaPearl>();
         public bool[,] Revealed { get; private set; }
 
         public Vector3 PlayerPosition { get; private set; }
@@ -48,7 +49,7 @@ namespace SystemPrompt.Dungeon
         Transform lampBeams;
         bool shown = true;
         string gender;
-        Transform door, doorSeam, doorMist; // the white door at the deep exit, if the area has one
+        Transform door, doorSeam, doorMist, doorPanels; // the white door at the deep exit, if the area has one
         SeaMirror mirror;
         Texture2D zones, walls; // the seabed's, made for this area
 
@@ -135,6 +136,7 @@ namespace SystemPrompt.Dungeon
             BuildLighthouse();
             await Awaitable.NextFrameAsync();
             BuildProps();
+            for (var i = 0; i < def.Pearls.Length; i++) Pearls.Add(new SeaPearl(def.Pearls[i], i, false, Map, transform));
             await Awaitable.NextFrameAsync();
             BuildWreckage();
             await Awaitable.NextFrameAsync();
@@ -428,9 +430,12 @@ namespace SystemPrompt.Dungeon
             }
         }
 
-        // Something marked on the map within two cells (within one for a noise body's round), or a cache block.
+        // Something marked on the map within two cells (within one for a noise body's round), a cache block, or a
+        // 数据珍珠 within one.
         bool Marked(Vector2Int c)
         {
+            foreach (var p in Def.Pearls)
+                if (Mathf.Abs(p.x - c.x) <= 1 && Mathf.Abs(p.y - c.y) <= 1) return true;
             for (var dy = -2; dy <= 2; dy++)
             for (var dx = -2; dx <= 2; dx++)
             {
@@ -464,7 +469,25 @@ namespace SystemPrompt.Dungeon
             var width = Vector3.Distance(a, b) + Dungeons.Cell;
             var root = door = Parts.Node("Sealed Door", transform, centre);
             var white = SeaArt.Toon(Palette.Hex("#F4F7FF"), Palette.Hex("#B8C6E6"), new Color(1f, 1f, 1f, 1f), Palette.Hex("#3A4660"), 0.03f);
+            var trim = SeaArt.Toon(Palette.Hex("#DCE4F6"), Palette.Hex("#98A8CC"), new Color(1f, 1f, 1f, 1f), Palette.Hex("#2A3450"), 0.03f);
             Parts.Shape("Slab", root, SeaArt.Box(new Vector3(width, 11f, 0.6f)), white, new Vector3(0, 5.5f, 0));
+            // Two leaves of raised panels on the face toward the maze, a lintel over them and a pilaster at each
+            // edge; the panels go while the face is a mirror (Mirror), the rest stays clear of the glass.
+            var leaf = width / 2f;
+            var panelW = (leaf - 1.5f) / 2f;
+            const float panelH = 2.75f;
+            doorPanels = Parts.Node("Panels", root, new Vector3(0, 0, -0.33f));
+            var panel = SeaArt.Box(new Vector3(panelW, panelH, 0.07f), 0.03f);
+            for (var side = -1; side <= 1; side += 2)
+            for (var col = 0; col < 2; col++)
+            for (var row = 0; row < 3; row++)
+            {
+                var x = side * (0.5f + panelW / 2f + col * (panelW + 0.5f));
+                Parts.Shape("Panel", doorPanels, panel, trim, new Vector3(x, 0.9f + panelH / 2f + row * (panelH + 0.45f), 0f));
+            }
+            Parts.Shape("Lintel", root, SeaArt.Box(new Vector3(width + 0.5f, 0.6f, 0.9f)), trim, new Vector3(0, 10.9f, 0));
+            for (var side = -1; side <= 1; side += 2)
+                Parts.Shape("Pilaster", root, SeaArt.Box(new Vector3(0.5f, 10.6f, 0.8f)), trim, new Vector3(side * (width / 2f - 0.25f), 5.3f, 0));
             var seam = SeaArt.Glow(SeaArt.White, new Color(0.85f, 0.92f, 1f, 0.9f));
             doorSeam = Parts.Shape("Seam", root, SeaArt.Box(new Vector3(0.12f, 10.4f, 0.7f)), seam, new Vector3(0, 5.5f, 0)).transform;
             var cloud = SeaArt.Glow(SeaArt.Atlas, new Color(0.8f, 0.88f, 1f, 0.5f));
@@ -588,8 +611,10 @@ namespace SystemPrompt.Dungeon
             // and near enough that it fills a good part of the frame.
             Camera.transform.position = stand + new Vector3(0.95f, 1.6f, -2.1f);
             Camera.transform.rotation = Quaternion.LookRotation(new Vector3(stand.x + 0.1f, 1.3f, glass.z) - Camera.transform.position);
-            // The seam would split the glass, and the mist at the door's foot hangs in front of it.
+            // The seam would split the glass, the panels stand through it, and the mist at the door's foot hangs in
+            // front of it.
             doorSeam.gameObject.SetActive(false);
+            doorPanels.gameObject.SetActive(false);
             doorMist.gameObject.SetActive(false);
             if (mirror == null) mirror = SeaMirror.Create(transform, Camera, glass, Vector3.back, 3f, 4f, Avatar, gender);
             await mirror.Open();
@@ -635,19 +660,29 @@ namespace SystemPrompt.Dungeon
         public bool Push(CacheBlock block, Vector2Int direction) => Puzzles.Push(block, direction, c =>
             Props.Exists(p => p.Cell == c) || Enemies.Exists(e => e.Active && Map.CellAt(e.Position) == c), time);
 
+        // Not back onto the player either.
+        public bool Undo() => Puzzles.Undo(c =>
+            Props.Exists(p => p.Cell == c) || Enemies.Exists(e => e.Active && Map.CellAt(e.Position) == c)
+            || Vector3.Distance(Map.World(c), PlayerPosition) < CacheBlock.Size * 0.5f + 0.6f, time);
+
         public void ResetBlocks() => Puzzles.ResetBlocks(time);
 
         public LightPlate PlateInReach() => Puzzles.PlateInReach(PlayerPosition);
 
         // True the first time the light reaches the goal, which then shows.
-        public bool Turn(LightPlate plate)
+        public bool Turn(LightPlate plate, int step = 1)
         {
-            var found = Puzzles.Turn(plate, time);
+            var found = Puzzles.Turn(plate, time, step);
             if (found) ShowGoal(true);
             return found;
         }
 
         public ZoneDef Zone => Def.ZoneAt(PlayerCell);
+
+        // A 数据珍珠 the avatar has walked into.
+        public SeaPearl PearlInReach() => Pearls.Find(p => !p.Taken && Vector3.Distance(p.Position, PlayerPosition) < SeaPearl.Reach);
+
+        public void Take(SeaPearl pearl) => pearl.Take(time);
 
         // The closest prop within its reach that hasn't been used up.
         public SeaProp PropInReach()
@@ -745,6 +780,7 @@ namespace SystemPrompt.Dungeon
             motes.position = new Vector3(PlayerPosition.x, 0f, PlayerPosition.z);
             lampBeams.localRotation = Quaternion.Euler(0, t * 24f, 0);
             foreach (var p in Props) p.Animate(t, Camera);
+            foreach (var p in Pearls) p.Animate(t);
             foreach (var e in Enemies) e.Animate(t, UnityEngine.Time.unscaledDeltaTime);
             Companion?.Follow(PlayerPosition, UnityEngine.Time.unscaledDeltaTime);
             decor.Animate(t);

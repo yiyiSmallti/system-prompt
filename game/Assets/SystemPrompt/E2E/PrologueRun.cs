@@ -408,16 +408,22 @@ namespace SystemPrompt.E2E
             Check(Maze.Zone?.Name == "气泡礁", $"从气泡礁出发（实际 {Maze.Zone?.Name}）");
             SeaProp BeaconIn(string zone) => w.Props.Find(p => p.Kind == PropKind.Beacon && w.Def.ZoneAt(p.Cell)?.Name == zone);
 
+            Check(w.Pearls.Count == 5 && ui.Q<Label>(className: "sp-dungeon__pearls").text.EndsWith("0/5"), "浅层 5 颗数据珍珠，左上角显示 0/5");
+            yield return Pearl(0, "起点旁", "dungeon-pearl");
+            if (finished) yield break;
             yield return Jump(Noise('1'), "dungeon-first", "从背后接近礁石出口发呆的噪声体（提示「先制攻击！」）");
             if (finished) yield break;
             Check(Maze.Battles == 1 && Maze.Preemptive == 1, $"第一场战斗是先制攻击（{Maze.Battles} 场，先制 {Maze.Preemptive}）");
+            Check(game.State.ItemCount("ice_soda") == 1, "第一场战斗掉落冰镇汽水");
             Check(game.State.party.Count == 1, $"觉醒前主角一个人战斗（队伍 {game.State.party.Count} 人）");
 
             var coralBeacon = BeaconIn("表情包珊瑚林");
             yield return Walk(coralBeacon.Cell, "沿手机南侧往西，进珊瑚林走到信标", 2.2f);
             yield return Lurk(() => Maze.Exploring && coralBeacon.Used, "珊瑚林的信标点亮");
             yield return Fight(Noise('2'), "和珊瑚林的噪声体战斗");
-            yield return Fight(Noise('3'), "往北进删帖墓地，和墓地的噪声体战斗");
+            yield return Pearl(1, "珊瑚林西南角");
+            yield return Fight(Noise('3'), "往北进删帖墓地，和墓地的噪声体战斗", ThrowSoda);
+            yield return Pearl(2, "墓地西北角");
 
             var draft = w.Props.Find(p => p.Kind == PropKind.Fragment && w.Def.FragmentTitles[p.Index] == "未发送的草稿");
             yield return Walk(draft.Cell, "走到碎片「未发送的草稿」", 2f);
@@ -431,8 +437,16 @@ namespace SystemPrompt.E2E
             var ridgeBeacon = BeaconIn("灯塔背面");
             yield return Walk(ridgeBeacon.Cell, "穿过墓地，到灯塔背面的信标", 2.2f);
             yield return Lurk(() => Maze.Exploring && ridgeBeacon.Used, "灯塔背面的信标点亮");
+            yield return Pearl(3, "灯塔背面东头");
             yield return Fight(Noise('4'), "下到机柜峡谷，和峡谷的噪声体战斗");
             if (finished) yield break;
+            Check(game.Battle.CalledIn >= 1, $"转发型在战斗里召唤了标题党型（{game.Battle.CalledIn} 只）");
+            var sodas = game.State.ItemCount("ice_soda");
+            var tokens = game.State.tokens;
+            yield return Pearl(4, "峡谷支路");
+            if (finished) yield break;
+            Check(game.State.PearlsIn(w.Def.Id) == 5 && ui.Q<Label>(className: "sp-dungeon__pearls").text.EndsWith("5/5"), "浅层的数据珍珠全部捡齐（5/5）");
+            Check(game.State.ItemCount("ice_soda") == sodas + 2 && game.State.tokens == tokens + 200, "捡齐奖励：冰镇汽水 ×2、200 token");
 
             // The maintenance room: the right-hand block down and round into the left socket, which takes
             // it only from the east; the left-hand block across into the right one.
@@ -447,10 +461,20 @@ namespace SystemPrompt.E2E
             for (var i = 0; i < pushes.Length && !finished; i++)
             {
                 yield return Push(pushes[i].Item1, pushes[i].Item2, $"第 {i + 1} 推");
+                if (i == 0 && !finished)
+                {
+                    // Taken back with Backspace, then pushed again.
+                    var from = pushes[0].Item1 + pushes[0].Item2;
+                    Check(w.Puzzles.CanUndo && Visible(ui.Q(className: "sp-dungeon__keys")) && ui.Q<Label>(className: "sp-dungeon__keys-text").text.EndsWith("Backspace 撤回"), "推过之后，按键提示里有「Backspace 撤回」");
+                    yield return Press(Key.Backspace);
+                    yield return Wait(0.45f);
+                    Check(Maze.Undos == 1 && w.Map.Blocks.Contains(from) && !w.Map.Blocks.Contains(from + pushes[0].Item2), $"Backspace 撤回第 1 推，缓存块回到 {from}");
+                    yield return Push(pushes[0].Item1, pushes[0].Item2, "撤回后重推第 1 推");
+                }
                 if (i == 3) yield return Snap("dungeon-push", "推缓存块（右边一块绕到左边插槽前）");
             }
             if (finished) yield break;
-            Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length, $"{Maze.Pushes} 推后两块缓存块都在插槽里，门打开");
+            Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length + 1, $"{Maze.Pushes} 推（含撤回后重推的 1 推）后两块缓存块都在插槽里，门打开");
             Check(BeaconIn("维护间").Used, "维护间的信标点亮");
 
             var terminal = w.Props.Find(p => p.Kind == PropKind.Terminal);
@@ -475,6 +499,9 @@ namespace SystemPrompt.E2E
             Check(w.Companion != null, "DeepSeek 跟在身边");
             Check(w.Companion?.Root.Find("DeepSeek") != null, "觉醒后的 DeepSeek 穿战斗服");
             Check(w.Puzzles.HasLight && !w.Puzzles.Lit && !w.GoalOpen, "出口一开始看不见（光照在白门上）");
+            yield return Pearl(0, "裂缝起点旁");
+            if (finished) yield break;
+            Check(ui.Q<Label>(className: "sp-dungeon__pearls").text.EndsWith("1/5"), "深层的数据珍珠单独计数（1/5）");
             yield return Jump(Noise('1'), "dungeon-sneak", "背后接近发呆的噪声体（提示「先制攻击！」）");
             if (finished) yield break;
             Check(Maze.Preemptive == 1, "先制攻击");
@@ -501,15 +528,16 @@ namespace SystemPrompt.E2E
             yield return Walk(new Vector2Int(19, 5), "退到大厅东侧看光路", 1.2f);
             yield return Face(w.Map.World(new Vector2Int(14, 4)));
             yield return Snap("dungeon-beam", "白门大厅：光照在白门上");
-            // Plates (14,6) | → /, (17,6) \ → /, (17,3) / → \, (11,3) | → \: north, east, north, west, north.
+            // Plates (14,6) | → /, (17,6) \ → /, (17,3) / → \, (11,3) | → \ (one turn back with Backspace instead of
+            // three on): north, east, north, west, north.
             var turns = new[] { (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), 2),
-                                (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), 3) };
+                                (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), -1) };
             foreach (var (plate, stand, times) in turns)
             {
                 yield return Turn(plate, stand, times);
                 if (finished) yield break;
             }
-            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 8, $"转了 {Maze.Turns} 次，光照到出口，出口出现");
+            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 6, $"转了 {Maze.Turns} 次（最后一块逆时针转 1 次），光照到出口，出口出现");
             yield return Pump(() => Maze.Exploring, "出口出现的对话");
             yield return Walk(new Vector2Int(9, 6), "退到大厅西南角看光路", 1.2f);
             yield return Face(w.Map.World(new Vector2Int(14, 3)));
@@ -567,7 +595,9 @@ namespace SystemPrompt.E2E
                 {
                     yield return Wait(0.3f);
                     Check(Visible(ui.Q(className: "sp-battle__items")), "道具列表打开");
-                    yield return Press(Key.Enter); // the 白米饭, the only one
+                    for (var i = 0; i < 6 && !ItemSelected("白米饭"); i++) yield return Press(Key.DownArrow);
+                    Check(ItemSelected("白米饭"), "道具列表里选中白米饭");
+                    yield return Press(Key.Enter);
                     yield return Wait(0.3f);
                     yield return Press(Key.DownArrow); // for DeepSeek herself, who eats it (+80)
                     yield return Press(Key.Enter);
@@ -578,6 +608,55 @@ namespace SystemPrompt.E2E
             }
             Check(guarded, "先制战斗里主角选了防御");
             Check(ate, "先制战斗里 DeepSeek 吃了白米饭");
+        }
+
+        bool ItemSelected(string name) =>
+            ui.Q(className: "sp-battle__items").Query(className: "sp-skillrow").ToList().Any(r => r.ClassListContains("is-selected") && r.Q<Label>(className: "sp-skillrow__name")?.text == name);
+
+        // The player's first turn in the graveyard's battle: the 冰镇汽水 the first battle dropped, thrown at a
+        // 标题党型. The cursor's forecast stays blank over its fake 「弱点：火」, the hit is on its true weakness,
+        // and that gives the fake tag away on every plate.
+        IEnumerator ThrowSoda()
+        {
+            var t0 = Now;
+            var quiet = Now;
+            while (!finished && game.InBattle && Now - t0 < StepTimeout)
+            {
+                if (hold > 0 || !Visible(ui.Q(className: "sp-battle__menu")))
+                {
+                    if (hold == 0 && Now - quiet > 3f)
+                    {
+                        yield return Press(Key.Enter);
+                        quiet = Now;
+                    }
+                    else yield return null;
+                    continue;
+                }
+                for (var i = 0; i < 6 && !CommandSelected("道具"); i++) yield return Press(Key.DownArrow);
+                if (!CommandSelected("道具"))
+                {
+                    Fail("指令里选不到「道具」");
+                    yield break;
+                }
+                yield return Press(Key.Enter);
+                yield return Wait(0.3f);
+                for (var i = 0; i < 6 && !ItemSelected("冰镇汽水"); i++) yield return Press(Key.DownArrow);
+                Check(ItemSelected("冰镇汽水"), "道具列表里有冰镇汽水");
+                yield return Press(Key.Enter);
+                yield return Wait(0.5f);
+                var forecast = ui.Query<Label>(className: "sp-enemy__forecast").ToList().Where(Visible).Select(l => l.text).FirstOrDefault();
+                Check(forecast == null, $"假弱点还没识破时，瞄准标题党型不显示 WEAK（{forecast ?? "空"}）");
+                yield return Snap("battle-aim-item", "用冰镇汽水瞄准标题党型");
+                yield return Press(Key.Enter);
+                var thrown = Now;
+                while (!finished && game.InBattle && game.State.ItemCount("ice_soda") > 0 && Now - thrown < 10f) yield return null;
+                Check(game.State.ItemCount("ice_soda") == 0, "扔出了冰镇汽水");
+                var exposed = Now;
+                while (!finished && game.InBattle && Now - exposed < 15f && !ui.Query<Label>(className: "sp-enemy__weak-text").ToList().Any(l => Visible(l) && l.text.StartsWith("弱点：冰"))) yield return null;
+                // A miss (5%) leaves it to the second turn, which gives it away too.
+                Check(ui.Query<Label>(className: "sp-enemy__weak-text").ToList().Any(l => l.text.StartsWith("弱点：冰")), "标题党型的假弱点碎掉，露出「弱点：冰」");
+                yield break;
+            }
         }
 
         bool CommandSelected(string label) =>
@@ -626,7 +705,7 @@ namespace SystemPrompt.E2E
 
         // Goes after a patrolling one and attacks it as soon as it is in reach; if it notices first and
         // runs into the avatar, that starts the battle too. Fought through with the first command.
-        IEnumerator Fight(SeaNoise enemy, string what)
+        IEnumerator Fight(SeaNoise enemy, string what, Func<IEnumerator> inBattle = null)
         {
             var driven = 0f;
             var last = Now;
@@ -653,6 +732,13 @@ namespace SystemPrompt.E2E
                 if (!Maze.Exploring)
                 {
                     Release();
+                    if (inBattle != null && game.InBattle)
+                    {
+                        var step = inBattle;
+                        inBattle = null;
+                        yield return step();
+                        continue;
+                    }
                     if (hold == 0) yield return Press(Key.Enter);
                     else yield return null;
                     continue;
@@ -671,6 +757,24 @@ namespace SystemPrompt.E2E
             }
             Release();
             if (!finished) passes.Add($"{Now:0.0}s　{what}");
+        }
+
+        // Walks into the area's ith 数据珍珠 (with a picture of it from a few metres first, when shot is given).
+        IEnumerator Pearl(int i, string where, string shot = null)
+        {
+            var w = World;
+            var pearl = w.Pearls[i];
+            var taken = Maze.PearlsTaken;
+            if (shot != null)
+            {
+                yield return Walk(pearl.Cell, $"走近{where}的数据珍珠", 5f);
+                Release();
+                yield return Face(pearl.Position);
+                yield return Snap(shot, $"数据珍珠（{where}）");
+            }
+            yield return Walk(pearl.Cell, $"捡{where}的数据珍珠", 0.5f, () => pearl.Taken);
+            Release();
+            Check(pearl.Taken && Maze.PearlsTaken == taken + 1, $"捡到{where}的数据珍珠（这次潜入 {Maze.PearlsTaken} 颗）");
         }
 
         // Stands in `from`, leans on the block in `direction` and pushes it a cell on.
@@ -695,7 +799,8 @@ namespace SystemPrompt.E2E
             Check(Maze.Pushes == pushes + 1 && w.Map.Blocks.Contains(at + direction), $"{what}：缓存块 {at} → {at + direction}");
         }
 
-        // Stands by a light plate and turns it `times` eighths of a turn.
+        // Stands by a light plate and turns it `times` eighths of a turn: clockwise with Enter, or back with
+        // Backspace for negative times.
         IEnumerator Turn(Vector2Int plate, Vector2Int stand, int times)
         {
             var w = World;
@@ -703,11 +808,12 @@ namespace SystemPrompt.E2E
             yield return Walk(stand, $"{what}：走到 {stand}", 1.2f);
             yield return Lean(stand, w.Map.World(plate), 3f, what);
             if (finished) yield break;
-            for (var i = 0; i < times && !finished; i++)
+            for (var i = 0; i < Mathf.Abs(times) && !finished; i++)
             {
                 if (!Maze.Exploring) yield return Pump(() => Maze.Exploring, "出口出现的对话");
                 var turns = Maze.Turns;
-                yield return Press(Key.Enter);
+                if (times < 0) Check(ui.Q<Label>(className: "sp-dungeon__keys-text").text.EndsWith("Backspace 反转"), "站在反射板旁，按键提示里有「Backspace 反转」");
+                yield return Press(times < 0 ? Key.Backspace : Key.Enter);
                 yield return Wait(0.45f);
                 Check(Maze.Turns == turns + 1, $"{what}（第 {i + 1} 次）");
             }
