@@ -161,6 +161,7 @@ namespace SystemPrompt.UI
         public bool IsOpen { get; private set; }
 
         readonly VisualElement backdrop;
+        readonly bool decorated;
         int animation;
 
         // Elements that slide in one by one after the content, e.g. a menu's items.
@@ -184,6 +185,7 @@ namespace SystemPrompt.UI
             backdrop = Ui.El("sp-modal__backdrop", Root);
             Ui.Fill(backdrop);
             backdrop.pickingMode = PickingMode.Ignore;
+            this.decorated = decorated;
             if (decorated) Decorate(backdrop);
         }
 
@@ -254,6 +256,7 @@ namespace SystemPrompt.UI
         async Awaitable AnimateIn(int id)
         {
             var content = OwnEntrance ? new List<VisualElement>() : Content();
+            if (decorated && !OwnEntrance) Tear(id).Forget();
             var items = new List<VisualElement>(Cascade ?? Array.Empty<VisualElement>());
             var total = Mathf.Max(0.16f, (content.Count - 1) * Stagger + 0.26f, 0.08f + (items.Count - 1) * CascadeStagger + 0.2f);
             await Anim.Tween(total, t =>
@@ -276,6 +279,23 @@ namespace SystemPrompt.UI
                 item.style.left = StyleKeyword.Null;
                 item.style.opacity = StyleKeyword.Null;
             }
+        }
+
+        // The screen behind tears as the dialog is thrown in: a grab of it (taken before the dialog shows)
+        // under the stripes, dimmed like the backdrop, its colours split and its rows thrown sideways, then
+        // settling back into the live screen.
+        async Awaitable Tear(int id)
+        {
+            var fx = await FxSurface.Grab(backdrop, Game.Frame);
+            if (fx == null) return;
+            fx.Element.SendToBack();
+            var calm = Game.Settings.reduceFlash;
+            await Anim.Tween(0.32f, t =>
+            {
+                fx.Set("_Tint", new Color(0.28f, 0.28f, 0.28f)).Set("_Add", Palette.Ink * 0.72f)
+                    .Set("_Split", 26f * (1 - t)).Glitch(calm ? 0f : 80f * (1 - t)).Set("_Zoom", 1f + 0.04f * (1 - t)).Set("_Scan", 0.5f * (1 - t));
+            }, Ease.OutCubic, () => id != animation);
+            fx.Element.RemoveFromHierarchy();
         }
 
         async Awaitable AnimateOut(int id)

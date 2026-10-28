@@ -38,7 +38,8 @@ namespace SystemPrompt.UI
             var dots = new Halftone(Palette.Green.WithAlpha(0.55f), 18f, 6f);
             dots.AddToClassList("fx-calendar__dots");
             band.Add(dots);
-            Ui.Text($"{month}/{day}", "fx-calendar__date", band, FontKind.Black);
+            var date = new SplitText($"{month}/{day}", "fx-calendar__date", FontKind.Black);
+            band.Add(date);
             var dow = Ui.El("fx-calendar__dow", band);
             Shape.Backdrop(dow, Shape.Slant(20), Palette.Green);
             Ui.Text(GameData.WeekdayLabel(month, day), "fx-calendar__dow-text", dow, FontKind.MonoBold);
@@ -48,11 +49,22 @@ namespace SystemPrompt.UI
             Ui.Text(slotText, "fx-calendar__slot-text", slotPanel, FontKind.Black);
             Ui.Text(GameData.WeatherOn(month, day), "fx-calendar__weather", band, FontKind.Bold);
 
+            // The date's colours trail behind it on the way in and snap together on the slam.
+            var calm = game.Settings.reduceFlash;
             game.Audio.Sfx("whoosh");
-            await Anim.Tween(0.3f, t => band.style.translate = new Translate((1 - t) * -2400f, 0));
+            await Anim.Tween(0.3f, t =>
+            {
+                band.style.translate = new Translate((1 - t) * -2400f, 0);
+                date.Split(Mathf.Lerp(60f, 14f, t));
+            });
             game.Audio.Sfx("slam", 0.7f);
+            Anim.Tween(0.3f, t => date.Split(14f * (1 - t), calm ? 0f : 12f * (1 - t)), Ease.OutCubic).Forget();
             await WaitBeat(0.4f, 1.5f);
-            await Anim.Tween(0.24f, t => band.style.translate = new Translate(t * 2400f, 0), Ease.InCubic);
+            await Anim.Tween(0.24f, t =>
+            {
+                band.style.translate = new Translate(t * 2400f, 0);
+                date.Split(40f * t);
+            }, Ease.InCubic);
             card.RemoveFromHierarchy();
         }
 
@@ -86,15 +98,17 @@ namespace SystemPrompt.UI
                     Stage.Clear();
                     ShowScene(def);
                     RefreshHud();
-                }, def.Label);
+                }, def.Label, preview: Ui.Tex(def.BackgroundKey));
             }
             RefreshHud();
         }
 
-        // The room "deleted like files, block by block" (剧本场景4).
+        // The room "deleted like files, block by block" (剧本场景4). Between the blocks the room itself
+        // glitches out: a grab of it, its colours split and its rows torn further the more is gone.
         async Awaitable GlitchSwap(SceneDef def)
         {
             const int cols = 16, rows = 9;
+            var room = await FxSurface.Grab(fx, game.Frame);
             var grid = Ui.El("fx-blocks", fx);
             Ui.Fill(grid);
             var blocks = new List<VisualElement>();
@@ -119,12 +133,20 @@ namespace SystemPrompt.UI
             var e = epoch;
             game.Audio.Sfx("glitch");
             var shown = 0;
+            var calm = game.Settings.reduceFlash;
             await Anim.Tween(0.7f, t =>
             {
                 var target = Mathf.RoundToInt(t * blocks.Count);
                 for (; shown < target; shown++) blocks[order[shown]].style.opacity = 1;
+                room?.Set("_Split", 30f * t).Glitch(calm ? 0f : 90f * t, 0.05f).Set("_Pixel", Mathf.Lerp(1f, 20f, t * t))
+                    .Set("_Desat", 0.7f * t).Set("_Scan", 0.6f * t);
             }, Ease.Linear);
-            if (e != epoch) return;
+            room?.Element.RemoveFromHierarchy();
+            if (e != epoch)
+            {
+                grid.RemoveFromHierarchy();
+                return;
+            }
             ShowScene(def);
             game.Audio.Sfx("water", 0.6f);
             var hiddenCount = 0;
@@ -148,6 +170,14 @@ namespace SystemPrompt.UI
             var layer = Ui.El("fx-awaken", fx);
             Ui.Fill(layer);
             layer.style.opacity = 0;
+            // Falling down the data sea behind it all, in her colour, speed lines and light streaks rushing
+            // through.
+            var sea = new FxSurface(layer, Ui.Tex("Art/Transitions/data_sea"), "fx-awaken__sea");
+            sea.Rect(Transitions.SeaRect).Set("_Tint", Color.Lerp(Color.white, color, 0.4f) * 0.75f).Set("_Scan", 0.35f).Set("_Vignette", 0.9f).Set("_Blur", 0.25f)
+                .Set("_Fly", 0.6f).Set("_Streaks", 0.7f).Set("_StreakSpeed", 1.1f).Set("_StreakColor", Color.Lerp(Color.white, color, 0.5f))
+                .Overlay(Ui.Tex("Art/Transitions/beams"), 0.5f, new Vector4(0f, 0f, 1f, 1f), new Vector2(-0.8f, 0f));
+            var born = Time.unscaledTime;
+            sea.Element.schedule.Execute(() => sea.Set("_Spin", (Time.unscaledTime - born) * 0.1f)).Every(16);
             var dots = new Halftone(color.WithAlpha(0.35f), 22f, 8f, false);
             Ui.Fill(dots);
             layer.Add(dots);

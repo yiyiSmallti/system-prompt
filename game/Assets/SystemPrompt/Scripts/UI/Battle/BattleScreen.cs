@@ -835,7 +835,7 @@ namespace SystemPrompt.UI
             stage?.Move(stage.Overview, 1f);
             Fx.Stamp(fx, "掉线……", Palette.Red, 140f, -6f, new Vector2(960, 480));
             await Anim.Wait(2.5f);
-            game.ShowTitle();
+            game.ShowTitle(Wipe.Lost);
         }
 
         // ------------------------------------------------------------------ hints (ILinePresenter)

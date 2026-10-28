@@ -233,8 +233,10 @@ namespace SystemPrompt.UI
             menu.HandleInput();
         }
 
-        static void Quit()
+        // The screen switches off like a CRT first.
+        async void Quit()
         {
+            await game.Transitions.Cover(Wipe.Shutdown);
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else

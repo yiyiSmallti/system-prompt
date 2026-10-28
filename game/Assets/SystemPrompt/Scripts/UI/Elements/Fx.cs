@@ -68,4 +68,35 @@ namespace SystemPrompt.UI
             finally { e.RemoveFromHierarchy(); }
         }
     }
+
+    // A headline with a red and a cyan copy behind it, pulled apart like a bad signal's colours. Size and
+    // font come from the classes (font-size inherits); Split sets how far apart, with a random jump.
+    public sealed class SplitText : VisualElement
+    {
+        readonly Label red, cyan;
+        public readonly Label Main;
+
+        public SplitText(string text, string classes, FontKind font)
+        {
+            AddToClassList("fx-split");
+            Ui.AddClasses(this, classes);
+            pickingMode = PickingMode.Ignore;
+            cyan = Ui.Text(text, "fx-split__ghost is-cyan", this, font);
+            red = Ui.Text(text, "fx-split__ghost is-red", this, font);
+            Main = Ui.Text(text, "fx-split__main", this, font);
+        }
+
+        public string Text
+        {
+            set => Main.text = red.text = cyan.text = value;
+        }
+
+        public void Split(float pixels, float jitter = 0f)
+        {
+            var j = new Vector2(Random.Range(-jitter, jitter), Random.Range(-jitter, jitter) * 0.4f);
+            red.style.translate = new Translate(pixels + j.x, j.y);
+            cyan.style.translate = new Translate(-pixels - j.x, -j.y);
+            Main.style.translate = new Translate(j.x * 0.35f, 0);
+        }
+    }
 }

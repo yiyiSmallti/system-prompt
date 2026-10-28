@@ -146,6 +146,27 @@ namespace SystemPrompt.Dungeon
             awakened ? new SeaFigure("DeepSeek", parent, 1.58f, "StanceDeepSeek", false, 0.075f)
                 : new SeaFigure("DeepSeekUniform", parent, 0f, "StanceDeepSeek", false, 0.05f, "DeepSeek");
 
+        // What Player(gender, false) and DeepSeek(awakened) read from Resources, the same models as above, so a
+        // maze can read it in the background before building them.
+        public static IEnumerable<(string path, Type type)> Files(string gender, bool deepSeekAwakened)
+        {
+            var player = gender == "female" ? ("PlayerFemaleLounge", "PlayerFemale") : ("PlayerMaleLounge", (string)null);
+            var deepSeek = deepSeekAwakened ? ("DeepSeek", (string)null) : ("DeepSeekUniform", "DeepSeek");
+            foreach (var (model, idleOf) in new[] { player, deepSeek })
+            {
+                var path = "Models/Characters/" + model;
+                yield return (path, typeof(GameObject));
+                yield return (path + "_BaseColor", typeof(Texture2D));
+                yield return (path + "_Faces", typeof(Texture2D));
+                yield return (path + "_FaceDepth", typeof(Texture2D));
+                yield return (path + "_Springs", typeof(TextAsset));
+                yield return ("Models/Motions/Idle" + (idleOf ?? model), typeof(AnimationClip));
+                yield return ("Models/Characters/" + (idleOf ?? model), typeof(AnimationClip));
+            }
+            yield return ("Models/Motions/Walk", typeof(AnimationClip));
+            yield return ("Models/Motions/Run", typeof(AnimationClip));
+        }
+
         // height: from the soles to the top, 0 for the model's own; stance: the fighting stance it takes in battle
         // (Resources/Models/Motions, Editor/StancePoser.cs), and whether it holds the 截图's phone there; faceRise:
         // the face box's centre above the head bone, of the height; idleOf: the model whose idle it takes.

@@ -47,6 +47,7 @@ namespace SystemPrompt
         StoryController story;
 
         public bool ModalOpen => modals.Count > 0;
+        public VisualElement Frame => frame;
         public bool InStory => story != null;
         public bool InBattle { get; private set; }
         public bool InDungeon { get; private set; }
@@ -63,8 +64,10 @@ namespace SystemPrompt
             Audio = gameObject.AddComponent<AudioService>();
             Audio.Init(Settings);
             Fonts.Init();
+            global::SystemPrompt.Dungeon.SeaArt.WarmText();
             BuildUi();
             EnterTitle();
+            Transitions.Boot().Forget();
         }
 
         void BuildUi()
@@ -122,7 +125,11 @@ namespace SystemPrompt
         {
             GameInput.Update();
             if (InStory && !ModalOpen) PlaySeconds += Time.unscaledDeltaTime;
-            if (Transitions.Busy) return; // nothing to act on while the screen is covered
+            if (Transitions.Busy)
+            {
+                Transitions.HandleInput(); // nothing to act on while the screen is covered but hurrying it
+                return;
+            }
             if (modals.Count > 0) modals[modals.Count - 1].HandleInput();
             else screen?.HandleInput();
         }
@@ -193,7 +200,8 @@ namespace SystemPrompt
             frame.EnableInClassList("is-3d", is3d);
         }
 
-        public void ShowTitle() => Transitions.Play(Wipe.Slash, EnterTitle).Forget();
+        // Slash from the menu; a lost battle loses the signal, the chapter's end switches off.
+        public void ShowTitle(Wipe wipe = Wipe.Slash) => Transitions.Play(wipe, EnterTitle).Forget();
 
         void EnterTitle()
         {
@@ -263,7 +271,7 @@ namespace SystemPrompt
         void OnStoryFinished()
         {
             Records.Save();
-            ShowTitle();
+            ShowTitle(Wipe.Shutdown);
         }
 
         // Battles, the maze, or else the story's current scene (StoryScreen calls this when the scene changes).
@@ -320,19 +328,24 @@ namespace SystemPrompt
             var run = story;
             InDungeon = true;
             Awaitable explore = null;
-            await Transitions.Cover(Wipe.Slash);
+            var area = global::SystemPrompt.Dungeon.Dungeons.Get(id);
+            // The area is built while the dive plays, a piece a frame, and the dive holds on DIVE until it is.
+            var building = area != null ? global::SystemPrompt.Dungeon.DungeonWorld.Create(area, State.playerGender, State.FormOf("DeepSeek") != null) : null;
+            await Transitions.Cover(Wipe.Dive, area != null ? $"{area.Area} · {area.Layer}" : null);
             try
             {
+                var world = building != null ? await building : null;
                 if (run == story)
                 {
                     SetScreen(Dungeon);
                     UpdateMusic();
-                    explore = Dungeon.Run(id, run); // builds the area before its first await
+                    explore = Dungeon.Run(id, run, world);
                 }
+                else if (world != null) Destroy(world.gameObject);
             }
             finally
             {
-                await Transitions.Reveal();
+                await Transitions.Reveal(explore != null ? Dungeon.Arrive : null);
             }
             try
             {
@@ -343,7 +356,7 @@ namespace SystemPrompt
                 if (run == story) InDungeon = false;
             }
             if (run != story) return;
-            await Transitions.Play(Wipe.Slash, () =>
+            await Transitions.Play(Wipe.Surface, () =>
             {
                 Dungeon.Leave();
                 SetScreen(Story);

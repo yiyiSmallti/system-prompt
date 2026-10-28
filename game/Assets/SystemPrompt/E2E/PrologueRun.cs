@@ -216,6 +216,28 @@ namespace SystemPrompt.E2E
             yield return Snap("load", "读档界面");
             yield return Press(Key.Escape);
             yield return Until(() => !game.ModalOpen, "读档界面关闭");
+
+            // 战斗失败的转场：E2E 不会输，从标题直接走 BattleScreen.Defeat 用的同一条路
+            yield return Until(() => TitleReady, "标题菜单出现");
+            game.ShowTitle(Wipe.Lost);
+            yield return Until(() => game.Transitions.Busy, "掉线转场开始");
+            yield return Until(() => TitleReady, "掉线转场后回到标题");
+
+            // 转场能跳过：开始后按确定，剩下的三倍速播完、停顿取消。机器忙时帧率会掉，
+            // 所以先完整播一遍关机转场，在同样的负载下比较用时
+            var t0 = Now;
+            game.ShowTitle(Wipe.Shutdown);
+            yield return Until(() => !game.Transitions.Busy, "完整的关机转场结束");
+            var full = Now - t0;
+            yield return Until(() => TitleReady, "关机转场后回到标题");
+            t0 = Now;
+            game.ShowTitle(Wipe.Shutdown);
+            yield return Wait(0.3f);
+            yield return Press(Key.Enter);
+            yield return Until(() => !game.Transitions.Busy, "跳过的转场结束");
+            var hurried = Now - t0;
+            Check(hurried < full * 0.75f, $"按确定后转场加速（关机转场 {hurried:0.00} 秒，不跳过 {full:0.00} 秒）");
+            yield return Until(() => TitleReady, "跳过转场后回到标题");
         }
 
         IEnumerator SideTrips()
@@ -763,14 +785,20 @@ namespace SystemPrompt.E2E
         {
             // Films first: the watcher takes the first checkpoint that is due, and a transition doesn't wait.
             var wipes = game.Transitions;
-            Film("wipe-newgame", "转场：开始游戏（斜切）", () => wipes.Busy && wipes.Style == Wipe.Slash, 10, 0.1f);
-            Film("wipe-location", "转场：换场景（地点卡）", () => wipes.Busy && wipes.Style == Wipe.Location, 10, 0.13f);
-            Film("wipe-battle", "转场：进入战斗", () => wipes.Busy && wipes.Style == Wipe.Battle, 10, 0.13f);
+            Film("wipe-boot", "转场：启动（雪花屏里解码出标题）", () => wipes.Busy && wipes.Style == Wipe.Boot, 12, 0.09f);
+            Film("wipe-newgame", "转场：开始游戏（斜切，旧画面撕裂、电路板封面）", () => wipes.Busy && wipes.Style == Wipe.Slash, 10, 0.1f);
+            Film("wipe-location", "转场：换场景（地点卡，目的地从马赛克里解码）", () => wipes.Busy && wipes.Style == Wipe.Location, 14, 0.12f);
+            Film("wipe-battle", "转场：进入战斗（缩放模糊、碎玻璃和光带）", () => wipes.Busy && wipes.Style == Wipe.Battle, 14, 0.12f);
+            Film("wipe-dive", "转场：潜入潜空间（像素块碎开、数据海隧道、DIVE）", () => wipes.Busy && wipes.Style == Wipe.Dive, 16, 0.12f);
+            Film("wipe-surface", "转场：离开潜空间（绿屏上卷、终端日志、SURFACE）", () => wipes.Busy && wipes.Style == Wipe.Surface, 15, 0.12f);
+            Film("wipe-shutdown", "转场：序章结束回标题（CRT 关机、解码）", () => wipes.Busy && wipes.Style == Wipe.Shutdown, 16, 0.12f);
+            Film("wipe-lost", "转场：战斗失败回标题（SIGNAL LOST、CRT 关机、解码）", () => wipes.Busy && wipes.Style == Wipe.Lost, 24, 0.1f);
             Film("wipe-return", "转场：战斗结束回剧情", () => Seen("battle-results") && wipes.Busy && wipes.Style == Wipe.Slash, 10, 0.1f);
             Film("menu-open", "暂停菜单展开", () => game.Menu.IsOpen, 10, 0.06f);
             Film("menu-dive", "菜单进入回看（俯冲、扫屏）", () => game.Menu.Switching, 12, 0.05f);
             Film("menu-surface", "回看退回菜单", () => Seen("menu-page") && game.Menu.Switching, 12, 0.05f);
             Film("settings-open", "设置打开（CRT 开机）", () => game.SettingsModal.IsOpen, 10, 0.04f);
+            Film("newgame-open", "登记界面打开（背后的画面色差撕裂）", () => game.NewGame.IsOpen, 8, 0.05f);
             Film("save-open", "存档打开（快门）", () => game.SaveLoad.IsOpen, 10, 0.045f);
             Film("results-open", "战斗结算演出", () => Exists("sp-results"), 12, 0.15f);
 
@@ -786,7 +814,7 @@ namespace SystemPrompt.E2E
             Watch("deepseek-speech", "DeepSeek 说话", () => SpeakerIs("DeepSeek"), 0.12f);
             Watch("whisper", "小声说话", () => Visible(box) && box.ClassListContains("is-whisper"), 0.3f);
             Watch("phone-screen", "手机屏幕（维护时刻）", () => Visible(ui.Q(className: "sp-phone-screen")), 0.4f);
-            Watch("glitch", "房间被删除", () => Exists("fx-blocks"), 0.35f, false);
+            Film("glitch-swap", "房间被删除（方块之间的房间色差撕裂、变成马赛克）", () => Exists("fx-blocks"), 8, 0.18f);
             Watch("shadow", "影子 DeepSeek", () => Visible(box) && box.ClassListContains("is-shadow"), 0.3f);
             Watch("effort-max", "思考强度 Max", () => StampShown("强度 Max"), 0.25f);
             Watch("dungeon-explore", "潜空间探索：缓存海·浅层", () => Maze.Exploring && World.Def.Id == "cache_sea_shallows", 1.2f);

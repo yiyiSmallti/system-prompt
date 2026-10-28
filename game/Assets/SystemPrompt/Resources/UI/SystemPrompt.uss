@@ -45,6 +45,28 @@
 
 /* ------------------------------------------------------------------ shared fx */
 
+/* A picture drawn by Shaders/ScreenFx.shader (FxSurface.cs). */
+.sp-fxsurface {
+    position: absolute;
+}
+
+/* SplitText: a red and a cyan copy under the headline, pulled apart by Split. */
+.fx-split__ghost {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.fx-split__ghost.is-red {
+    color: rgba(255, 50, 80, 0.85);
+}
+
+.fx-split__ghost.is-cyan {
+    color: rgba(0, 220, 255, 0.85);
+}
+
 .fx-stamp {
     position: absolute;
     translate: -50% -50%;
@@ -3541,21 +3563,148 @@
 .sp-wipe__loading {
     position: absolute;
     right: 80px;
-    bottom: 60px;
+    bottom: 56px;
+    align-items: flex-end;
+}
+
+.sp-wipe__loading-log {
+    font-size: 22px;
+    color: var(--green);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+
+.sp-wipe__loading-row {
     flex-direction: row;
     align-items: center;
 }
 
 .sp-wipe__loading-mark {
-    width: 28px;
-    height: 28px;
-    margin-right: 20px;
+    width: 34px;
+    height: 34px;
+    margin-right: 26px;
 }
 
 .sp-wipe__loading-text {
-    font-size: 30px;
+    font-size: 64px;
+    color: var(--paper);
+    letter-spacing: 10px;
+    white-space: nowrap;
+    text-shadow: 6px 6px 0 #0C0C10;
+}
+
+.sp-wipe__loading-bar {
+    width: 600px;
+    height: 10px;
+    margin-top: 10px;
+    background-color: rgba(63, 191, 127, 0.25);
+}
+
+.sp-wipe__loading-fill {
+    height: 100%;
+    width: 0;
+    background-color: var(--green);
+}
+
+/* Location: the place being gone to, decoding out of the static (FxSurface). */
+.sp-wipe__preview {
+    position: absolute;
+    left: 260px;
+    top: 640px;
+    width: 1192px;
+    height: 312px;
+    rotate: -6deg;
+    overflow: hidden;
+    border-width: 6px;
+    border-color: var(--paper);
+}
+
+.sp-wipe__preview-tag {
+    position: absolute;
+    left: 0;
+    top: 0;
+    padding: 4px 18px;
+    font-size: 22px;
+    letter-spacing: 4px;
+    color: var(--ink);
+    background-color: var(--green);
+}
+
+/* Dive and surface: a giant word, the link status and the area name over the data sea / terminal. */
+.sp-wipe__dive-title {
+    position: absolute;
+    left: 110px;
+    top: 230px;
+    font-size: 300px;
+    color: var(--paper);
+    letter-spacing: 24px;
+    white-space: nowrap;
+    rotate: -8deg;
+    text-shadow: 14px 14px 0 #0C0C10;
+}
+
+.sp-wipe__dive-sub {
+    position: absolute;
+    left: 160px;
+    top: 620px;
+    padding: 8px 26px;
+    font-size: 34px;
+    color: var(--green);
+    letter-spacing: 8px;
+    background-color: var(--ink);
+    rotate: -8deg;
+}
+
+.sp-wipe__dive-place {
+    position: absolute;
+    left: 220px;
+    top: 720px;
+    padding: 14px 80px 20px 56px;
+    rotate: -8deg;
+}
+
+.sp-wipe__dive-place-text {
+    font-size: 80px;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.sp-wipe__dive-depth {
+    position: absolute;
+    right: 90px;
+    bottom: 70px;
+    padding: 6px 22px;
+    font-size: 40px;
+    color: var(--cold);
+    letter-spacing: 4px;
+    background-color: rgba(12, 12, 16, 0.7);
+}
+
+/* Signal lost: red static and a broken headline. */
+.sp-wipe__lost-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 360px;
+    -unity-text-align: middle-center;
+    font-size: 190px;
+    color: var(--paper);
+    letter-spacing: 16px;
+    white-space: nowrap;
+    rotate: -4deg;
+    text-shadow: 12px 12px 0 #0C0C10;
+}
+
+.sp-wipe__lost-sub {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 650px;
+    -unity-text-align: middle-center;
+    font-size: 36px;
     color: var(--paper);
     letter-spacing: 6px;
+    rotate: -4deg;
 }
 
 /* Battle: two bursts zoom out from the centre, then two halves split on the diagonal take over. */

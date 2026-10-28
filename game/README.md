@@ -79,8 +79,9 @@ game/Tools/e2e.sh
 - 教学战斗（核对 3D 战场和钉在噪声体上的名牌）和 Coop 卡片
 - 缓存海·深层探索：从背后攻击发呆的噪声体（先制攻击）、走东边的长上下文回廊读碎片、开宝箱（延时补丁让维护进度下降）、在白门大厅转动四块反射板把光引到出口（核对出口出现，右上角播报「出口出现了！」）、走到出口（白门变成镜子，截图镜中的战斗形态）
 - 回到标题后打开读档
+- 在标题上直接播一次战斗失败的转场（流程里不会输）；再把关机转场完整播一次、中途按确定播一次，核对按确定后用时明显缩短（机器忙时帧率会掉，所以和同一时刻的完整用时比）
 
-运行期间真实鼠标会被屏蔽，只用虚拟键盘操作，免得桌面上停在窗口里的鼠标悬停改掉选中项。潜空间里按最短路径逐格按住移动键，遇到巡逻就转身攻击，战斗里一直按 Enter 用第一个指令打第一个目标。每个界面和演出都会截图，同时核对游戏状态（等级、道具、Coop、期限、通讯录），并检查日志里有没有报错。画面切换（开始游戏、换场景、进入战斗、战斗结束）、暂停菜单展开、从菜单进入回看和退回菜单、设置开机、存档快门和战斗结算录成胶片：一张图里 10 到 12 帧，按固定间隔从左到右、从上到下排列。标题立绘另录一张 20 帧的半尺寸脸部特写（间隔 0.1 秒），用来看呼吸、摆头、头发和眨眼。队伍卡片的攻击、受击和胜利表情各录一张只拍卡片那一条的胶片。结果写到 `game/E2E/<时间>/`：报告是 `report.md`，旁边是截图、`build.log` 和 `player.log`。全部检查通过时退出码为 0。
+运行期间真实鼠标会被屏蔽，只用虚拟键盘操作，免得桌面上停在窗口里的鼠标悬停改掉选中项。潜空间里按最短路径逐格按住移动键，遇到巡逻就转身攻击，战斗里一直按 Enter 用第一个指令打第一个目标。每个界面和演出都会截图，同时核对游戏状态（等级、道具、Coop、期限、通讯录），并检查日志里有没有报错。画面切换（启动、开始游戏、换场景、进入战斗、战斗结束、潜入和离开潜空间、序章结束回标题、战斗失败）、暂停菜单展开、从菜单进入回看和退回菜单、设置开机、登记界面打开、存档快门和战斗结算录成胶片：一张图里 8 到 24 帧，按固定间隔从左到右、从上到下排列。标题立绘另录一张 20 帧的半尺寸脸部特写（间隔 0.1 秒），用来看呼吸、摆头、头发和眨眼。队伍卡片的攻击、受击和胜利表情各录一张只拍卡片那一条的胶片。结果写到 `game/E2E/<时间>/`：报告是 `report.md`，旁边是截图、`build.log` 和 `player.log`。全部检查通过时退出码为 0。
 
 运行期间会弹出一个 1600×900 的窗口，不要碰键盘鼠标。编辑器按 `ProjectVersion.txt` 的版本在 Unity Hub 的安装目录里找，找不到时用 `UNITY=/path/to/Unity game/Tools/e2e.sh` 指定。也可以在编辑器菜单 **System Prompt → 构建端到端测试版** 只做构建。驱动代码只编进编辑器和带 `SP_E2E` 定义的测试版，正式构建里没有。
 
@@ -97,13 +98,15 @@ game/Tools/e2e.sh
 | `Assets/SystemPrompt/E2E/` | 端到端验证的驱动，只编进测试版 |
 | `Assets/SystemPrompt/Scenes/` | 空的启动场景 |
 | `Assets/SystemPrompt/Resources/UI/` | `SystemPrompt.uss` 样式表和 UI Toolkit 主题 |
-| `Assets/SystemPrompt/Resources/Shaders/` | 潜空间的着色器：三渲二（描边、两段色阶、边缘光；人物不描边，否则刘海和下巴的外壳会变成压在脸上的粗黑线；人物的光从镜头上方打来，脸不会背光，皮肤的明暗分界放宽，生成模型的脸不会被切成斑块；表情图集从正面投到脸上）、机柜墙（柜面的缝、托盘、把手、通风格和立柱按程序算出的高度求法线，主光加主角身上的点光，带高光；按区域换指示灯颜色）、海床（按区域染色，地板缝和通风孔；墙的位置由 `DungeonWorld` 画成一张小图传进来，用来算墙脚的接触阴影；地砖倒角的反光）、墙脚杂物、接地阴影、发光体、光柱和光束（`Shaft`：一条绕自身轴线转向镜头的带子，白芯、柔光和顺着光走的条纹，用在信标、碎片和终端的光柱、灯塔落下的光、反射光路和出口）、场景里的文字、噪声体（标题党型用逐块闪烁、会跳出的像素方块）、白门的镜子、全息（集成里的光之鲸），雾在着色器里算 |
+| `Assets/SystemPrompt/Resources/Shaders/` | 潜空间的着色器：三渲二（描边、两段色阶、边缘光；人物不描边，否则刘海和下巴的外壳会变成压在脸上的粗黑线；人物的光从镜头上方打来，脸不会背光，皮肤的明暗分界放宽，生成模型的脸不会被切成斑块；表情图集从正面投到脸上）、机柜墙（柜面的缝、托盘、把手、通风格和立柱按程序算出的高度求法线，主光加主角身上的点光，带高光；按区域换指示灯颜色）、海床（按区域染色，地板缝和通风孔；墙的位置由 `DungeonWorld` 画成一张小图传进来，用来算墙脚的接触阴影；地砖倒角的反光）、墙脚杂物、接地阴影、发光体、光柱和光束（`Shaft`：一条绕自身轴线转向镜头的带子，白芯、柔光和顺着光走的条纹，用在信标、碎片和终端的光柱、灯塔落下的光、反射光路和出口）、场景里的文字、噪声体（标题党型用逐块闪烁、会跳出的像素方块）、白门的镜子、全息（集成里的光之鲸），雾在着色器里算；另有界面转场的滤镜 `ScreenFx`（见上文画面切换） |
 | `Assets/SystemPrompt/Resources/Models/` | 潜空间的角色模型：`Characters/` 是男女主角的家居服和战斗服、DeepSeek 觉醒前的校服和战斗服。战斗服是 FBX（带 Mixamo 骨骼和各自的待机动作，DeepSeek 战斗服另有 6 节尾骨、没有自带待机；旁边是基础色贴图、表情图集和正脸深度）；家居服 `PlayerFemaleLounge`、`PlayerMaleLounge` 和校服 `DeepSeekUniform` 是 VRoid Studio 做的，各是一个预制体加一份弹簧骨数据 `_Springs.json`，网格、材质和贴图在 `Assets/SystemPrompt/Characters/<模型名>/`，表情用模型自带的形态键。VRoid 模型没有自己的待机，用被它替换的 Tripo 模型的：`PlayerFemale.fbx` 和 `PlayerMale.fbx` 是原来的 Tripo 家居服，游戏里不再显示，留着给家居服提供待机，也是 `Editor/StancePoser.cs` 摆姿势用的身体。家居服按设定图做，上衣是 VRoid 卫衣去掉兜帽和抽绳后填成深灰；女主角的低马尾没做出来，还是外翘短发，男主角的裤脚没有收口；`Motions/` 是三人共用的行走、跑步和战斗动作（行走 `Walk.anim` 和跑步 `Run.anim` 是 Quaternius 通用动作库的 `Walk_Loop` 和 `Jog_Fwd_Loop`（库里的 `Sprint_Loop` 两只脚着地时一快一慢，总有一只打滑，没用），`SeaFigure` 按角色的人形比例换算播放速度，让着地的脚跟上移动速度、不打滑；斩击、施法、受击、欢呼是 Tripo 在女主角战斗服上生成后逐条导出的；`IdleDeepSeek.anim` 是原来 Tripo 版 DeepSeek 战斗服的待机，给现在的战斗服用；`IdlePlayerMaleLounge.anim` 是 Tripo 男主角家居服的待机两腿张开 0.15（`StancePoser.MakeLoungeIdle` 生成），原来双脚几乎并拢，VRoid 男主角的宽裤腿会互相穿进去 11 cm；战斗待机是 `Editor/StancePoser.cs` 照姿势图摆的 `StancePlayer.anim`（男主角）和 `StanceDeepSeek.anim`，以及它从动作库的施法待机改出来的女主角 `StancePlayerFemale.anim`；防御、道具和深度思考也是它摆的，按待机分 `GuardPlayer`、`GuardPlayerFemale`、`GuardDeepSeek`、`ItemPlayer`、`ItemPlayerFemale`、`ItemDeepSeek` 和 `ThinkDeepSeek`），`Props/` 是 Tripo 生成的道具（倒下的机柜、线缆堆、线缆盘、电路板珊瑚、旧显示器、硬盘堆、数据晶簇、鲸鱼），每个一张基础色贴图 |
-| `Assets/SystemPrompt/Resources/Art/` | 立绘、背景、战斗收尾特写 |
+| `Assets/SystemPrompt/Resources/Art/` | 立绘、背景、战斗收尾特写，`Transitions/` 是转场用的背景图、噪声图和潜入视频 |
 | `Assets/SystemPrompt/Resources/Audio/` | BGM（标题曲和剧情、潜空间、战斗三段循环）和 8bit 音效 |
 | `Assets/SystemPrompt/Resources/Fonts/` | Noto Sans SC 三个字重、JetBrains Mono 两个字重和字体许可 |
 | `Assets/SystemPrompt/Resources/Story/` | `Prologue.yarnproject`，以及从 `story/` 同步过来的剧本副本 |
 | `Tools/e2e.sh` | 端到端验证脚本 |
+| `Tools/dive_video.py` | 渲潜入转场的循环视频 `Resources/Art/Transitions/dive.mp4`（需要 Pillow、Blender 和 ffmpeg，`--preview` 先出一段低清预览） |
+| `Tools/transition_textures.py` | 把 [assets/ui/transitions/](../assets/ui/transitions/README.md) 的生成图压到黑底放进 `Resources/Art/Transitions/`，并画出转场用的噪声图（需要 Pillow 和 numpy） |
 | `Tools/bgm_loops.py` | 从 `Music/` 的原曲里截出剧情、潜空间和战斗三段循环 BGM 的脚本（自己测拍点，在最像的两条小节线之间截，检查接缝） |
 | `Tools/face_expressions.py`、`Tools/FaceArt/` | 画角色表情图集的脚本，以及它用的正脸照片和五官位置 |
 | `Music/` | 剧情、潜空间和战斗 BGM 的 Suno 原曲（WAV），提示词、选曲和循环点见其中的 README |
@@ -112,13 +115,24 @@ game/Tools/e2e.sh
 
 界面固定按 1920×1080 布局，窗口比例不同时加黑边。斜切面板、网点、爆炸框等用 Painter2D 在代码里画（`UI/Elements/Shape.cs`），USS 负责尺寸、位置、文字和各种 `is-*` 状态。界面配色和字体沿用 PV 的设计，见 [pv/README.md](../pv/README.md)。
 
-画面切换参照 P 系列，在 `UI/Elements/Transitions.cs`：
+画面切换参照 P 系列，在 `UI/Elements/Transitions.cs`。所有转场用同一套做法：要离开的画面先截下来，用滤镜打碎（色差、整行横向撕裂、像素块、缩放模糊、显像管关机）；盖住时是墨色底上一张生成的背景图，加扫描线和红青色差的大字；揭开时盖板带着发光的边退开。现实里用 P5 的斜切，进出潜空间是潜入数据海、浮出终端，战斗是碎玻璃，输了是信号中断，章节结束像关掉显像管，开机和回到标题都从雪花屏里解码出来：
 
-- 标题和剧情之间、读档、战斗结束：一列斜切色块从左扫过，盖住时显示 NOW LOADING。
-- 剧情换场景：同样的斜切扫过，中间停一下显示地点卡。
-- 进入战斗：爆炸框从中心炸开，显示 ENCOUNTER，再沿对角线裂成两半退出。
+- 启动：雪花屏盖着标题，雪花底下隐约是电路板，电流一圈圈往外扩；随后按随机方块一块块解码出标题，方块边缘亮绿。
+- 标题和剧情之间、读档、战斗结束：一列斜切色块从左扫过，扫过时旧画面褪色、色差分开、整行横向撕裂；盖住后是斜着滑过的电路板，底下还有一层更细、更慢的电路板；光点沿着走线跑，一圈圈电流从中心往外扩，点亮经过的走线，数据小方块往上飘；右下是加载条、一行终端日志和放大的 NOW LOADING。
+- 剧情换场景：同样的斜切，中间停下显示地点卡；地点卡下面开一扇窗，目的地的背景从马赛克和雪花里解码清楚。
+- 进入战斗：探索画面被吸进爆炸框（缩放模糊、色差、变蓝），爆炸框炸开后，碎玻璃不停地迎面飞过，速度线从中心射出，光带横扫过去，ENCOUNTER 色差抖动着砸下来，再沿对角线裂成两半退出。
+- 进入潜空间：剧情画面变蓝、碎成像素块一块块熄灭，露出一段沿数据海的井往下坠的视频：聊天气泡、数据面板和气泡迎面冲过去，代码流沿井壁盘旋，光环一圈圈掠过，井底一点冷白光；上面再叠速度线和往上飞的数据块；DIVE 砸下来，下面是 LATENT SPACE // CONNECTING、区域名和往下跳的深度计。潜空间场景在这段时间里搭好，没搭完时井一直往下坠、停在 DIVE 上。最后接着往下坠出井底：文字散开，井加速冲过去，从中心打开一个边缘柔和发光的圆环，露出 3D 场景，镜头同时从主角头顶高处转着降到身后，中间没有闪白和硬切。
+- 离开潜空间：3D 画面褪成绿色荧光、从下往上抹掉，露出按列往下落的终端日志：每列速度不同，列头亮、拖尾渐暗（像在往上浮），SURFACE 和回升的深度计，再被一道绿线从上往下扫掉。
+- 战斗失败：「掉线……」之后画面整片撕裂，红青色差、雪花和故障画面闪烁，打出 SIGNAL LOST，接着像显像管关机一样压成一条亮线、缩成一点，黑屏后从雪花里解码出标题。
+- 序章结束回标题、在标题选退出：显像管关机；回标题时同样从雪花里解码。
 
-切换期间不接受输入。弹窗打开时内容从左下斜着甩进来，菜单项逐个滑入；背后是移动的斜条纹和飘动的数据碎片。
+切换期间不接受输入。开始 0.2 秒后按确定或取消，剩下的部分三倍速播完、中间的停顿取消。一帧卡得再久也只按 0.1 秒推进，不会让动画直接跳到结尾。潜入时潜空间场景在后台搭：先用 `Resources.LoadAsync` 读入场景模型和两个角色，再每帧搭一块（场景模型的每个文件用 `InstantiateAsync` 分几帧复制进来，再分帧整理和合批，然后是海床、区域装饰、灯塔、道具、残骸、机关和两个角色），3D 镜头在揭开前一直关着，所以潜入视频不会停。场景文字用的旧版 `TextMesh` 第一次创建要半秒，开机第一帧之前先建一个。设置里打开「减少闪烁」时不做横向撕裂和抖动，闪光也减弱。快进剧情时换场景不播转场。
+
+滤镜是 `Resources/Shaders/ScreenFx.shader`。Unity 6.0 的 UI Toolkit 没有滤镜，也不能给元素换材质，所以 `UI/Elements/FxSurface.cs` 每帧用 `Graphics.Blit` 把着色器画进一张 RenderTexture，再用一个 Image 元素显示在界面里。截取旧画面用 `ScreenCapture.CaptureScreenshotIntoRenderTexture`：在帧末截下当时的画面，下一帧原样盖在原处，看不出接缝，之后才开始打碎。着色器按 1920×1080 的界面像素计算，窗口多大效果都一样。背景图不是静止的：着色器能让画面沿中心无尽地往里坠（两份画面错开一档放大、交替淡入淡出），或者切成竖列各自往下落；还能在上面加沿亮线跑的光点和往外扩的电流圈、飘动的数据块和放射状速度线，都是程序生成的，循环不会断。潜入的井是一段视频 `Resources/Art/Transitions/dive.mp4`：`Tools/dive_video.py` 在 Blender 里用卡片、代码条、气泡和光环搭一口每 60 个单位重复一次的井，镜头 8 秒落下一个重复段，所以首尾无缝；Eevee 渲出帧后由 ffmpeg 加辉光、编码。`VideoPlayer` 在开机时就解码好、暂停待命，潜入时播放进一张 RenderTexture，再当作 FxSurface 的画面过同一套滤镜（色差、扫描线、暗角、旋转放大和揭开时边缘柔和发光的圆环）。素材在 `Resources/Art/Transitions/`：数据海隧道、电路板、光带、碎玻璃、故障画面和终端日志是图像模型生成的（原图和提示词在 [assets/ui/transitions/](../assets/ui/transitions/README.md)），噪声图（溶解用的分形噪声、雪花用的白噪声）由 `Tools/transition_textures.py` 画出，这个脚本也把原图压到黑底、存成 JPG 放进游戏，并把横向滚动的光带图做成左右能接上。`Editor/UiAssetImporter.cs` 让这些图平铺（电路板镜像平铺），噪声图不压缩。
+
+别处也用这套效果：日期卡的日期和潜空间区域横幅的地名带红青色差（`UI/Elements/Fx.cs` 的 `SplitText`），滑入时拉开、砸下时合拢；陪伴生登记和角色资料打开时，背后的画面色差撕裂一下再平复；觉醒演出的背景沿数据海一直往下坠，带速度线和光带。
+
+弹窗打开时内容从左下斜着甩进来，菜单项逐个滑入；背后是移动的斜条纹和飘动的数据碎片。
 
 暂停菜单参照《P4 Revival》的菜单（`UI/Modals/GameMenu.cs`）：
 
@@ -194,6 +208,7 @@ game/Tools/e2e.sh
 | 素材 | 来源 |
 | --- | --- |
 | 立绘、背景、战斗收尾特写、主角战斗头像、战斗卡片表情、战斗待机和防御、道具、深度思考的姿势参考 | AI 图像生成，角色形象取自 [lmy414/ai-chan-sheets](https://github.com/lmy414/ai-chan-sheets) 的设定稿，服装按 [design/characters](../design/characters/README.md) 的设定 |
+| 转场背景图（数据海隧道、电路板、光带、碎玻璃、故障画面、终端日志） | AI 图像生成，提示词见 [assets/ui/transitions/](../assets/ui/transitions/README.md) |
 | BGM | 标题用 PV 配乐去掉主唱的分轨（`pv/music/a1-without-lead-vocal.wav`）整首。剧情、潜空间和战斗是 Suno 生成的纯音乐「校园日常」「缓存海」「噪声体来袭」，原曲和提示词在 [Music/](Music/README.md)，`Tools/bgm_loops.py` 从中截出 56、24、80 小节的循环（约 101、72、116 秒）；「缓存海」在玩家房间的夜里也用 |
 | 音效 | PV 的 8bit 音效（`pv/sfx/`，由 `pv/scripts/sfx.py` 合成） |
 | 潜空间角色模型 | [Tripo](https://studio.tripo3d.uk) 生成：先按 `assets/characters/turnarounds` 的正面图生成 T 字姿势的图（手臂和衣服分开，绑骨后不粘连），再转成约 4 万面的模型，自动绑定 Mixamo 人形骨骼，动作用 Tripo 的预设（站立待机、行走、跑步）。男女主角是家居服（4-lounge）和镜子里的战斗服（5-battle），DeepSeek 是周末便服（3-casual）和潜空间战斗服（4-battle）。DeepSeek 战斗服后来换成 Tripo 多视角生成（正、左、后三张 3D 渲染风 T 字图）的约 185 万面高模，在 Blender 里减到约 10 万面、烘焙贴图、绑 Mixamo 骨骼加 6 节尾骨（流程在 `claude/vibrant-gauss-5cdv9b` 分支的 `assets/characters/highpoly/blender/`） |

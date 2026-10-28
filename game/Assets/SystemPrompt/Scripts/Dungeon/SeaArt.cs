@@ -129,30 +129,42 @@ namespace SystemPrompt.Dungeon
 
         // ------------------------------------------------------------------ text
 
+        const int TextSize = 64;
+
         static Font font;
         static Material text;
 
-        // Words in the sea (graves, signs, chat logs): additive like Glow, from the UI's Chinese font. One
-        // material for all of it, its glyph texture swapped in whenever the font's dynamic atlas grows.
-        public static TextMesh Text(string name, Transform parent, string words, float height, Color color, Vector3 local = default)
+        // The first TextMesh made takes half a second, Unity starting its old text system up then; GameRoot puts
+        // some words up at start-up, before the first frame, so that a dive never stops for it.
+        public static void WarmText() => UnityEngine.Object.Destroy(Text("Warm", null, "缓存", 1f, Color.clear).gameObject);
+
+        static Font TextFace
         {
-            if (font == null)
+            get
             {
+                if (font != null) return font;
                 font = Resources.Load<Font>("Fonts/NotoSansSC-Black");
                 if (font == null) Debug.LogError("找不到字体 Resources/Fonts/NotoSansSC-Black");
                 Font.textureRebuilt += f =>
                 {
                     if (f == font && text != null) text.mainTexture = font.material.mainTexture;
                 };
+                return font;
             }
+        }
+
+        // Words in the sea (graves, signs, chat logs): additive like Glow, from the UI's Chinese font. One
+        // material for all of it, its glyph texture swapped in whenever the font's dynamic atlas grows.
+        public static TextMesh Text(string name, Transform parent, string words, float height, Color color, Vector3 local = default)
+        {
             if (text == null) text = new Material(Load("Text"));
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = local;
             var mesh = go.AddComponent<TextMesh>();
-            mesh.font = font;
-            mesh.fontSize = 64;
-            mesh.characterSize = height * 10f / 64f; // a line is fontSize / 10 units tall at size 1
+            mesh.font = TextFace;
+            mesh.fontSize = TextSize;
+            mesh.characterSize = height * 10f / TextSize; // a line is fontSize / 10 units tall at size 1
             mesh.anchor = TextAnchor.MiddleCenter;
             mesh.alignment = TextAlignment.Center;
             mesh.color = color;

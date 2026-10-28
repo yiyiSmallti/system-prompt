@@ -92,29 +92,49 @@ namespace SystemPrompt.Dungeon
         readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
         readonly List<Mover> fans = new List<Mover>(), kelp = new List<Mover>(), drift = new List<Mover>();
 
-        public static SeaScene Load(DungeonDef def, Transform parent) => def.Scene == null ? null : new SeaScene(def.Scene, parent, true);
+        // An area's scenery, with its outer ring, the things drifting over it and the lighthouse beside the file
+        // at def.Scene. Each file is copied in over as many frames as that takes, then sorted, then batched, a step
+        // a frame, so that the dive playing meanwhile never stops.
+        public static async Awaitable<SeaScene> Load(DungeonDef def, Transform parent)
+        {
+            if (def.Scene == null) return null;
+            var scene = new SeaScene(parent);
+            foreach (var part in new[] { "", "_outer", "_drift" })
+            {
+                var prefab = Prefab(def.Scene + part);
+                var made = Object.InstantiateAsync(prefab, scene.root);
+                await Awaitable.FromAsyncOperation(made);
+                var model = made.Result[0];
+                var still = new List<GameObject>();
+                scene.Sort(model, prefab.name, still);
+                if (part == "_drift")
+                    foreach (Transform t in model.transform)
+                    {
+                        scene.drift.Add(new Mover { T = t, Rest = t.localPosition, Turn = t.localRotation, Phase = Hash(scene.drift.Count, 5) * 9f, Speed = 0.6f + Hash(5, scene.drift.Count) * 0.6f });
+                        still.Remove(t.gameObject);
+                    }
+                await Awaitable.NextFrameAsync();
+                StaticBatchingUtility.Combine(still.ToArray(), scene.root.gameObject);
+                await Awaitable.NextFrameAsync();
+            }
+            if (scene.lamp == null) throw new System.InvalidOperationException($"场景模型 {def.Scene} 里没有 Lighthouse_Lamp");
+            return scene;
+        }
 
         // The ring of rack stacks round the battle field.
-        public static SeaScene Ring(Transform parent) => new SeaScene("Scenes/BattleRing/battle_ring", parent, false);
+        public static SeaScene Ring(Transform parent)
+        {
+            var scene = new SeaScene(parent);
+            var prefab = Prefab("Scenes/BattleRing/battle_ring");
+            var still = new List<GameObject>();
+            scene.Sort(Object.Instantiate(prefab, scene.root, false), prefab.name, still);
+            StaticBatchingUtility.Combine(still.ToArray(), scene.root.gameObject);
+            return scene;
+        }
 
-        // area: an area's scenery, with its outer ring, the things drifting over it and the lighthouse beside
-        // the file at path; or else the one file.
-        SeaScene(string path, Transform parent, bool area)
+        SeaScene(Transform parent)
         {
             root = Parts.Node("Scene", parent);
-            var still = new List<GameObject>();
-            Place(path, still);
-            if (area)
-            {
-                Place(path + "_outer", still);
-                foreach (Transform t in Place(path + "_drift", still).transform)
-                {
-                    drift.Add(new Mover { T = t, Rest = t.localPosition, Turn = t.localRotation, Phase = Hash(drift.Count, 5) * 9f, Speed = 0.6f + Hash(5, drift.Count) * 0.6f });
-                    still.Remove(t.gameObject);
-                }
-                if (lamp == null) throw new System.InvalidOperationException($"场景模型 {path} 里没有 Lighthouse_Lamp");
-            }
-            StaticBatchingUtility.Combine(still.ToArray(), root.gameObject);
         }
 
         // The lighthouse's lamp in the light's colour (DungeonWorld), its frame as it is.
@@ -126,13 +146,18 @@ namespace SystemPrompt.Dungeon
             lamp.sharedMaterials = looks;
         }
 
-        // One of the model's files under root, its pieces sorted: left out, moving, or still (into still).
-        GameObject Place(string path, List<GameObject> still)
+        static GameObject Prefab(string path)
         {
             var prefab = Resources.Load<GameObject>(path);
             if (prefab == null) throw new System.InvalidOperationException($"找不到场景模型 Resources/{path}");
-            var model = Object.Instantiate(prefab, root, false);
-            model.name = prefab.name;
+            return prefab;
+        }
+
+        // A copy of one of the model's files under root, named as the file, its pieces sorted: left out, moving, or
+        // still (into still).
+        void Sort(GameObject model, string file, List<GameObject> still)
+        {
+            model.name = file;
             foreach (var r in model.GetComponentsInChildren<MeshRenderer>())
             {
                 var go = r.gameObject;
@@ -174,7 +199,6 @@ namespace SystemPrompt.Dungeon
                 }
                 still.Add(go);
             }
-            return model;
         }
 
         // flat: without the rim, whatever the material.

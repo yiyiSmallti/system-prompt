@@ -25,12 +25,14 @@ namespace SystemPrompt.E2E
     // shallows, fights the 3D battle's first round, and is back for the enemies' turn, the results and a few
     // steps toward the coral. While the camera rolls, the screen is read back from the GPU 30 times a second and saved as a JPEG
     // with its film time, and the mixed sound is taken off the audio listener into a WAV; e2e.sh joins them
-    // into tour.mp4. Only starts when the player is launched with `-tour <output dir>`.
+    // into tour.mp4. Only starts when the player is launched with `-tour <output dir>`; with `-dive` as well
+    // (e2e.sh dive) only the fall into the cache sea is filmed, the rest off camera.
     public sealed class GameTour : MonoBehaviour
     {
         const int Fps = 30;
 
         string outDir;
+        bool diveOnly;
         Keyboard keyboard;
         GameRoot game;
         VisualElement ui;
@@ -55,7 +57,9 @@ namespace SystemPrompt.E2E
             if (i < 0 || i + 1 >= args.Length) return;
             var go = new GameObject("E2E Game Tour");
             DontDestroyOnLoad(go);
-            go.AddComponent<GameTour>().outDir = args[i + 1];
+            var tour = go.AddComponent<GameTour>();
+            tour.outDir = args[i + 1];
+            tour.diveOnly = Array.IndexOf(args, "-dive") >= 0;
         }
 
         IEnumerator Start()
@@ -71,10 +75,14 @@ namespace SystemPrompt.E2E
             ui = game.GetComponent<UIDocument>().rootVisualElement;
             tap = FindFirstObjectByType<AudioListener>().gameObject.AddComponent<SoundTap>();
             StartCoroutine(Film());
-            yield return Title();
-            if (failure == null) yield return Register();
-            if (failure == null) yield return Story();
-            if (failure == null) yield return Shallows();
+            if (diveOnly) yield return Dive();
+            else
+            {
+                yield return Title();
+                if (failure == null) yield return Register();
+                if (failure == null) yield return Story();
+                if (failure == null) yield return Shallows();
+            }
             Roll(false);
             filming = false;
             while (Volatile.Read(ref pending) > 0) yield return null;
@@ -218,6 +226,25 @@ namespace SystemPrompt.E2E
             // 维护时刻: the phone's screen breaking up, its choice, the fall into the cache sea.
             yield return SkipTo("睡不着，盯着天花板");
             yield return Watch("潜空间·缓存海", 1.5f);
+        }
+
+        // Off camera to DeepSeek's last line before the shallows, then the fall itself, untouched (a key
+        // would hurry it), and a moment of the shallows.
+        IEnumerator Dive()
+        {
+            Roll(false);
+            yield return Title();
+            if (failure == null) yield return Register();
+            if (failure == null) yield return SkipTo("一起去吧。我认得路");
+            if (failure != null) yield break;
+            Roll(true);
+            for (var i = 0; i < 4 && !game.Transitions.Busy; i++) // a press may only finish the line's typing
+            {
+                yield return Wait(1.2f);
+                if (!game.Transitions.Busy) yield return Press(Key.Enter); // on to <<dungeon>>, before the wipe
+            }
+            yield return Until(() => !game.Transitions.Busy, 30f); // the shallows open on a line of narration
+            yield return Wait(1.5f);
         }
 
         // Off camera on to the shallows. Then up behind the dozing noise at the reef's mouth at a walk, the jump,

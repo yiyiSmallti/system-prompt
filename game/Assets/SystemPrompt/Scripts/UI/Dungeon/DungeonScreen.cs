@@ -33,7 +33,8 @@ namespace SystemPrompt.UI
         readonly GameRoot game;
         readonly Label areaName, areaLayer, areaTag, areaZone, objective;
         readonly VisualElement banner;
-        readonly Label bannerName, bannerTag;
+        readonly Label bannerTag;
+        readonly SplitText bannerName;
         readonly Minimap minimap;
         readonly VisualElement meterBox, meterFill;
         readonly Label meterText;
@@ -104,7 +105,8 @@ namespace SystemPrompt.UI
             banner = Ui.El("sp-dungeon__zone", Root);
             Shape.Backdrop(banner, Shape.Slant(30), Palette.Ink.WithAlpha(0.94f)).Stroke(Palette.Green, 3).Shadow(new Vector2(12, 12), Palette.Sea.WithAlpha(0.85f));
             bannerTag = Ui.Text("", "sp-dungeon__zone-tag", banner, FontKind.MonoBold);
-            bannerName = Ui.Text("", "sp-dungeon__zone-name", banner, FontKind.Black);
+            bannerName = new SplitText("", "sp-dungeon__zone-name", FontKind.Black);
+            banner.Add(bannerName);
             Ui.Show(banner, false);
             var goal = Ui.El("sp-dungeon__goal", Root);
             var goalTag = Ui.El("sp-dungeon__goal-tag", goal);
@@ -166,6 +168,9 @@ namespace SystemPrompt.UI
             Ui.Show(Root, false);
         }
 
+        // The camera coming down into the maze at the end of the dive (DungeonWorld.Arrive).
+        public void Arrive(float t) => world?.Arrive(t);
+
         public void Show(bool on)
         {
             shown = on;
@@ -176,7 +181,8 @@ namespace SystemPrompt.UI
 
         // ------------------------------------------------------------------ run
 
-        public async Awaitable Run(string id, StoryController run)
+        // built: the area, from DungeonWorld.Create; it is the screen's from here on.
+        public async Awaitable Run(string id, StoryController run, DungeonWorld built)
         {
             Abort();
             var s = session = new Session { Over = false };
@@ -188,7 +194,7 @@ namespace SystemPrompt.UI
             }
             story = run;
             done = new AwaitableCompletionSource();
-            world = DungeonWorld.Create(def, game.State.playerGender, game.State.FormOf("DeepSeek") != null);
+            world = built;
             world.Spotted += OnSpotted;
             world.Touched += OnTouched;
             nav.Clear();
@@ -599,21 +605,26 @@ namespace SystemPrompt.UI
         async Awaitable Banner(ZoneDef z)
         {
             var serial = ++bannerShown;
-            bannerName.text = z.Name;
+            bannerName.Text = z.Name;
             bannerTag.text = "AREA · " + z.Tag;
             Ui.Show(banner, true);
             game.Audio.Sfx("whoosh", 0.6f);
+            // The name comes in with its colours torn apart and locks together, like a signal found.
+            var calm = game.Settings.reduceFlash;
             await Anim.Tween(0.32f, t =>
             {
                 Ui.Offset(banner, Mathf.Lerp(-900f, 0f, t), 0f);
                 Ui.Opacity(banner, t);
+                bannerName.Split(Mathf.Lerp(30f, 3f, t), calm ? 0f : 8f * (1f - t));
             }, Ease.OutBack, () => serial != bannerShown);
-            await Anim.Wait(1.9f, () => serial != bannerShown);
+            await Anim.Tween(0.25f, t => bannerName.Split(3f * (1f - t), calm ? 0f : 4f * (1f - t)), Ease.Linear, () => serial != bannerShown);
+            await Anim.Wait(1.65f, () => serial != bannerShown);
             if (serial != bannerShown) return;
             await Anim.Tween(0.28f, t =>
             {
                 Ui.Offset(banner, Mathf.Lerp(0f, 260f, t), 0f);
                 Ui.Opacity(banner, 1f - t);
+                bannerName.Split(24f * t);
             }, Ease.InCubic, () => serial != bannerShown);
             if (serial == bannerShown) Ui.Show(banner, false);
         }

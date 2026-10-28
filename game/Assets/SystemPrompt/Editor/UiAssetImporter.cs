@@ -8,6 +8,7 @@ namespace SystemPrompt.EditorTools
     {
         const string ArtRoot = "Assets/SystemPrompt/Resources/Art/";
         const string BgmRoot = "Assets/SystemPrompt/Resources/Audio/BGM/";
+        const string TransitionRoot = ArtRoot + "Transitions/";
 
         void OnPreprocessTexture()
         {
@@ -20,6 +21,16 @@ namespace SystemPrompt.EditorTools
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.maxTextureSize = 2048;
             importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            if (!assetPath.StartsWith(TransitionRoot)) return;
+            // The transition textures scroll and tile in Shaders/ScreenFx.shader. The circuit board isn't
+            // seamless, so it mirrors; the noise holds data in its channels and is read raw.
+            importer.alphaIsTransparency = false;
+            importer.wrapMode = assetPath.Contains("circuit") ? TextureWrapMode.Mirror : TextureWrapMode.Repeat;
+            if (assetPath.Contains("noise"))
+            {
+                importer.sRGBTexture = false;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+            }
         }
 
         void OnPreprocessAudio()

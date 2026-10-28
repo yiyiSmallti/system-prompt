@@ -55,12 +55,37 @@ namespace SystemPrompt.Dungeon
 
         // gender: the player's (GameState.playerGender), which picks the avatar's model; deepSeekAwakened
         // picks DeepSeek's (her hoodie dress before the lighthouse, her battle dress after).
-        public static DungeonWorld Create(DungeonDef def, string gender, bool deepSeekAwakened)
+        // It is built out of sight a piece a frame, its models read in the background first, so that the dive
+        // playing meanwhile never stops; Show puts it on screen.
+        public static async Awaitable<DungeonWorld> Create(DungeonDef def, string gender, bool deepSeekAwakened)
         {
+            var files = await Preload(def, gender, deepSeekAwakened);
             var go = new GameObject("Latent Space · " + def.Id);
             var world = go.AddComponent<DungeonWorld>();
-            world.Build(def, gender, deepSeekAwakened);
+            world.shown = false;
+            try
+            {
+                await world.Build(def, gender, deepSeekAwakened);
+            }
+            catch
+            {
+                Destroy(go);
+                throw;
+            }
+            GC.KeepAlive(files);
             return world;
+        }
+
+        // The area's scenery and the two figures, read in the background; the build's own Resources.Load calls
+        // then find them in memory instead of reading them on the spot.
+        static async Awaitable<List<ResourceRequest>> Preload(DungeonDef def, string gender, bool deepSeekAwakened)
+        {
+            var files = new List<(string path, Type type)>(SeaFigure.Files(gender, deepSeekAwakened));
+            if (def.Scene != null)
+                foreach (var part in new[] { "", "_outer", "_drift" }) files.Add((def.Scene + part, typeof(GameObject)));
+            var requests = files.ConvertAll(f => Resources.LoadAsync(f.path, f.type));
+            foreach (var r in requests) await Awaitable.FromAsyncOperation(r);
+            return requests;
         }
 
         void OnDestroy()
@@ -69,7 +94,7 @@ namespace SystemPrompt.Dungeon
             Companion?.Dispose();
         }
 
-        void Build(DungeonDef def, string gender, bool deepSeekAwakened)
+        async Awaitable Build(DungeonDef def, string gender, bool deepSeekAwakened)
         {
             Def = def;
             this.gender = gender;
@@ -85,21 +110,29 @@ namespace SystemPrompt.Dungeon
             Camera.nearClipPlane = 0.1f;
             Camera.farClipPlane = 600f;
             Camera.depth = 10f;
+            Camera.enabled = false;
 
             decor = new SeaDecor(def, Map, transform);
-            scene = SeaScene.Load(def, transform);
+            scene = await SeaScene.Load(def, transform);
             BuildSea();
             if (scene == null) BuildWalls();
+            await Awaitable.NextFrameAsync();
             decor.Build(scene != null);
+            await Awaitable.NextFrameAsync();
             BuildLighthouse();
+            await Awaitable.NextFrameAsync();
             BuildProps();
+            await Awaitable.NextFrameAsync();
             BuildWreckage();
+            await Awaitable.NextFrameAsync();
             Puzzles = new SeaPuzzles(def, Map, transform);
             Puzzles.Build();
             ShowGoal(GoalOpen);
             BuildAmbience();
+            await Awaitable.NextFrameAsync();
 
             Avatar = new SeaAvatar(transform, gender);
+            await Awaitable.NextFrameAsync();
             Companion = new SeaCompanion(transform, deepSeekAwakened);
             var start = Map.Find('S');
             var startCell = start.Count > 0 ? start[0] : new Vector2Int(1, 1);
@@ -453,6 +486,7 @@ namespace SystemPrompt.Dungeon
         public void Show(bool on)
         {
             shown = on;
+            Camera.enabled = on;
             gameObject.SetActive(on);
         }
 
@@ -642,6 +676,18 @@ namespace SystemPrompt.Dungeon
                 var y = c.y + dy;
                 if (Map.Inside(x, y)) Revealed[x, y] = true;
             }
+        }
+
+        // The dive's fall carried on into the maze: the camera drops from high over its place behind the avatar,
+        // turning a quarter of the way round it as it comes, and is there at t = 1.
+        public void Arrive(float t)
+        {
+            UpdateCamera(0f, true);
+            var focus = PlayerPosition + Vector3.up * CameraHeight;
+            var k = 1f - t;
+            k *= k * k;
+            var at = focus + Quaternion.Euler(0f, 90f * k, 0f) * (Camera.transform.position - focus) + Vector3.up * 16f * k;
+            Camera.transform.SetPositionAndRotation(at, Quaternion.LookRotation(focus - at + Vector3.up * 0.4f));
         }
 
         // Behind the avatar, pulled in when a rack is in the way.
