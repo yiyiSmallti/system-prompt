@@ -1,0 +1,1363 @@
+{
+ "cell_size": 4.0,
+ "field_centre_blender": [
+  0.0,
+  3.4
+ ],
+ "note": "Blender X = Unity x, Blender Y = Unity z. Each block is a solid 4 x 4 m stack of racks of the given height.",
+ "blocks": [
+  {
+   "cell": [
+    -3,
+    -9
+   ],
+   "centre_blender": [
+    -12.0,
+    -32.6
+   ],
+   "height": 5.819
+  },
+  {
+   "cell": [
+    0,
+    -9
+   ],
+   "centre_blender": [
+    0.0,
+    -32.6
+   ],
+   "height": 16.065
+  },
+  {
+   "cell": [
+    2,
+    -9
+   ],
+   "centre_blender": [
+    8.0,
+    -32.6
+   ],
+   "height": 8.575
+  },
+  {
+   "cell": [
+    -4,
+    -8
+   ],
+   "centre_blender": [
+    -16.0,
+    -28.6
+   ],
+   "height": 16.844
+  },
+  {
+   "cell": [
+    -1,
+    -8
+   ],
+   "centre_blender": [
+    -4.0,
+    -28.6
+   ],
+   "height": 4.936
+  },
+  {
+   "cell": [
+    2,
+    -8
+   ],
+   "centre_blender": [
+    8.0,
+    -28.6
+   ],
+   "height": 6.471
+  },
+  {
+   "cell": [
+    -5,
+    -7
+   ],
+   "centre_blender": [
+    -20.0,
+    -24.6
+   ],
+   "height": 10.482
+  },
+  {
+   "cell": [
+    -2,
+    -7
+   ],
+   "centre_blender": [
+    -8.0,
+    -24.6
+   ],
+   "height": 6.438
+  },
+  {
+   "cell": [
+    1,
+    -7
+   ],
+   "centre_blender": [
+    4.0,
+    -24.6
+   ],
+   "height": 10.173
+  },
+  {
+   "cell": [
+    4,
+    -7
+   ],
+   "centre_blender": [
+    16.0,
+    -24.6
+   ],
+   "height": 15.546
+  },
+  {
+   "cell": [
+    5,
+    -7
+   ],
+   "centre_blender": [
+    20.0,
+    -24.6
+   ],
+   "height": 16.391
+  },
+  {
+   "cell": [
+    6,
+    -7
+   ],
+   "centre_blender": [
+    24.0,
+    -24.6
+   ],
+   "height": 16.581
+  },
+  {
+   "cell": [
+    -7,
+    -6
+   ],
+   "centre_blender": [
+    -28.0,
+    -20.6
+   ],
+   "height": 12.147
+  },
+  {
+   "cell": [
+    -3,
+    -6
+   ],
+   "centre_blender": [
+    -12.0,
+    -20.6
+   ],
+   "height": 9.711
+  },
+  {
+   "cell": [
+    -2,
+    -6
+   ],
+   "centre_blender": [
+    -8.0,
+    -20.6
+   ],
+   "height": 7.892
+  },
+  {
+   "cell": [
+    0,
+    -6
+   ],
+   "centre_blender": [
+    0.0,
+    -20.6
+   ],
+   "height": 10.948
+  },
+  {
+   "cell": [
+    2,
+    -6
+   ],
+   "centre_blender": [
+    8.0,
+    -20.6
+   ],
+   "height": 5.927
+  },
+  {
+   "cell": [
+    3,
+    -6
+   ],
+   "centre_blender": [
+    12.0,
+    -20.6
+   ],
+   "height": 11.385
+  },
+  {
+   "cell": [
+    4,
+    -6
+   ],
+   "centre_blender": [
+    16.0,
+    -20.6
+   ],
+   "height": 11.163
+  },
+  {
+   "cell": [
+    5,
+    -6
+   ],
+   "centre_blender": [
+    20.0,
+    -20.6
+   ],
+   "height": 14.87
+  },
+  {
+   "cell": [
+    7,
+    -6
+   ],
+   "centre_blender": [
+    28.0,
+    -20.6
+   ],
+   "height": 19.072
+  },
+  {
+   "cell": [
+    -4,
+    -5
+   ],
+   "centre_blender": [
+    -16.0,
+    -16.6
+   ],
+   "height": 7.943
+  },
+  {
+   "cell": [
+    -3,
+    -5
+   ],
+   "centre_blender": [
+    -12.0,
+    -16.6
+   ],
+   "height": 4.461
+  },
+  {
+   "cell": [
+    -2,
+    -5
+   ],
+   "centre_blender": [
+    -8.0,
+    -16.6
+   ],
+   "height": 7.833
+  },
+  {
+   "cell": [
+    -1,
+    -5
+   ],
+   "centre_blender": [
+    -4.0,
+    -16.6
+   ],
+   "height": 8.715
+  },
+  {
+   "cell": [
+    0,
+    -5
+   ],
+   "centre_blender": [
+    0.0,
+    -16.6
+   ],
+   "height": 6.324
+  },
+  {
+   "cell": [
+    2,
+    -5
+   ],
+   "centre_blender": [
+    8.0,
+    -16.6
+   ],
+   "height": 11.28
+  },
+  {
+   "cell": [
+    3,
+    -5
+   ],
+   "centre_blender": [
+    12.0,
+    -16.6
+   ],
+   "height": 5.342
+  },
+  {
+   "cell": [
+    5,
+    -5
+   ],
+   "centre_blender": [
+    20.0,
+    -16.6
+   ],
+   "height": 9.747
+  },
+  {
+   "cell": [
+    -8,
+    -4
+   ],
+   "centre_blender": [
+    -32.0,
+    -12.6
+   ],
+   "height": 12.623
+  },
+  {
+   "cell": [
+    -7,
+    -4
+   ],
+   "centre_blender": [
+    -28.0,
+    -12.6
+   ],
+   "height": 5.793
+  },
+  {
+   "cell": [
+    -6,
+    -4
+   ],
+   "centre_blender": [
+    -24.0,
+    -12.6
+   ],
+   "height": 4.568
+  },
+  {
+   "cell": [
+    -3,
+    -4
+   ],
+   "centre_blender": [
+    -12.0,
+    -12.6
+   ],
+   "height": 5.954
+  },
+  {
+   "cell": [
+    3,
+    -4
+   ],
+   "centre_blender": [
+    12.0,
+    -12.6
+   ],
+   "height": 8.714
+  },
+  {
+   "cell": [
+    5,
+    -4
+   ],
+   "centre_blender": [
+    20.0,
+    -12.6
+   ],
+   "height": 5.558
+  },
+  {
+   "cell": [
+    6,
+    -4
+   ],
+   "centre_blender": [
+    24.0,
+    -12.6
+   ],
+   "height": 14.852
+  },
+  {
+   "cell": [
+    -8,
+    -3
+   ],
+   "centre_blender": [
+    -32.0,
+    -8.6
+   ],
+   "height": 8.919
+  },
+  {
+   "cell": [
+    -6,
+    -3
+   ],
+   "centre_blender": [
+    -24.0,
+    -8.6
+   ],
+   "height": 12.382
+  },
+  {
+   "cell": [
+    -3,
+    -3
+   ],
+   "centre_blender": [
+    -12.0,
+    -8.6
+   ],
+   "height": 8.248
+  },
+  {
+   "cell": [
+    6,
+    -3
+   ],
+   "centre_blender": [
+    24.0,
+    -8.6
+   ],
+   "height": 7.164
+  },
+  {
+   "cell": [
+    -8,
+    -2
+   ],
+   "centre_blender": [
+    -32.0,
+    -4.6
+   ],
+   "height": 6.064
+  },
+  {
+   "cell": [
+    -5,
+    -2
+   ],
+   "centre_blender": [
+    -20.0,
+    -4.6
+   ],
+   "height": 9.065
+  },
+  {
+   "cell": [
+    -4,
+    -2
+   ],
+   "centre_blender": [
+    -16.0,
+    -4.6
+   ],
+   "height": 4.241
+  },
+  {
+   "cell": [
+    4,
+    -2
+   ],
+   "centre_blender": [
+    16.0,
+    -4.6
+   ],
+   "height": 9.205
+  },
+  {
+   "cell": [
+    5,
+    -2
+   ],
+   "centre_blender": [
+    20.0,
+    -4.6
+   ],
+   "height": 5.144
+  },
+  {
+   "cell": [
+    6,
+    -2
+   ],
+   "centre_blender": [
+    24.0,
+    -4.6
+   ],
+   "height": 12.465
+  },
+  {
+   "cell": [
+    -9,
+    -1
+   ],
+   "centre_blender": [
+    -36.0,
+    -0.6000000000000001
+   ],
+   "height": 5.531
+  },
+  {
+   "cell": [
+    -7,
+    -1
+   ],
+   "centre_blender": [
+    -28.0,
+    -0.6000000000000001
+   ],
+   "height": 8.502
+  },
+  {
+   "cell": [
+    -5,
+    -1
+   ],
+   "centre_blender": [
+    -20.0,
+    -0.6000000000000001
+   ],
+   "height": 9.697
+  },
+  {
+   "cell": [
+    5,
+    -1
+   ],
+   "centre_blender": [
+    20.0,
+    -0.6000000000000001
+   ],
+   "height": 10.024
+  },
+  {
+   "cell": [
+    7,
+    -1
+   ],
+   "centre_blender": [
+    28.0,
+    -0.6000000000000001
+   ],
+   "height": 13.222
+  },
+  {
+   "cell": [
+    -9,
+    0
+   ],
+   "centre_blender": [
+    -36.0,
+    3.4
+   ],
+   "height": 16.992
+  },
+  {
+   "cell": [
+    -8,
+    0
+   ],
+   "centre_blender": [
+    -32.0,
+    3.4
+   ],
+   "height": 4.339
+  },
+  {
+   "cell": [
+    -7,
+    0
+   ],
+   "centre_blender": [
+    -28.0,
+    3.4
+   ],
+   "height": 8.229
+  },
+  {
+   "cell": [
+    -6,
+    0
+   ],
+   "centre_blender": [
+    -24.0,
+    3.4
+   ],
+   "height": 9.18
+  },
+  {
+   "cell": [
+    -5,
+    0
+   ],
+   "centre_blender": [
+    -20.0,
+    3.4
+   ],
+   "height": 8.542
+  },
+  {
+   "cell": [
+    7,
+    0
+   ],
+   "centre_blender": [
+    28.0,
+    3.4
+   ],
+   "height": 11.324
+  },
+  {
+   "cell": [
+    8,
+    0
+   ],
+   "centre_blender": [
+    32.0,
+    3.4
+   ],
+   "height": 14.385
+  },
+  {
+   "cell": [
+    9,
+    0
+   ],
+   "centre_blender": [
+    36.0,
+    3.4
+   ],
+   "height": 5.14
+  },
+  {
+   "cell": [
+    -7,
+    1
+   ],
+   "centre_blender": [
+    -28.0,
+    7.4
+   ],
+   "height": 13.637
+  },
+  {
+   "cell": [
+    6,
+    1
+   ],
+   "centre_blender": [
+    24.0,
+    7.4
+   ],
+   "height": 10.607
+  },
+  {
+   "cell": [
+    -7,
+    2
+   ],
+   "centre_blender": [
+    -28.0,
+    11.4
+   ],
+   "height": 4.414
+  },
+  {
+   "cell": [
+    -5,
+    2
+   ],
+   "centre_blender": [
+    -20.0,
+    11.4
+   ],
+   "height": 8.086
+  },
+  {
+   "cell": [
+    4,
+    2
+   ],
+   "centre_blender": [
+    16.0,
+    11.4
+   ],
+   "height": 7.149
+  },
+  {
+   "cell": [
+    5,
+    2
+   ],
+   "centre_blender": [
+    20.0,
+    11.4
+   ],
+   "height": 11.282
+  },
+  {
+   "cell": [
+    6,
+    2
+   ],
+   "centre_blender": [
+    24.0,
+    11.4
+   ],
+   "height": 5.587
+  },
+  {
+   "cell": [
+    -8,
+    3
+   ],
+   "centre_blender": [
+    -32.0,
+    15.4
+   ],
+   "height": 6.161
+  },
+  {
+   "cell": [
+    -6,
+    3
+   ],
+   "centre_blender": [
+    -24.0,
+    15.4
+   ],
+   "height": 11.611
+  },
+  {
+   "cell": [
+    -4,
+    3
+   ],
+   "centre_blender": [
+    -16.0,
+    15.4
+   ],
+   "height": 8.912
+  },
+  {
+   "cell": [
+    -3,
+    3
+   ],
+   "centre_blender": [
+    -12.0,
+    15.4
+   ],
+   "height": 5.074
+  },
+  {
+   "cell": [
+    3,
+    3
+   ],
+   "centre_blender": [
+    12.0,
+    15.4
+   ],
+   "height": 6.08
+  },
+  {
+   "cell": [
+    4,
+    3
+   ],
+   "centre_blender": [
+    16.0,
+    15.4
+   ],
+   "height": 10.668
+  },
+  {
+   "cell": [
+    5,
+    3
+   ],
+   "centre_blender": [
+    20.0,
+    15.4
+   ],
+   "height": 8.764
+  },
+  {
+   "cell": [
+    7,
+    3
+   ],
+   "centre_blender": [
+    28.0,
+    15.4
+   ],
+   "height": 13.239
+  },
+  {
+   "cell": [
+    9,
+    3
+   ],
+   "centre_blender": [
+    36.0,
+    15.4
+   ],
+   "height": 11.601
+  },
+  {
+   "cell": [
+    -8,
+    4
+   ],
+   "centre_blender": [
+    -32.0,
+    19.4
+   ],
+   "height": 5.206
+  },
+  {
+   "cell": [
+    -7,
+    4
+   ],
+   "centre_blender": [
+    -28.0,
+    19.4
+   ],
+   "height": 12.014
+  },
+  {
+   "cell": [
+    -6,
+    4
+   ],
+   "centre_blender": [
+    -24.0,
+    19.4
+   ],
+   "height": 12.264
+  },
+  {
+   "cell": [
+    -5,
+    4
+   ],
+   "centre_blender": [
+    -20.0,
+    19.4
+   ],
+   "height": 4.692
+  },
+  {
+   "cell": [
+    -4,
+    4
+   ],
+   "centre_blender": [
+    -16.0,
+    19.4
+   ],
+   "height": 6.965
+  },
+  {
+   "cell": [
+    -2,
+    4
+   ],
+   "centre_blender": [
+    -8.0,
+    19.4
+   ],
+   "height": 6.581
+  },
+  {
+   "cell": [
+    2,
+    4
+   ],
+   "centre_blender": [
+    8.0,
+    19.4
+   ],
+   "height": 8.746
+  },
+  {
+   "cell": [
+    3,
+    4
+   ],
+   "centre_blender": [
+    12.0,
+    19.4
+   ],
+   "height": 7.618
+  },
+  {
+   "cell": [
+    5,
+    4
+   ],
+   "centre_blender": [
+    20.0,
+    19.4
+   ],
+   "height": 4.942
+  },
+  {
+   "cell": [
+    -7,
+    5
+   ],
+   "centre_blender": [
+    -28.0,
+    23.4
+   ],
+   "height": 14.383
+  },
+  {
+   "cell": [
+    -6,
+    5
+   ],
+   "centre_blender": [
+    -24.0,
+    23.4
+   ],
+   "height": 16.829
+  },
+  {
+   "cell": [
+    -5,
+    5
+   ],
+   "centre_blender": [
+    -20.0,
+    23.4
+   ],
+   "height": 13.195
+  },
+  {
+   "cell": [
+    -3,
+    5
+   ],
+   "centre_blender": [
+    -12.0,
+    23.4
+   ],
+   "height": 4.436
+  },
+  {
+   "cell": [
+    -1,
+    5
+   ],
+   "centre_blender": [
+    -4.0,
+    23.4
+   ],
+   "height": 9.37
+  },
+  {
+   "cell": [
+    0,
+    5
+   ],
+   "centre_blender": [
+    0.0,
+    23.4
+   ],
+   "height": 5.954
+  },
+  {
+   "cell": [
+    1,
+    5
+   ],
+   "centre_blender": [
+    4.0,
+    23.4
+   ],
+   "height": 4.382
+  },
+  {
+   "cell": [
+    2,
+    5
+   ],
+   "centre_blender": [
+    8.0,
+    23.4
+   ],
+   "height": 7.536
+  },
+  {
+   "cell": [
+    3,
+    5
+   ],
+   "centre_blender": [
+    12.0,
+    23.4
+   ],
+   "height": 11.489
+  },
+  {
+   "cell": [
+    7,
+    5
+   ],
+   "centre_blender": [
+    28.0,
+    23.4
+   ],
+   "height": 12.375
+  },
+  {
+   "cell": [
+    8,
+    5
+   ],
+   "centre_blender": [
+    32.0,
+    23.4
+   ],
+   "height": 18.087
+  },
+  {
+   "cell": [
+    -7,
+    6
+   ],
+   "centre_blender": [
+    -28.0,
+    27.4
+   ],
+   "height": 15.625
+  },
+  {
+   "cell": [
+    -5,
+    6
+   ],
+   "centre_blender": [
+    -20.0,
+    27.4
+   ],
+   "height": 6.831
+  },
+  {
+   "cell": [
+    -4,
+    6
+   ],
+   "centre_blender": [
+    -16.0,
+    27.4
+   ],
+   "height": 12.764
+  },
+  {
+   "cell": [
+    -2,
+    6
+   ],
+   "centre_blender": [
+    -8.0,
+    27.4
+   ],
+   "height": 10.349
+  },
+  {
+   "cell": [
+    -1,
+    6
+   ],
+   "centre_blender": [
+    -4.0,
+    27.4
+   ],
+   "height": 6.286
+  },
+  {
+   "cell": [
+    0,
+    6
+   ],
+   "centre_blender": [
+    0.0,
+    27.4
+   ],
+   "height": 4.56
+  },
+  {
+   "cell": [
+    1,
+    6
+   ],
+   "centre_blender": [
+    4.0,
+    27.4
+   ],
+   "height": 12.124
+  },
+  {
+   "cell": [
+    -6,
+    7
+   ],
+   "centre_blender": [
+    -24.0,
+    31.4
+   ],
+   "height": 14.497
+  },
+  {
+   "cell": [
+    -5,
+    7
+   ],
+   "centre_blender": [
+    -20.0,
+    31.4
+   ],
+   "height": 10.884
+  },
+  {
+   "cell": [
+    -3,
+    7
+   ],
+   "centre_blender": [
+    -12.0,
+    31.4
+   ],
+   "height": 4.196
+  },
+  {
+   "cell": [
+    -2,
+    7
+   ],
+   "centre_blender": [
+    -8.0,
+    31.4
+   ],
+   "height": 8.669
+  },
+  {
+   "cell": [
+    -1,
+    7
+   ],
+   "centre_blender": [
+    -4.0,
+    31.4
+   ],
+   "height": 13.421
+  },
+  {
+   "cell": [
+    0,
+    7
+   ],
+   "centre_blender": [
+    0.0,
+    31.4
+   ],
+   "height": 12.893
+  },
+  {
+   "cell": [
+    1,
+    7
+   ],
+   "centre_blender": [
+    4.0,
+    31.4
+   ],
+   "height": 6.078
+  },
+  {
+   "cell": [
+    2,
+    7
+   ],
+   "centre_blender": [
+    8.0,
+    31.4
+   ],
+   "height": 5.656
+  },
+  {
+   "cell": [
+    3,
+    7
+   ],
+   "centre_blender": [
+    12.0,
+    31.4
+   ],
+   "height": 12.408
+  },
+  {
+   "cell": [
+    4,
+    7
+   ],
+   "centre_blender": [
+    16.0,
+    31.4
+   ],
+   "height": 4.883
+  },
+  {
+   "cell": [
+    5,
+    7
+   ],
+   "centre_blender": [
+    20.0,
+    31.4
+   ],
+   "height": 13.121
+  },
+  {
+   "cell": [
+    -5,
+    8
+   ],
+   "centre_blender": [
+    -20.0,
+    35.4
+   ],
+   "height": 9.096
+  },
+  {
+   "cell": [
+    -4,
+    8
+   ],
+   "centre_blender": [
+    -16.0,
+    35.4
+   ],
+   "height": 4.905
+  },
+  {
+   "cell": [
+    -1,
+    8
+   ],
+   "centre_blender": [
+    -4.0,
+    35.4
+   ],
+   "height": 6.162
+  },
+  {
+   "cell": [
+    0,
+    8
+   ],
+   "centre_blender": [
+    0.0,
+    35.4
+   ],
+   "height": 12.82
+  },
+  {
+   "cell": [
+    1,
+    8
+   ],
+   "centre_blender": [
+    4.0,
+    35.4
+   ],
+   "height": 7.901
+  },
+  {
+   "cell": [
+    3,
+    8
+   ],
+   "centre_blender": [
+    12.0,
+    35.4
+   ],
+   "height": 10.027
+  },
+  {
+   "cell": [
+    4,
+    8
+   ],
+   "centre_blender": [
+    16.0,
+    35.4
+   ],
+   "height": 7.317
+  },
+  {
+   "cell": [
+    5,
+    8
+   ],
+   "centre_blender": [
+    20.0,
+    35.4
+   ],
+   "height": 14.451
+  },
+  {
+   "cell": [
+    -3,
+    9
+   ],
+   "centre_blender": [
+    -12.0,
+    39.4
+   ],
+   "height": 9.132
+  },
+  {
+   "cell": [
+    2,
+    9
+   ],
+   "centre_blender": [
+    8.0,
+    39.4
+   ],
+   "height": 8.825
+  }
+ ]
+}

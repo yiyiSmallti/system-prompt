@@ -5,7 +5,8 @@ using UnityEngine;
 namespace SystemPrompt.Dungeon
 {
     // One latent-space area in 3D (P5-style third person): the rack maze on the seabed and what each zone
-    // has instead (SeaDecor.cs), the lighthouse, the props, the wreckage (SeaModels.cs), puzzles (SeaPuzzles.cs) and noise bodies, the
+    // has instead (SeaDecor.cs; an area modelled in Blender has SeaScene.cs for both), the lighthouse, the
+    // props, the wreckage (SeaModels.cs), puzzles (SeaPuzzles.cs) and noise bodies, the
     // player's avatar, DeepSeek beside it and the camera that follows. The UI on top (UI/Dungeon/DungeonScreen.cs) drives it a step
     // at a time and runs the story around it.
     public sealed class DungeonWorld : MonoBehaviour
@@ -40,6 +41,7 @@ namespace SystemPrompt.Dungeon
         float cameraDistance = CameraDistance;
         float time;
         SeaDecor decor;
+        SeaScene scene; // the area's scenery modelled in Blender, if it has one
         readonly List<Firewall> firewalls = new List<Firewall>();
         Transform sky, motes, beams;
         Material lamp, beamA, beamB;
@@ -85,9 +87,10 @@ namespace SystemPrompt.Dungeon
             Camera.depth = 10f;
 
             decor = new SeaDecor(def, Map, transform);
+            scene = SeaScene.Load(def, transform);
             BuildSea();
-            BuildWalls();
-            decor.Build();
+            if (scene == null) BuildWalls();
+            decor.Build(scene != null);
             BuildLighthouse();
             BuildProps();
             BuildWreckage();
@@ -178,29 +181,40 @@ namespace SystemPrompt.Dungeon
             return n - Mathf.Floor(n);
         }
 
-        // The lighthouse of stacked server cabinets, its lamp and two beams sweeping the sea.
+        // The lighthouse of stacked server cabinets, its lamp and two beams sweeping the sea. A modelled one
+        // (SeaScene) stands already; its lamp takes the light's colour.
         void BuildLighthouse()
         {
             var root = Parts.Node("Lighthouse", transform, Map.World(Def.LighthouseCell.x, Def.LighthouseCell.y));
-            var shell = SeaArt.Toon(Palette.Hex("#1A2944"), Palette.Hex("#0A1222"), Def.Lighthouse, Palette.Hex("#050A14"), 0.04f);
-            var y = 0f;
-            float[] widths = { 7.6f, 6.8f, 6f, 5.2f, 4.4f, 3.6f };
-            float[] heights = { 5f, 4.6f, 4.4f, 4.2f, 4f, 3.6f };
-            for (var i = 0; i < widths.Length; i++)
-            {
-                var r = Parts.Shape("Cabinet", root, SeaArt.Box(new Vector3(widths[i], heights[i], widths[i])), shell, new Vector3(0, y + heights[i] / 2f, 0));
-                r.transform.localRotation = Quaternion.Euler(0, i * 9f, 0);
-                y += heights[i];
-            }
             lamp = SeaArt.Toon(Def.Lighthouse, Def.Lighthouse, Color.white, Def.Lighthouse * 0.8f, 0.02f);
-            Parts.Shape("Lamp", root, SeaArt.Sphere(1.6f), lamp, new Vector3(0, y + 1.6f, 0));
+            Vector3 light; // the lamp's centre in root
+            if (scene != null)
+            {
+                scene.Light(lamp);
+                light = root.InverseTransformPoint(scene.LampAt);
+            }
+            else
+            {
+                var shell = SeaArt.Toon(Palette.Hex("#1A2944"), Palette.Hex("#0A1222"), Def.Lighthouse, Palette.Hex("#050A14"), 0.04f);
+                var y = 0f;
+                float[] widths = { 7.6f, 6.8f, 6f, 5.2f, 4.4f, 3.6f };
+                float[] heights = { 5f, 4.6f, 4.4f, 4.2f, 4f, 3.6f };
+                for (var i = 0; i < widths.Length; i++)
+                {
+                    var r = Parts.Shape("Cabinet", root, SeaArt.Box(new Vector3(widths[i], heights[i], widths[i])), shell, new Vector3(0, y + heights[i] / 2f, 0));
+                    r.transform.localRotation = Quaternion.Euler(0, i * 9f, 0);
+                    y += heights[i];
+                }
+                light = new Vector3(0, y + 1.6f, 0);
+                Parts.Shape("Lamp", root, SeaArt.Sphere(1.6f), lamp, light);
+            }
             var halo = SeaArt.Glow(SeaArt.Atlas, Def.Lighthouse * 0.5f);
             halo.mainTextureScale = new Vector2(0.25f, 1f);
             halo.mainTextureOffset = new Vector2(0.25f * SeaArt.AtlasDot, 0f);
-            var haloQuad = Parts.Shape("Halo", root, SeaArt.Quad(18f, 18f), halo, new Vector3(0, y + 1.6f, 0)).transform;
+            var haloQuad = Parts.Shape("Halo", root, SeaArt.Quad(18f, 18f), halo, light).transform;
             haloQuad.gameObject.AddComponent<Billboard>();
 
-            lampBeams = Parts.Node("Beams", root, new Vector3(0, y + 1.6f, 0));
+            lampBeams = Parts.Node("Beams", root, light);
             beamA = SeaArt.Glow(SeaArt.Beam, Def.Lighthouse * 0.22f);
             beamB = SeaArt.Glow(SeaArt.Beam, Def.Lighthouse * 0.22f);
             var tube = SeaArt.Tube(0.8f, 9f, 90f, 24);
@@ -673,6 +687,7 @@ namespace SystemPrompt.Dungeon
             foreach (var e in Enemies) e.Animate(t, UnityEngine.Time.unscaledDeltaTime);
             Companion?.Follow(PlayerPosition, UnityEngine.Time.unscaledDeltaTime);
             decor.Animate(t);
+            scene?.Animate(t);
             Puzzles.Animate(t);
             foreach (var f in firewalls) f.Animate(t);
         }

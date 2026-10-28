@@ -1,0 +1,31 @@
+{
+  "pass_all": true,
+  "steps": [
+    {
+      "script": "build_scene.py",
+      "command": [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "-b",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "assets/scenes/battle_ring/build_scene.py"
+      ],
+      "exit_code": 0,
+      "seconds": 14.364
+    }
+  ],
+  "total_seconds": 14.364,
+  "factory_startup_each_process": true,
+  "headless": true,
+  "blender_version": "5.2.3 LTS e13b728c6880",
+  "source_scripts_sha256": {
+    "build_scene.py": "b7dcd45641071aac14f704966b2db0fe9c5fdbd4e1861892e923eac6fbede501",
+    "export_fbx.py": "f50cd6e1b3f06a2c6e15e632eb8fbbcdd52a089d866bac16ac0508c6f0924dfa",
+    "preview_common.py": "c2c4836fa4d16fa97926de62747b83d11408f82ffc869e9fa7e11397850dc686",
+    "render_previews.py": "f12786e3492de892d55b894d7171794dd2f05a8a3dcf885f3c5860583e613bad",
+    "scene_geometry.py": "7e64e7244a30f93e5608415d81f2ec6885f875ed14520ef031998d601a4c0693",
+    "validate_scene.py": "d0626df65aae82135bd5e12a4a3aa1219746af545d030949bcba84d39836ab54"
+  }
+}

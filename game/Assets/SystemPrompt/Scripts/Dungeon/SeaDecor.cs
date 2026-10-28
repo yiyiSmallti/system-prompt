@@ -130,8 +130,17 @@ namespace SystemPrompt.Dungeon
 
         // ------------------------------------------------------------------ building
 
-        public void Build()
+        // modelled: the area's scenery is a Blender model (SeaScene), which has the bubbles, coral, graves,
+        // kelp and the sunken phone already; only the zones' words and light (Dress) are built here then.
+        public void Build(bool modelled)
         {
+            if (modelled)
+            {
+                foreach (var zone in def.Zones)
+                    if (zone.Style != ZoneStyle.Channel) Dress(zone);
+                return;
+            }
+
             capsule = SeaArt.Sphere(0.95f, 2.1f, 18, 12);
             sphere = SeaArt.Sphere(1f, 0f, 18, 12);
             stalk = SeaArt.Sphere(0.2f, 1f, 8, 6);

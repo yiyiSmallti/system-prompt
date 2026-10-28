@@ -1,0 +1,77 @@
+{
+  "revision": 2,
+  "order": [
+    "build",
+    "validate",
+    "export",
+    "render"
+  ],
+  "steps": [
+    {
+      "phase": "build",
+      "script": "build_scene.py",
+      "command": [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "-b",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "/Volumes/OpenClawSSD/System prompt/assets/scenes/cache_sea_shallows/build_scene.py"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 5.491,
+      "script_sha256": "0e7f4111a326593a2815d46f878830e148929bb69a7cf03822b75125a5958734"
+    },
+    {
+      "phase": "validate",
+      "script": "validate_scene.py",
+      "command": [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "-b",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "/Volumes/OpenClawSSD/System prompt/assets/scenes/cache_sea_shallows/validate_scene.py"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 2.586,
+      "script_sha256": "e5b065d782ff2e1364388aa656c85450fa596a3087130736ff1b3177617eaaf9"
+    },
+    {
+      "phase": "export",
+      "script": "export_fbx.py",
+      "command": [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "-b",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "/Volumes/OpenClawSSD/System prompt/assets/scenes/cache_sea_shallows/export_fbx.py"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 12.22,
+      "script_sha256": "a0acf6db3f26ab73695166e52cfaefedfe616249be406e20ea4a94c0d7b8fa95"
+    },
+    {
+      "phase": "render",
+      "script": "render_previews.py",
+      "command": [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "-b",
+        "--factory-startup",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "/Volumes/OpenClawSSD/System prompt/assets/scenes/cache_sea_shallows/render_previews.py"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 88.451,
+      "script_sha256": "b97c26653a2caa767e56040dc9ca699211e7ccfff5dbe8b22d6d797b5940c9af"
+    }
+  ],
+  "all_passed": true,
+  "total_wall_seconds": 108.754
+}

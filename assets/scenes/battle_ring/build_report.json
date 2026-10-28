@@ -1,0 +1,85 @@
+{
+  "block_count": 123,
+  "triangles": 214693,
+  "budget": 250000,
+  "inner_corner_cuts": [
+    [
+      -3,
+      -3
+    ],
+    [
+      -4,
+      -2
+    ],
+    [
+      4,
+      -2
+    ],
+    [
+      4,
+      2
+    ],
+    [
+      -3,
+      3
+    ],
+    [
+      3,
+      3
+    ],
+    [
+      -2,
+      4
+    ],
+    [
+      2,
+      4
+    ]
+  ],
+  "field_centre_blender": [
+    0,
+    3.4
+  ],
+  "exclusion_radius_m": 16.5,
+  "cut_radius_m": 16.501,
+  "full_detail_layers": 594,
+  "simple_outer_layers": 612,
+  "material_count": 4,
+  "materials": [
+    {
+      "name": "M_Rack_Body",
+      "color": "#1A2944",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_Trim",
+      "color": "#0A1222",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_Shadow",
+      "color": "#050A14",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Channel",
+      "color": "#40F2D9",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Reference",
+      "color": "#A9B8CA",
+      "emission": 0.0
+    }
+  ],
+  "unique_meshes": 589,
+  "mesh_instances": 1655,
+  "build_seconds": 0.743,
+  "blender_version": "5.2.3 LTS",
+  "major_components_triangles": {
+    "fans": 4674,
+    "tops_and_shoulders": 3209,
+    "inner_chamfers": 6643,
+    "height_difference_closures": 1529
+  }
+}

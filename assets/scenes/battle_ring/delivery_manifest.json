@@ -1,0 +1,200 @@
+{
+  "pass_all": true,
+  "files": {
+    "README.md": {
+      "bytes": 9762,
+      "sha256": "7b4c7ec2182dd8e4b264fc3a4e17cfbff6a63b2d0ebdaec8ce2e2a1b7a3561cd"
+    },
+    "battle_ring.blend": {
+      "bytes": 982145,
+      "sha256": "df197f8e989e35e9f322966b6cac3ed8477bd7424fddc7daef6be6e3acc8eff7"
+    },
+    "build_report.json": {
+      "bytes": 1275,
+      "sha256": "f92d9fd0773c0dc1a37b2858d117eebb07081931467c4857d52a9c42695ed234"
+    },
+    "build_scene.py": {
+      "bytes": 11800,
+      "sha256": "b7dcd45641071aac14f704966b2db0fe9c5fdbd4e1861892e923eac6fbede501"
+    },
+    "export/battle_ring.fbx": {
+      "bytes": 3640540,
+      "sha256": "e095b95cea9d181ace8632a345967b0d3b0fe99ed338c9a0d94de7383a82a467"
+    },
+    "export/roundtrip_report.json": {
+      "bytes": 5411,
+      "sha256": "0ce8e577f1a138fab6c0453b94617ff7d7a95c2ab81559b5e92f4bccfba69ced"
+    },
+    "export_fbx.py": {
+      "bytes": 11160,
+      "sha256": "f50cd6e1b3f06a2c6e15e632eb8fbbcdd52a089d866bac16ac0508c6f0924dfa"
+    },
+    "pipeline_report.json": {
+      "bytes": 1096,
+      "sha256": "6442b4ff07c58693ab44838734abe7719763291c84020653a07cd5d7cf654415"
+    },
+    "preview/battle_01_party.png": {
+      "bytes": 1624269,
+      "sha256": "ead2bd65c6ac0d6930b9e8398215c8ab75f679608015e8ae0f96011f6fdfade0"
+    },
+    "preview/battle_02_enemy_low.png": {
+      "bytes": 1920790,
+      "sha256": "3e98777c9e65b73fc322c829a118cf128bf409199692b96fc9271bf6b1dfa305"
+    },
+    "preview/battle_03_victory.png": {
+      "bytes": 1652868,
+      "sha256": "da10a0f31ab2955d6b5946a1d763c496d4dab671f799f98ff3f2e81a0f911e2b"
+    },
+    "preview/render_report.json": {
+      "bytes": 1425,
+      "sha256": "a8b1f22ad323d073c34b80e3b974189f759376c19f32a6b94704a03f4a8a6910"
+    },
+    "preview_common.py": {
+      "bytes": 4856,
+      "sha256": "c2c4836fa4d16fa97926de62747b83d11408f82ffc869e9fa7e11397850dc686"
+    },
+    "render_previews.py": {
+      "bytes": 2470,
+      "sha256": "f12786e3492de892d55b894d7171794dd2f05a8a3dcf885f3c5860583e613bad"
+    },
+    "scene_geometry.py": {
+      "bytes": 21699,
+      "sha256": "7e64e7244a30f93e5608415d81f2ec6885f875ed14520ef031998d601a4c0693"
+    },
+    "validate_scene.py": {
+      "bytes": 3701,
+      "sha256": "d0626df65aae82135bd5e12a4a3aa1219746af545d030949bcba84d39836ab54"
+    },
+    "validation_report.json": {
+      "bytes": 43674,
+      "sha256": "314288f561f54f020a4742b7b330878e369f80ba9ccf204a258ad556d1e529fb"
+    }
+  },
+  "protected_scene_inputs_checked": 89,
+  "protected_scene_inputs_all_unchanged": true,
+  "protected_scene_input_sha256": {
+    "assets/scenes/cache_sea_shallows/render_previews.py": "b97c26653a2caa767e56040dc9ca699211e7ccfff5dbe8b22d6d797b5940c9af",
+    "assets/scenes/cache_sea_shallows/pipeline_report.json": "f786f416a193da92bba01a09245085472a2e0f0ee6e2978167958ba511d81f9c",
+    "assets/scenes/cache_sea_shallows/build_report.json": "9c7a44bdd3dbe71432c67400a2dae92173a868cded3ac3e60c4237d91a0b837c",
+    "assets/scenes/cache_sea_shallows/cache_sea_shallows.blend": "32cfa7d12a95c221342c4907d6808c195eb00f00396a7835ef4e4f45e2efc795",
+    "assets/scenes/cache_sea_shallows/delivery_manifest.json": "0811be292f67f7dacf1b88b049ee8965a035cbeb1ee31b74463327a468663868",
+    "assets/scenes/cache_sea_shallows/build_scene.py": "0e7f4111a326593a2815d46f878830e148929bb69a7cf03822b75125a5958734",
+    "assets/scenes/cache_sea_shallows/validate_scene.py": "e5b065d782ff2e1364388aa656c85450fa596a3087130736ff1b3177617eaaf9",
+    "assets/scenes/cache_sea_shallows/export_fbx.py": "a0acf6db3f26ab73695166e52cfaefedfe616249be406e20ea4a94c0d7b8fa95",
+    "assets/scenes/cache_sea_shallows/README.md": "488d56bed42962188e8441427909a68390d13f88367308c25ad0fe712b473e2a",
+    "assets/scenes/cache_sea_shallows/validation_report.json": "e8aacddb4bbdf0961f809c919bf3b7c9eb017068c178282802cb5839adadc220",
+    "assets/scenes/cache_sea_shallows/preview/kit_sheet.png": "ed7e3b5e5ac39bf8620e88ba85b3dc01a05db8558aa23ad3b9abc6a8f232e15f",
+    "assets/scenes/cache_sea_shallows/preview/persp_maintenance_gate.png": "bb0907ceaa6ac3a6381d4cab8f10915aee1df8284b7b623c46e9d21d181f4614",
+    "assets/scenes/cache_sea_shallows/preview/persp_maintenance.png": "2c42e1f084d45966cf898773ecf3595afbdf7941047556bbcb9e84073a0e18b5",
+    "assets/scenes/cache_sea_shallows/preview/persp_deleted_posts.png": "8ce5c76a7e415de6b9b6fdd8e61813580bcea3e4a2845aa8024137e969509d70",
+    "assets/scenes/cache_sea_shallows/preview/render_report.json": "e57bb31782095753ea26d6fbac979362b5bfb5fb225f710e35ba89cb01b2e826",
+    "assets/scenes/cache_sea_shallows/preview/kit_sheet_props.png": "c3728b3cee0e4a76f2ba4ffa683e965f30fb599099f6cfca376534b0c54fc3f8",
+    "assets/scenes/cache_sea_shallows/preview/kit_contact_report.json": "2dc8bb676e0a5d293347169020b34043eb93d7c0d70cc42e337a66bc508fe089",
+    "assets/scenes/cache_sea_shallows/preview/unity_ingame_compare.png": "63662c44aee14a40ca6b1883a7505d21b2f1cb8338bad5d92767a40929b1688f",
+    "assets/scenes/cache_sea_shallows/preview/persp_lighthouse_plaza.png": "a676794c6ab336d3677581594ab368ff576bcf71b7ae17827e02f8c58f37010b",
+    "assets/scenes/cache_sea_shallows/preview/persp_rack_canyon.png": "c960d6ecdf0d7ee76ba5df830826c276ad1b51c56dc8ddd0b3a9b434b2526207",
+    "assets/scenes/cache_sea_shallows/preview/persp_sunken_phone.png": "cfb38c2f8bbb61fb302cf50b3c396f1d94dc796b8a0d5e0f3258642ef930f560",
+    "assets/scenes/cache_sea_shallows/preview/kit_rack_detail.png": "df7f2d8dd1f71ac117e705ce2b396c4df0c348f9d5ee646a712ae9f4c05e72ec",
+    "assets/scenes/cache_sea_shallows/preview/topdown.png": "cf4a76f6a2c8dbebbdfbbadabd64d6fe35b929490315e743ab1b5d982c28e952",
+    "assets/scenes/cache_sea_shallows/preview/persp_emoji_coral.png": "fe0a7c11eb1124c78ab81a13b04ca3bde615f288d69c4ea7a4384d31399f687b",
+    "assets/scenes/cache_sea_shallows/preview/persp_start_lighthouse.png": "5388405c357033c3e5cd5abb339297c718b3db494ed21cb92c8eba1e38c808e0",
+    "assets/scenes/cache_sea_shallows/export/cache_sea_shallows.fbx": "f0e089025805dcc6713ba882a4fcb0503d795220fa66d57f06392e639454c26e",
+    "assets/scenes/cache_sea_shallows/export/cache_sea_shallows_drift.fbx": "bf26b52a71f28a26471667914513ead461b54a15e9305db48a3005034b22736c",
+    "assets/scenes/cache_sea_shallows/export/roundtrip_report.json": "39a9b6ccbb6c9089084fee6a3c5f35a0c85541bb2666a9332f4f9aaa605ee441",
+    "assets/scenes/cache_sea_shallows/export/cache_sea_shallows_outer.fbx": "c6a961efd2d1db4b9747d9454b999635041606f7539cfa025180315003397f4c",
+    "assets/scenes/cache_sea_shallows/reference/layout_topdown.py": "a64c349025a7f265ec11ed45585486d8f239d9097e97f65d1f84fd9b424aa86d",
+    "assets/scenes/cache_sea_shallows/reference/concept_lighthouse_plaza.png": "66b705a9146efb1b6ab9241b27a713f44d5b6d0b4ec0c326e6f82152981814c1",
+    "assets/scenes/cache_sea_shallows/reference/concept_rack_canyon.png": "614b741f9a0e54b3d469c71171e4d8b0b16b6997e7b5aa110a385409390a9e89",
+    "assets/scenes/cache_sea_shallows/reference/layout_topdown.png": "fdec1d37c770eadc161f941f8545f3225aa9a387e546ccf6761cacf0d486658a",
+    "assets/scenes/cache_sea_shallows/export/kit/Gate.fbx": "9f830c06cf6c2c46a2a1bb8066d54b2bb6f9d1d9202621112c596ba1d67eb420",
+    "assets/scenes/cache_sea_shallows/export/kit/DataChest.fbx": "dac27a3be058f17b95d930a975b77ef6d25058d573d14ed70277b98278178c2f",
+    "assets/scenes/cache_sea_shallows/export/kit/Fragment_Post.fbx": "7afb2e7c017b2be03c894435e569445543722cce551eac21053773e36c7d2c25",
+    "assets/scenes/cache_sea_shallows/export/kit/GraveLowPair.fbx": "211b83f60a8ecefb2352c76491394d355659cefd674b6ed2929ea7e2ff81ea23",
+    "assets/scenes/cache_sea_shallows/export/kit/WallFoot_Cables.fbx": "04e2fbf165af9bfbcbfde5b55dd4130921a1a35192fadcda4238bf85cac28424",
+    "assets/scenes/cache_sea_shallows/export/kit/Fragment_Draft.fbx": "4ef010f03507f6ca1e4b8752e3f4ba2511ad5bff3b03d193ca84ef691ae70eb6",
+    "assets/scenes/cache_sea_shallows/export/kit/Beacon.fbx": "b0387631f09deb1e85281e71dcaed5425afcb6048c58c75ce10f9d50f2e5ebf6",
+    "assets/scenes/cache_sea_shallows/export/kit/SunkenPhone.fbx": "c0a88e3a6f5d038dd3a84834e5e5cef496220a463b196710daaf110fc7472d21",
+    "assets/scenes/cache_sea_shallows/export/kit/BubbleLow.fbx": "e44fe0e09ec34b7b4323e3e35c8e0001017dfa0c523d66f78177da5954483ae5",
+    "assets/scenes/cache_sea_shallows/export/kit/EmojiCoral_2.fbx": "b5640b04606285ee585a253cc5336ebed3b206587a8abfb9530b589edce51e36",
+    "assets/scenes/cache_sea_shallows/export/kit/Terminal.fbx": "3fd71898274793b34e116d25a8a71c13653314c5bf77f82bf0344373ea786011",
+    "assets/scenes/cache_sea_shallows/export/kit/EmojiCoral_3.fbx": "67d2f380043a27a30036cd37406340d333bb59a182350e2d64533b0e50de0ef4",
+    "assets/scenes/cache_sea_shallows/export/kit/Firewall.fbx": "1e833e6aa8301e98d28f8a013a7774f9cc3e2b40753ae0a9cd7f51b76516e701",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFan.fbx": "0d04e497942b4fa36d93d6b995fde95d0c82552d2a5212fc8e4a5116b8854684",
+    "assets/scenes/cache_sea_shallows/export/kit/Lighthouse.fbx": "b9ee0ea7a1121363c6c0d96fdaa853d94454bec31f48fd001a87dd64ad294123",
+    "assets/scenes/cache_sea_shallows/export/kit/EmojiCoral_1.fbx": "b4848865e22a4df3de9b3159cdf988c6e03f3959b4513778a6110b3e5bec3f54",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFacade_V02.fbx": "940f50695fb7b1875974f4b62c062046f01bb26ecd4bcc1448bfc29d1d98d833",
+    "assets/scenes/cache_sea_shallows/export/kit/BubbleStack_1.fbx": "51e38a1fba4caca5f72e4fc7898e6922fc7e7788c918fa2e89007e9ee571824f",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFacade_V03.fbx": "49cedcfa5cb951ba935951915352dbf3a92a06b72dcde25b378309c179c05ef8",
+    "assets/scenes/cache_sea_shallows/export/kit/GraveTall.fbx": "b8b6fb4dfecabcc4586a4465ac048931009258c55ce6286da75868839ef51f16",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFacade_V01.fbx": "c38fe75e4ddb7a4dab975684ff22ca304d14e674234bd3b276095cff090072da",
+    "assets/scenes/cache_sea_shallows/export/kit/BubbleStack_2.fbx": "05c3ba5348fa16482bd7a1bc46b1a6213413573293a17c7877efd3b4599127eb",
+    "assets/scenes/cache_sea_shallows/export/kit/KelpEdge.fbx": "2dfe4671ae7fa6d0dd3acaf8dded8752cebd4b55c9e53d7be13cf84b3fd2f8d2",
+    "assets/scenes/cache_sea_shallows/export/kit/BubbleStack_3.fbx": "37a2fc1b1ef6e2df04199660aa46582b5d9df9cfcfd1981fe0653b324ffd5529",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFacade_V04.fbx": "f032cabfa8c8ac21b6a78ec291cac8064bba68593fc7ad86ff320fb6417daded",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFacade_V05.fbx": "37e3f464b4bd97197ab2264fc509d9138f91e9d2871fac78e4aecffadd862281",
+    "assets/scenes/cache_sea_shallows/export/kit/ResetConsole.fbx": "05083d68d584d9b37513425ab36ab6af6c1f5dd545978a526c47830172cb5275",
+    "assets/scenes/cache_sea_shallows/export/kit/Socket.fbx": "4b04aa7d15f679411a880ee55bbd39882ef7e958f445728c1cf487a3d7f56d05",
+    "assets/scenes/cache_sea_shallows/export/kit/LowRack.fbx": "955bc0cf71086de496cc70028c79f639f0fd6537ad17314cdca33cf073467967",
+    "assets/scenes/cache_sea_shallows/export/kit/RackFacade_V06.fbx": "e6ce08fbcbac57cf6a1165067dbccd5a51d9a32fd5ed821bd3b3f22b489c1f71",
+    "assets/scenes/cache_sea_shallows/export/kit/CacheBlock.fbx": "89f794958e0a6c21d158273c7f5b409b9097b3d50a9e9db55572767d82ade4e6",
+    "assets/scenes/cache_sea_shallows/export/kit/Seabed_Vent.fbx": "4079a4d65e0c875ca21f28520167e448c1b47836d8466d268b1b3fb826b2ae72",
+    "assets/scenes/cache_sea_shallows/export/kit/Fragment_Message.fbx": "6262f1547f4d0947f8c8a7001dfc794836ecd5b6465199d2f12561b71a6fe27d",
+    "assets/scenes/cache_sea_shallows/export/kit/CableHanging.fbx": "bddd381d5e33c329d3f4c818ff7286e92febfb329cef8e82ba1870b3b1b44176",
+    "assets/scenes/cache_sea_shallows/export/kit/RackTop.fbx": "7286287cb1d096afc4f8d41bc62a59f00cf2b18ac2e7af675a6b96c8afcb8ed0",
+    "assets/scenes/cache_sea_shallows/export/kit/Seabed_Tile.fbx": "ba93239fecf4a8a9b6de8f8867c0749bf77d03408a2fae85809469e677bbf6bf",
+    "assets/scenes/cache_sea_deep/reference/current_86-dungeon-ambush.png": "8af610771ae2dd87e62e85d10fb2b58d35f13e7c72dbf649c336ce3f7ad04ab0",
+    "assets/scenes/cache_sea_deep/reference/current_90-dungeon-light.png": "5ebf9cd9746b584066ac39b5d0297d91155de07dc71ef99b94ee5f8b414734af",
+    "assets/scenes/cache_sea_deep/reference/current_82-dungeon-deep.png": "0e043003cab809286af1fc9762497a0777f78f119b186478c632519839342b53",
+    "assets/scenes/cache_sea_deep/reference/layout_topdown.py": "16d7f98b5146545402b41fc56fbe027ec62a87a8ed719dfd3cad14d2a8dfc339",
+    "assets/scenes/cache_sea_deep/reference/concept_bin_and_context.png": "9b6a2482a3aa9f7faf7eeead2790e3b0cc5c513d7dfc221e3d2f57a460328e29",
+    "assets/scenes/cache_sea_deep/reference/current_91-dungeon-mirror.png": "dc1ca80f6c8bafac028d13200ba94d340685ea0f422c668357088f9fe8f48bf9",
+    "assets/scenes/cache_sea_deep/reference/concept_white_door.png": "e303e46e3a626e8963e80b2b15f1ef5d3e8a9b4f3a7c4052904739f4dd40885a",
+    "assets/scenes/cache_sea_deep/reference/layout_topdown.png": "ac4cd06b85331bac2d28875d80bee5f56fabf7cc44c9d4c162f8b19c79aa5ced",
+    "assets/scenes/cache_sea_deep/reference/concept_sunken_servers.png": "f839e4e11df0ff0a368baa89eef2125f43a1d7c8730afa9954970e001eb505c0",
+    "assets/scenes/battle_ring/reference/current_battle_open.png": "ba90bfef5760056704bbdb0a579588a9d837000e838cfaedffd56154d19d2b21",
+    "assets/scenes/battle_ring/reference/current_battle_allout.png": "47f96efc29263062caefdbac71748cced56de039144650bc19961a20717ab371",
+    "assets/scenes/battle_ring/reference/current_battle_slash.png": "cdd99234a692388dd9b96c7578e2b8fcb89d498d8b88fbbd6b00ba184411d5b1",
+    "assets/scenes/battle_ring/reference/blocks.json": "95321d35854be8d71f49603a1ad625c0adec32cfbd0ace075ac670845284538a",
+    "assets/scenes/battle_ring/reference/blocks.py": "f9c5ac883b1cae6e6107b9ec66c639041391173029fc05c1008ac1a1c2329bd2",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaScene.cs": "41a97281c53a5605884952a1a785d1370994be60adcc6a67cc3ee453a121cac6",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/BattleStage.cs": "acab751adca26e5ef372e0917b5d1618481674624745b6d7126e204d20c79564",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/DungeonData.cs": "a6affd4457aabfc6273034fb7ca14f2598f617fa820d1147dfc06ec5ba089f75",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaPuzzles.cs": "57999874cf4d87a6f99a405de3c34060c8cc6f51ad42dac446ac779e41e8066b",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/DungeonWorld.cs": "536221568600b2ace5ecd591418ac63acee1011577f6bf3eeb38b8f74444fb5a",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaDecor.cs": "cea2ec1c4328ac7dd8f8d20ff6d7dbc942c45823af43ee38382d89f7dbfd7be3"
+  },
+  "workspace_readonly_baselines_recorded": 1529,
+  "unrelated_workspace_changes_during_task": [
+    {
+      "file": "game/Assets/SystemPrompt/Scripts/UI/Elements/Transitions.cs",
+      "before_sha256": "023569c2d42785852cc17ce569172bbb500ecace37180ebd7a83c46ba3a1ffe3",
+      "current_sha256": "85913884d9e14c018fa9482c6048351b50374b9fd52ef93844a59c7fff776989",
+      "written_or_reverted_by_this_task": false
+    }
+  ],
+  "manual_visual_review": [
+    {
+      "file": "preview/battle_01_party.png",
+      "sha256": "ead2bd65c6ac0d6930b9e8398215c8ab75f679608015e8ae0f96011f6fdfade0",
+      "opened": true,
+      "notes": "我方三人和敌方比例假人可见，机柜环饱满，高差柜面闭合。"
+    },
+    {
+      "file": "preview/battle_02_enemy_low.png",
+      "sha256": "3e98777c9e65b73fc322c829a118cf128bf409199692b96fc9271bf6b1dfa305",
+      "opened": true,
+      "notes": "指定低机位，1.75m与1.62m假人完整可见，顶部无露空顶板。"
+    },
+    {
+      "file": "preview/battle_03_victory.png",
+      "sha256": "da10a0f31ab2955d6b5946a1d763c496d4dab671f799f98ff3f2e81a0f911e2b",
+      "opened": true,
+      "notes": "指定高机位，活动区留空，机柜内侧、退台及背后层次可辨认。"
+    }
+  ],
+  "own_write_scope": "Only assets/scenes/cache_sea_deep and assets/scenes/battle_ring, excluding reference. No game/shallow/reference writes, git writes, network assets or delegation.",
+  "known_layout_exception": "Eight inner corners clipped to tangent at 16.501m, preserving JSON centres and heights.",
+  "unity_runtime_verified": false,
+  "geometry_validation": true,
+  "fbx_roundtrip_validation": true
+}

@@ -1,0 +1,6262 @@
+{
+  "map_size": [
+    29,
+    23
+  ],
+  "world_size": [
+    116,
+    92
+  ],
+  "counts": {
+    "#": 301,
+    ".": 284,
+    "B": 3,
+    "=": 37,
+    "F": 3,
+    "L": 6,
+    "4": 1,
+    "%": 14,
+    "3": 1,
+    "f": 1,
+    "G": 1,
+    "X": 2,
+    "g": 1,
+    "2": 1,
+    "e": 1,
+    "K": 2,
+    "O": 2,
+    "R": 1,
+    "1": 1,
+    "Y": 1,
+    "T": 1,
+    "S": 1,
+    "C": 1
+  },
+  "triangles": {
+    "Layout": 558514,
+    "Landmarks": 14888,
+    "Props": 6629,
+    "Outer": 45226,
+    "Drift": 2916
+  },
+  "total_triangles": 580031,
+  "kit": {
+    "RackFacade_V01": {
+      "triangles": 264,
+      "min": [
+        -2.0,
+        -2.084476947784424,
+        0.0
+      ],
+      "max": [
+        2.0,
+        -1.8200000524520874,
+        2.299999952316284
+      ],
+      "size": [
+        4.0,
+        0.2644768953323364,
+        2.299999952316284
+      ],
+      "description": "4m / 2.30m layer; front -Y; open back"
+    },
+    "RackFacade_V02": {
+      "triangles": 248,
+      "min": [
+        -2.0,
+        -2.084476947784424,
+        0.0
+      ],
+      "max": [
+        2.0,
+        -1.8200000524520874,
+        2.299999952316284
+      ],
+      "size": [
+        4.0,
+        0.2644768953323364,
+        2.299999952316284
+      ],
+      "description": "4m / 2.30m layer; front -Y; open back"
+    },
+    "RackFacade_V03": {
+      "triangles": 280,
+      "min": [
+        -2.0,
+        -2.084476947784424,
+        0.0
+      ],
+      "max": [
+        2.0,
+        -1.8200000524520874,
+        2.299999952316284
+      ],
+      "size": [
+        4.0,
+        0.2644768953323364,
+        2.299999952316284
+      ],
+      "description": "4m / 2.30m layer; front -Y; open back"
+    },
+    "RackFacade_V04": {
+      "triangles": 246,
+      "min": [
+        -2.0,
+        -2.084476947784424,
+        0.0
+      ],
+      "max": [
+        2.0,
+        -1.8200000524520874,
+        2.299999952316284
+      ],
+      "size": [
+        4.0,
+        0.2644768953323364,
+        2.299999952316284
+      ],
+      "description": "4m / 2.30m layer; front -Y; open back"
+    },
+    "RackFacade_V05": {
+      "triangles": 246,
+      "min": [
+        -2.0,
+        -2.084476947784424,
+        0.0
+      ],
+      "max": [
+        2.0,
+        -1.8200000524520874,
+        2.299999952316284
+      ],
+      "size": [
+        4.0,
+        0.2644768953323364,
+        2.299999952316284
+      ],
+      "description": "4m / 2.30m layer; front -Y; open back"
+    },
+    "RackFacade_V06": {
+      "triangles": 246,
+      "min": [
+        -2.0,
+        -2.084476947784424,
+        0.0
+      ],
+      "max": [
+        2.0,
+        -1.8200000524520874,
+        2.299999952316284
+      ],
+      "size": [
+        4.0,
+        0.2644768953323364,
+        2.299999952316284
+      ],
+      "description": "4m / 2.30m layer; front -Y; open back"
+    },
+    "RackTop": {
+      "triangles": 22,
+      "min": [
+        -2.0,
+        -2.0,
+        0.0
+      ],
+      "max": [
+        2.0,
+        2.0,
+        0.04399999976158142
+      ],
+      "size": [
+        4.0,
+        4.0,
+        0.04399999976158142
+      ],
+      "description": "replaced below"
+    },
+    "RackFan": {
+      "triangles": 38,
+      "min": [
+        -0.4081740379333496,
+        -0.4598373472690582,
+        0.0
+      ],
+      "max": [
+        0.49000000953674316,
+        0.4721980392932892,
+        0.10000000149011612
+      ],
+      "size": [
+        0.8981740474700928,
+        0.9320353865623474,
+        0.10000000149011612
+      ],
+      "description": "0.98m rotor; origin at rotation centre"
+    },
+    "Seabed_Tile": {
+      "triangles": 170,
+      "min": [
+        -2.0,
+        -2.0,
+        -0.054999999701976776
+      ],
+      "max": [
+        2.0,
+        2.0,
+        0.0
+      ],
+      "size": [
+        4.0,
+        4.0,
+        0.054999999701976776
+      ],
+      "description": "4x4m; sixteen bevelled 1m tiles"
+    },
+    "Seabed_Vent": {
+      "triangles": 180,
+      "min": [
+        -2.0,
+        -2.0,
+        -0.054999999701976776
+      ],
+      "max": [
+        2.0,
+        2.0,
+        0.0
+      ],
+      "size": [
+        4.0,
+        4.0,
+        0.054999999701976776
+      ],
+      "description": "4x4m; sixteen bevelled 1m tiles"
+    },
+    "LowRack": {
+      "triangles": 508,
+      "min": [
+        -1.9950001239776611,
+        -1.9950000047683716,
+        0.0
+      ],
+      "max": [
+        1.9950001239776611,
+        1.9950001239776611,
+        1.2999999523162842
+      ],
+      "size": [
+        3.9900002479553223,
+        3.9900001287460327,
+        1.2999999523162842
+      ],
+      "description": "4x4m low wall, 1.30m maximum"
+    },
+    "BubbleStack_1": {
+      "triangles": 612,
+      "min": [
+        -1.940000057220459,
+        -1.997499942779541,
+        0.09000000357627869
+      ],
+      "max": [
+        1.940000057220459,
+        1.940000057220459,
+        5.429999828338623
+      ],
+      "size": [
+        3.880000114440918,
+        3.9375,
+        5.339999824762344
+      ],
+      "description": "4x4m three chat pillows"
+    },
+    "BubbleStack_2": {
+      "triangles": 612,
+      "min": [
+        -1.940000057220459,
+        -1.997499942779541,
+        0.09000000357627869
+      ],
+      "max": [
+        1.940000057220459,
+        1.940000057220459,
+        5.429999828338623
+      ],
+      "size": [
+        3.880000114440918,
+        3.9375,
+        5.339999824762344
+      ],
+      "description": "4x4m three chat pillows"
+    },
+    "BubbleStack_3": {
+      "triangles": 612,
+      "min": [
+        -1.940000057220459,
+        -1.997499942779541,
+        0.09000000357627869
+      ],
+      "max": [
+        1.940000057220459,
+        1.940000057220459,
+        5.429999828338623
+      ],
+      "size": [
+        3.880000114440918,
+        3.9375,
+        5.339999824762344
+      ],
+      "description": "4x4m three chat pillows"
+    },
+    "BubbleLow": {
+      "triangles": 204,
+      "min": [
+        -1.940000057220459,
+        -1.997499942779541,
+        0.17000000178813934
+      ],
+      "max": [
+        1.7400000095367432,
+        1.8200000524520874,
+        1.190000057220459
+      ],
+      "size": [
+        3.680000066757202,
+        3.8174999952316284,
+        1.0200000554323196
+      ],
+      "description": "single 1.19m chat pillow"
+    },
+    "EmojiCoral_1": {
+      "triangles": 1818,
+      "min": [
+        -1.9900000095367432,
+        -1.9900000095367432,
+        -0.6100000143051147
+      ],
+      "max": [
+        1.9900000095367432,
+        1.9900000095367432,
+        5.730000019073486
+      ],
+      "size": [
+        3.9800000190734863,
+        3.9800000190734863,
+        6.340000033378601
+      ],
+      "description": "cell-contained mound and four emoji stalks"
+    },
+    "EmojiCoral_2": {
+      "triangles": 1818,
+      "min": [
+        -1.9900000095367432,
+        -1.9900000095367432,
+        -0.6100000143051147
+      ],
+      "max": [
+        1.9900000095367432,
+        1.9900000095367432,
+        5.800000190734863
+      ],
+      "size": [
+        3.9800000190734863,
+        3.9800000190734863,
+        6.410000205039978
+      ],
+      "description": "cell-contained mound and four emoji stalks"
+    },
+    "EmojiCoral_3": {
+      "triangles": 1818,
+      "min": [
+        -1.9900000095367432,
+        -1.9900000095367432,
+        -0.6100000143051147
+      ],
+      "max": [
+        1.9900000095367432,
+        1.9900000095367432,
+        5.730000019073486
+      ],
+      "size": [
+        3.9800000190734863,
+        3.9800000190734863,
+        6.340000033378601
+      ],
+      "description": "cell-contained mound and four emoji stalks"
+    },
+    "GraveTall": {
+      "triangles": 1250,
+      "min": [
+        -1.875,
+        -1.875,
+        0.0
+      ],
+      "max": [
+        1.875,
+        1.875,
+        7.320000171661377
+      ],
+      "size": [
+        3.75,
+        3.75,
+        7.320000171661377
+      ],
+      "description": "two-sided Chinese mesh inscription; 7.32m"
+    },
+    "GraveLowPair": {
+      "triangles": 1816,
+      "min": [
+        -1.8300000429153442,
+        -0.699999988079071,
+        0.0
+      ],
+      "max": [
+        1.8300000429153442,
+        0.699999988079071,
+        1.2999999523162842
+      ],
+      "size": [
+        3.6600000858306885,
+        1.399999976158142,
+        1.2999999523162842
+      ],
+      "description": "two headstones; 1.30m maximum"
+    },
+    "SunkenPhone": {
+      "triangles": 966,
+      "min": [
+        -5.685078144073486,
+        -5.572216987609863,
+        -0.5144872069358826
+      ],
+      "max": [
+        5.725759029388428,
+        5.563324451446533,
+        1.0672459602355957
+      ],
+      "size": [
+        11.410837173461914,
+        11.135541439056396,
+        1.5817331671714783
+      ],
+      "description": "12x12m footprint; inclined screen with unanswered 在吗"
+    },
+    "KelpEdge": {
+      "triangles": 210,
+      "min": [
+        -1.794996738433838,
+        -1.6349999904632568,
+        0.014596808701753616
+      ],
+      "max": [
+        -1.2100000381469727,
+        0.9550000429153442,
+        2.4583253860473633
+      ],
+      "size": [
+        0.5849967002868652,
+        2.590000033378601,
+        2.4437285773456097
+      ],
+      "description": "west-edge mother mesh; rotate per KELP_EDGES, keep three entrances clear"
+    },
+    "CableHanging": {
+      "triangles": 392,
+      "min": [
+        -1.680678129196167,
+        -1.5866025686264038,
+        2.7157771587371826
+      ],
+      "max": [
+        -0.800000011920929,
+        -0.6086758971214294,
+        11.504886627197266
+      ],
+      "size": [
+        0.880678117275238,
+        0.9779266715049744,
+        8.789109468460083
+      ],
+      "description": "7 strands; lower end above 2.7m"
+    },
+    "Beacon": {
+      "triangles": 428,
+      "min": [
+        -1.0499999523162842,
+        -1.0499999523162842,
+        0.0
+      ],
+      "max": [
+        1.0499999523162842,
+        1.0499999523162842,
+        3.0199999809265137
+      ],
+      "size": [
+        2.0999999046325684,
+        2.0999999046325684,
+        3.0199999809265137
+      ],
+      "description": "octagonal 3.02m beacon; independent lamp"
+    },
+    "Fragment_Post": {
+      "triangles": 88,
+      "min": [
+        -0.45500001311302185,
+        -0.41999998688697815,
+        0.0
+      ],
+      "max": [
+        0.45500001311302185,
+        0.41999998688697815,
+        1.7350001335144043
+      ],
+      "size": [
+        0.9100000262260437,
+        0.8399999737739563,
+        1.7350001335144043
+      ],
+      "description": "1.2m floating story card, independent Card"
+    },
+    "Fragment_Message": {
+      "triangles": 88,
+      "min": [
+        -0.45500001311302185,
+        -0.41999998688697815,
+        0.0
+      ],
+      "max": [
+        0.45500001311302185,
+        0.41999998688697815,
+        1.7350001335144043
+      ],
+      "size": [
+        0.9100000262260437,
+        0.8399999737739563,
+        1.7350001335144043
+      ],
+      "description": "1.2m floating story card, independent Card"
+    },
+    "Fragment_Draft": {
+      "triangles": 98,
+      "min": [
+        -0.45500001311302185,
+        -0.41999998688697815,
+        0.0
+      ],
+      "max": [
+        0.45500001311302185,
+        0.41999998688697815,
+        1.7350001335144043
+      ],
+      "size": [
+        0.9100000262260437,
+        0.8399999737739563,
+        1.7350001335144043
+      ],
+      "description": "1.2m floating story card, independent Card"
+    },
+    "DataChest": {
+      "triangles": 122,
+      "min": [
+        -0.5,
+        -0.36000001430511475,
+        0.0
+      ],
+      "max": [
+        0.5,
+        0.36000001430511475,
+        0.699999988079071
+      ],
+      "size": [
+        1.0,
+        0.7200000286102295,
+        0.699999988079071
+      ],
+      "description": "1.0x0.7x0.7m chest; Lid origin on hinge"
+    },
+    "Terminal": {
+      "triangles": 93,
+      "min": [
+        -0.550000011920929,
+        -0.4099999964237213,
+        0.0
+      ],
+      "max": [
+        0.550000011920929,
+        0.4099999964237213,
+        1.3700000047683716
+      ],
+      "size": [
+        1.100000023841858,
+        0.8199999928474426,
+        1.3700000047683716
+      ],
+      "description": "1.40m green control console"
+    },
+    "ResetConsole": {
+      "triangles": 182,
+      "min": [
+        -0.550000011920929,
+        -0.4099999964237213,
+        0.0
+      ],
+      "max": [
+        0.550000011920929,
+        0.4099999964237213,
+        1.0
+      ],
+      "size": [
+        1.100000023841858,
+        0.8199999928474426,
+        1.0
+      ],
+      "description": "1.03m amber console"
+    },
+    "Firewall": {
+      "triangles": 306,
+      "min": [
+        -2.0,
+        -0.44999998807907104,
+        0.0
+      ],
+      "max": [
+        2.0,
+        0.44999998807907104,
+        4.0
+      ],
+      "size": [
+        4.0,
+        0.8999999761581421,
+        4.0
+      ],
+      "description": "4x4m frame; independently hidden Barrier"
+    },
+    "Gate": {
+      "triangles": 110,
+      "min": [
+        -2.0,
+        -0.44999998807907104,
+        0.0
+      ],
+      "max": [
+        2.0,
+        0.44999998807907104,
+        4.0
+      ],
+      "size": [
+        4.0,
+        0.8999999761581421,
+        4.0
+      ],
+      "description": "4x4m frame; independent Door"
+    },
+    "CacheBlock": {
+      "triangles": 228,
+      "min": [
+        -1.25,
+        -1.25,
+        0.0
+      ],
+      "max": [
+        1.25,
+        1.25,
+        2.5
+      ],
+      "size": [
+        2.5,
+        2.5,
+        2.5
+      ],
+      "description": "exact 2.50m frame cube"
+    },
+    "Socket": {
+      "triangles": 96,
+      "min": [
+        -1.5,
+        -1.5,
+        0.0
+      ],
+      "max": [
+        1.5,
+        1.5,
+        0.09000000357627869
+      ],
+      "size": [
+        3.0,
+        3.0,
+        0.09000000357627869
+      ],
+      "description": "3x3m recessed socket frame"
+    },
+    "Lighthouse": {
+      "triangles": 13922,
+      "min": [
+        -5.673349857330322,
+        -4.729401588439941,
+        -0.23999999463558197
+      ],
+      "max": [
+        5.677707672119141,
+        4.729401588439941,
+        36.58000183105469
+      ],
+      "size": [
+        11.351057529449463,
+        9.458803176879883,
+        36.82000182569027
+      ],
+      "description": "12x8m footprint; Lamp origin at z33.2m"
+    },
+    "WallFoot_Cables": {
+      "triangles": 52,
+      "min": [
+        -1.501589298248291,
+        -2.088728904724121,
+        0.004999999888241291
+      ],
+      "max": [
+        0.9609355330467224,
+        -1.9595028162002563,
+        0.1550000011920929
+      ],
+      "size": [
+        2.4625248312950134,
+        0.12922608852386475,
+        0.1500000013038516
+      ],
+      "description": "P2 foot cables/hardware/data chip, maximum projection <0.1m"
+    }
+  },
+  "materials": [
+    {
+      "name": "M_Rack_Body",
+      "color": "#1A2944",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_Trim",
+      "color": "#0A1222",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_Shadow",
+      "color": "#050A14",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Channel",
+      "color": "#40F2D9",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Channel",
+      "color": "#15294B",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Reef",
+      "color": "#7BFFD2",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Reef",
+      "color": "#183442",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Coral",
+      "color": "#FF8AB4",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Coral",
+      "color": "#2C2740",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Graveyard",
+      "color": "#FF5A64",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Graveyard",
+      "color": "#242237",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Ridge",
+      "color": "#BFD8FF",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Ridge",
+      "color": "#21304B",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Canyon",
+      "color": "#5CE1FF",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Canyon",
+      "color": "#14314B",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rack_LED_Plaza",
+      "color": "#E8F0FF",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Seabed_Plaza",
+      "color": "#28354B",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Rock",
+      "color": "#172942",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Glass",
+      "color": "#A3DFFF",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Bubble_White",
+      "color": "#EEF3FF",
+      "emission": 0.09
+    },
+    {
+      "name": "M_Bubble_Green",
+      "color": "#6EE08F",
+      "emission": 0.08
+    },
+    {
+      "name": "M_Bubble_Blue",
+      "color": "#4A8BFF",
+      "emission": 0.12
+    },
+    {
+      "name": "M_Coral_Gold",
+      "color": "#FFD23F",
+      "emission": 0.12
+    },
+    {
+      "name": "M_Coral_Pink",
+      "color": "#FF6FA8",
+      "emission": 0.12
+    },
+    {
+      "name": "M_Coral_Orange",
+      "color": "#FF8A3D",
+      "emission": 0.12
+    },
+    {
+      "name": "M_Coral_Cyan",
+      "color": "#5CE1FF",
+      "emission": 0.12
+    },
+    {
+      "name": "M_Coral_Stem",
+      "color": "#7A3A62",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Coral_Mound",
+      "color": "#5A2A4A",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Grave",
+      "color": "#4A5268",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Phone_Body",
+      "color": "#101A2B",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Phone_Screen",
+      "color": "#163C70",
+      "emission": 0.55
+    },
+    {
+      "name": "M_Emit_ColdWhite",
+      "color": "#DCEBFF",
+      "emission": 5.0
+    },
+    {
+      "name": "M_Emit_Green",
+      "color": "#4CFF99",
+      "emission": 3.2
+    },
+    {
+      "name": "M_Emit_Firewall",
+      "color": "#FF455C",
+      "emission": 2.1
+    },
+    {
+      "name": "M_Emit_Amber",
+      "color": "#FFB347",
+      "emission": 2.3
+    },
+    {
+      "name": "M_Emit_ChannelGrid",
+      "color": "#3380FF",
+      "emission": 2.6
+    },
+    {
+      "name": "M_Reference",
+      "color": "#A9B8CA",
+      "emission": 0.0
+    },
+    {
+      "name": "M_Drift_Glass",
+      "color": "#7BCFFF",
+      "emission": 0.4
+    }
+  ],
+  "cells": [
+    {
+      "c": 0,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 8.0
+    },
+    {
+      "c": 1,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 9.28125
+    },
+    {
+      "c": 2,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 11.75390625
+    },
+    {
+      "c": 3,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 11.734375
+    },
+    {
+      "c": 4,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 10.6640625
+    },
+    {
+      "c": 5,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 10.078125
+    },
+    {
+      "c": 6,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 9.1328125
+    },
+    {
+      "c": 7,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 11.796875
+    },
+    {
+      "c": 8,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 11.796875
+    },
+    {
+      "c": 9,
+      "r": 0,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 8.93359375
+    },
+    {
+      "c": 10,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 11.109375
+    },
+    {
+      "c": 11,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 14.203125
+    },
+    {
+      "c": 12,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 12.734375
+    },
+    {
+      "c": 13,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 12.076171875
+    },
+    {
+      "c": 14,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 11.3125
+    },
+    {
+      "c": 15,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 14.7421875
+    },
+    {
+      "c": 16,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 11.15625
+    },
+    {
+      "c": 17,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 14.5625
+    },
+    {
+      "c": 18,
+      "r": 0,
+      "mark": "#",
+      "style": "Ridge",
+      "role": "rack",
+      "target_height": 12.40625
+    },
+    {
+      "c": 19,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.421875
+    },
+    {
+      "c": 20,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.0234375
+    },
+    {
+      "c": 21,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 19.15625
+    },
+    {
+      "c": 22,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.900390625
+    },
+    {
+      "c": 23,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.875
+    },
+    {
+      "c": 24,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.794921875
+    },
+    {
+      "c": 25,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 19.6875
+    },
+    {
+      "c": 26,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 20.375
+    },
+    {
+      "c": 27,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.53125
+    },
+    {
+      "c": 28,
+      "r": 0,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 20.7734375
+    },
+    {
+      "c": 0,
+      "r": 1,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 9.6171875
+    },
+    {
+      "c": 1,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 1,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 11,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 1,
+      "mark": "B",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 1,
+      "mark": ".",
+      "style": "Ridge",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 19,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 20,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 21,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 22,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 1,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 1,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.359375
+    },
+    {
+      "c": 28,
+      "r": 1,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.216796875
+    },
+    {
+      "c": 0,
+      "r": 2,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 9.21875
+    },
+    {
+      "c": 1,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 2,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 2,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 7.03515625
+    },
+    {
+      "c": 11,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 12,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 13,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 14,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 15,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 16,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 17,
+      "r": 2,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 18,
+      "r": 2,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 7.97265625
+    },
+    {
+      "c": 19,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.4921875
+    },
+    {
+      "c": 20,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.1484375
+    },
+    {
+      "c": 21,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.19921875
+    },
+    {
+      "c": 22,
+      "r": 2,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.279296875
+    },
+    {
+      "c": 24,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.43359375
+    },
+    {
+      "c": 25,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.20703125
+    },
+    {
+      "c": 26,
+      "r": 2,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.6953125
+    },
+    {
+      "c": 28,
+      "r": 2,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.3125
+    },
+    {
+      "c": 0,
+      "r": 3,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 9.328125
+    },
+    {
+      "c": 1,
+      "r": 3,
+      "mark": "F",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 3,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 3,
+      "r": 3,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 3,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 5,
+      "r": 3,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 3,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 7,
+      "r": 3,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 3,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 9,
+      "r": 3,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 3,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 9.2265625
+    },
+    {
+      "c": 11,
+      "r": 3,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 3,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 3,
+      "mark": "L",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 3,
+      "mark": "L",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 3,
+      "mark": "L",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 3,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 3,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 3,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.76953125
+    },
+    {
+      "c": 19,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.22265625
+    },
+    {
+      "c": 20,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.63671875
+    },
+    {
+      "c": 21,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.328125
+    },
+    {
+      "c": 22,
+      "r": 3,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.060546875
+    },
+    {
+      "c": 24,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.7578125
+    },
+    {
+      "c": 25,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.0380859375
+    },
+    {
+      "c": 26,
+      "r": 3,
+      "mark": "4",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.54534912109375
+    },
+    {
+      "c": 28,
+      "r": 3,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 20.65625
+    },
+    {
+      "c": 0,
+      "r": 4,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 8.8046875
+    },
+    {
+      "c": 1,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 4,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 4,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 9.8828125
+    },
+    {
+      "c": 11,
+      "r": 4,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 4,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 4,
+      "mark": "L",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 4,
+      "mark": "L",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 4,
+      "mark": "L",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 4,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 4,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 4,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.01953125
+    },
+    {
+      "c": 19,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.15625
+    },
+    {
+      "c": 20,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.221435546875
+    },
+    {
+      "c": 21,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.1015625
+    },
+    {
+      "c": 22,
+      "r": 4,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.19921875
+    },
+    {
+      "c": 24,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.7734375
+    },
+    {
+      "c": 25,
+      "r": 4,
+      "mark": "%",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 4,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.505859375
+    },
+    {
+      "c": 28,
+      "r": 4,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 20.34375
+    },
+    {
+      "c": 0,
+      "r": 5,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 10.51171875
+    },
+    {
+      "c": 1,
+      "r": 5,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 5,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 3,
+      "r": 5,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 5,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 5,
+      "r": 5,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "grave",
+      "target_height": 7.32
+    },
+    {
+      "c": 6,
+      "r": 5,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 7,
+      "r": 5,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 5,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 9,
+      "r": 5,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 5,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 7.5625
+    },
+    {
+      "c": 11,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 5,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 5,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.98046875
+    },
+    {
+      "c": 19,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.021484375
+    },
+    {
+      "c": 20,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.556640625
+    },
+    {
+      "c": 21,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.78515625
+    },
+    {
+      "c": 22,
+      "r": 5,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.95703125
+    },
+    {
+      "c": 24,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.87158203125
+    },
+    {
+      "c": 25,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.6640625
+    },
+    {
+      "c": 26,
+      "r": 5,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.9140625
+    },
+    {
+      "c": 28,
+      "r": 5,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.13671875
+    },
+    {
+      "c": 0,
+      "r": 6,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 8.03125
+    },
+    {
+      "c": 1,
+      "r": 6,
+      "mark": "3",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 6,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 6,
+      "mark": "f",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 6,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 7.193359375
+    },
+    {
+      "c": 11,
+      "r": 6,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 6,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 6,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 6,
+      "mark": "G",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 6,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 6,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 6,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 6,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.3125
+    },
+    {
+      "c": 19,
+      "r": 6,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.1951904296875
+    },
+    {
+      "c": 20,
+      "r": 6,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.234375
+    },
+    {
+      "c": 21,
+      "r": 6,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.79296875
+    },
+    {
+      "c": 22,
+      "r": 6,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 6,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 6,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 6,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.478515625
+    },
+    {
+      "c": 26,
+      "r": 6,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 6,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.08203125
+    },
+    {
+      "c": 28,
+      "r": 6,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 19.8515625
+    },
+    {
+      "c": 0,
+      "r": 7,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 11.296875
+    },
+    {
+      "c": 1,
+      "r": 7,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 7,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 3,
+      "r": 7,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "grave",
+      "target_height": 7.32
+    },
+    {
+      "c": 4,
+      "r": 7,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 5,
+      "r": 7,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 7,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 7,
+      "r": 7,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 7,
+      "mark": "=",
+      "style": "Graveyard",
+      "role": "GraveLowPair",
+      "target_height": 1.3
+    },
+    {
+      "c": 9,
+      "r": 7,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 7,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 9.056640625
+    },
+    {
+      "c": 11,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 7,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 7,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 7.7265625
+    },
+    {
+      "c": 19,
+      "r": 7,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.724609375
+    },
+    {
+      "c": 20,
+      "r": 7,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.42578125
+    },
+    {
+      "c": 21,
+      "r": 7,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.240234375
+    },
+    {
+      "c": 22,
+      "r": 7,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 7,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 7,
+      "mark": "F",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 7,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.41748046875
+    },
+    {
+      "c": 26,
+      "r": 7,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 7,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.953125
+    },
+    {
+      "c": 28,
+      "r": 7,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.65625
+    },
+    {
+      "c": 0,
+      "r": 8,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 8.078125
+    },
+    {
+      "c": 1,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 8,
+      "mark": "F",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 8,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 8,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.8984375
+    },
+    {
+      "c": 11,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 8,
+      "mark": ".",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 8,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.4853515625
+    },
+    {
+      "c": 19,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.359375
+    },
+    {
+      "c": 20,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.361328125
+    },
+    {
+      "c": 21,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.4296875
+    },
+    {
+      "c": 22,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.0078125
+    },
+    {
+      "c": 23,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.419921875
+    },
+    {
+      "c": 24,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.3671875
+    },
+    {
+      "c": 25,
+      "r": 8,
+      "mark": "%",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 8,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.8525390625
+    },
+    {
+      "c": 28,
+      "r": 8,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 20.140625
+    },
+    {
+      "c": 0,
+      "r": 9,
+      "mark": "#",
+      "style": "Graveyard",
+      "role": "rack",
+      "target_height": 8.474609375
+    },
+    {
+      "c": 1,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 9,
+      "mark": ".",
+      "style": "Graveyard",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 9,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 7.62109375
+    },
+    {
+      "c": 11,
+      "r": 9,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 12,
+      "r": 9,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 13,
+      "r": 9,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 14,
+      "r": 9,
+      "mark": "X",
+      "style": "Plaza",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 9,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 16,
+      "r": 9,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 17,
+      "r": 9,
+      "mark": "=",
+      "style": "Plaza",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 18,
+      "r": 9,
+      "mark": "#",
+      "style": "Plaza",
+      "role": "rack",
+      "target_height": 8.904296875
+    },
+    {
+      "c": 19,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.40625
+    },
+    {
+      "c": 20,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.7890625
+    },
+    {
+      "c": 21,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.28515625
+    },
+    {
+      "c": 22,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.3350830078125
+    },
+    {
+      "c": 23,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.3515625
+    },
+    {
+      "c": 24,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.44140625
+    },
+    {
+      "c": 25,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.8671875
+    },
+    {
+      "c": 26,
+      "r": 9,
+      "mark": "g",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.234375
+    },
+    {
+      "c": 28,
+      "r": 9,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 20.1484375
+    },
+    {
+      "c": 0,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 7.1390625
+    },
+    {
+      "c": 1,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 4.3265625
+    },
+    {
+      "c": 2,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 4.072265625
+    },
+    {
+      "c": 3,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 3.55
+    },
+    {
+      "c": 4,
+      "r": 10,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 6,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 7,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 8,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 9,
+      "r": 10,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 10,
+      "r": 10,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.143749999999999
+    },
+    {
+      "c": 11,
+      "r": 10,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 10,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 10,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 10,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 10,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 10,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 10,
+      "mark": "%",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 10,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 8.14921875
+    },
+    {
+      "c": 19,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.779296875
+    },
+    {
+      "c": 20,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.046875
+    },
+    {
+      "c": 21,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.279296875
+    },
+    {
+      "c": 22,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.0703125
+    },
+    {
+      "c": 23,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.5859375
+    },
+    {
+      "c": 24,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.150390625
+    },
+    {
+      "c": 25,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.61328125
+    },
+    {
+      "c": 26,
+      "r": 10,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.91796875
+    },
+    {
+      "c": 28,
+      "r": 10,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.478515625
+    },
+    {
+      "c": 0,
+      "r": 11,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 7.6625
+    },
+    {
+      "c": 1,
+      "r": 11,
+      "mark": "2",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 11,
+      "mark": "e",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 11,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 11,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.393847656249999
+    },
+    {
+      "c": 11,
+      "r": 11,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 11,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 11,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 11,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 11,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 11,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 11,
+      "mark": "%",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 11,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.46875
+    },
+    {
+      "c": 19,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 20,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 21,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 22,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 11,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 11,
+      "mark": "B",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 11,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.048828125
+    },
+    {
+      "c": 28,
+      "r": 11,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 19.703125
+    },
+    {
+      "c": 0,
+      "r": 12,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 6.865625
+    },
+    {
+      "c": 1,
+      "r": 12,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 12,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 12,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 4,
+      "r": 12,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 5,
+      "r": 12,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 12,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 12,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 8,
+      "r": 12,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 12,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 12,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.747265625
+    },
+    {
+      "c": 11,
+      "r": 12,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 12,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 12,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 12,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 12,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 12,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 12,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 12,
+      "mark": "X",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 19,
+      "r": 12,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 20,
+      "r": 12,
+      "mark": "K",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 21,
+      "r": 12,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 22,
+      "r": 12,
+      "mark": "=",
+      "style": "Canyon",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 23,
+      "r": 12,
+      "mark": "=",
+      "style": "Canyon",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 24,
+      "r": 12,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 12,
+      "mark": "K",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 12,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 12,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.3740234375
+    },
+    {
+      "c": 28,
+      "r": 12,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.359375
+    },
+    {
+      "c": 0,
+      "r": 13,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 6.990625
+    },
+    {
+      "c": 1,
+      "r": 13,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 13,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 13,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 4,
+      "r": 13,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 13,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 13,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 13,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 8,
+      "r": 13,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 9,
+      "r": 13,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 13,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.86953125
+    },
+    {
+      "c": 11,
+      "r": 13,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 13,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 13,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 13,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 13,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 13,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 13,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 13,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.71240234375
+    },
+    {
+      "c": 19,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 20,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 21,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 22,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 13,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 13,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.68359375
+    },
+    {
+      "c": 28,
+      "r": 13,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 18.765625
+    },
+    {
+      "c": 0,
+      "r": 14,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 10.488671875
+    },
+    {
+      "c": 1,
+      "r": 14,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 14,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 14,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.600781249999999
+    },
+    {
+      "c": 11,
+      "r": 14,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 14,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 14,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 14,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 14,
+      "mark": "=",
+      "style": "Channel",
+      "role": "phone",
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 14,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 14,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 14,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.7109375
+    },
+    {
+      "c": 19,
+      "r": 14,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 20,
+      "r": 14,
+      "mark": "=",
+      "style": "Canyon",
+      "role": "LowRack",
+      "target_height": 1.3
+    },
+    {
+      "c": 21,
+      "r": 14,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 22,
+      "r": 14,
+      "mark": "O",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 14,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 14,
+      "mark": "O",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 14,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 14,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 14,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.29296875
+    },
+    {
+      "c": 28,
+      "r": 14,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 19.9375
+    },
+    {
+      "c": 0,
+      "r": 15,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.4828125
+    },
+    {
+      "c": 1,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 15,
+      "mark": "B",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 15,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 11,
+      "r": 15,
+      "mark": "%",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 15,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 15,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.98046875
+    },
+    {
+      "c": 19,
+      "r": 15,
+      "mark": "R",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 20,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 21,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 22,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 26,
+      "r": 15,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 27,
+      "r": 15,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.5234375
+    },
+    {
+      "c": 28,
+      "r": 15,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.994140625
+    },
+    {
+      "c": 0,
+      "r": 16,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 10.5375
+    },
+    {
+      "c": 1,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 16,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 7,
+      "r": 16,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 8,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 16,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 16,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.176757812499999
+    },
+    {
+      "c": 11,
+      "r": 16,
+      "mark": "%",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 16,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 16,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 16,
+      "mark": "1",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 16,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 16,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 16,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.54296875
+    },
+    {
+      "c": 19,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.400390625
+    },
+    {
+      "c": 20,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.19140625
+    },
+    {
+      "c": 21,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 15.560546875
+    },
+    {
+      "c": 22,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.890625
+    },
+    {
+      "c": 23,
+      "r": 16,
+      "mark": "Y",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.69921875
+    },
+    {
+      "c": 25,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.904296875
+    },
+    {
+      "c": 26,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.71875
+    },
+    {
+      "c": 27,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.64453125
+    },
+    {
+      "c": 28,
+      "r": 16,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 21.6875
+    },
+    {
+      "c": 0,
+      "r": 17,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 10.25625
+    },
+    {
+      "c": 1,
+      "r": 17,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 17,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 3,
+      "r": 17,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 4,
+      "r": 17,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 17,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 17,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 7,
+      "r": 17,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 17,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 17,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 17,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.438281249999999
+    },
+    {
+      "c": 11,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 12,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 13,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 17,
+      "r": 17,
+      "mark": ".",
+      "style": "Channel",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 18,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.185546875
+    },
+    {
+      "c": 19,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.91015625
+    },
+    {
+      "c": 20,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 12.19140625
+    },
+    {
+      "c": 21,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 14.359375
+    },
+    {
+      "c": 22,
+      "r": 17,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 23,
+      "r": 17,
+      "mark": "T",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 24,
+      "r": 17,
+      "mark": ".",
+      "style": "Canyon",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 25,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 13.34375
+    },
+    {
+      "c": 26,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.9765625
+    },
+    {
+      "c": 27,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 11.849609375
+    },
+    {
+      "c": 28,
+      "r": 17,
+      "mark": "#",
+      "style": "Canyon",
+      "role": "rack",
+      "target_height": 19.84375
+    },
+    {
+      "c": 0,
+      "r": 18,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 10.30703125
+    },
+    {
+      "c": 1,
+      "r": 18,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 18,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 18,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 4,
+      "r": 18,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 18,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 18,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 18,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 18,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 18,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 3.8924804687499996
+    },
+    {
+      "c": 10,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.66640625
+    },
+    {
+      "c": 11,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.430664062499999
+    },
+    {
+      "c": 12,
+      "r": 18,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 13,
+      "r": 18,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 14,
+      "r": 18,
+      "mark": ".",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 18,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 16,
+      "r": 18,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 17,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.9507812499999995
+    },
+    {
+      "c": 18,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.133203125
+    },
+    {
+      "c": 19,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.753124999999999
+    },
+    {
+      "c": 20,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.302050781249999
+    },
+    {
+      "c": 21,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 8.007031249999999
+    },
+    {
+      "c": 22,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.7171875
+    },
+    {
+      "c": 23,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.762499999999999
+    },
+    {
+      "c": 24,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.5140625
+    },
+    {
+      "c": 25,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.676562499999999
+    },
+    {
+      "c": 26,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.05703125
+    },
+    {
+      "c": 27,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.6363281249999995
+    },
+    {
+      "c": 28,
+      "r": 18,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 14.059375
+    },
+    {
+      "c": 0,
+      "r": 19,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 8.9046875
+    },
+    {
+      "c": 1,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 19,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 19,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 19,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 3.492578125
+    },
+    {
+      "c": 10,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.194531249999999
+    },
+    {
+      "c": 11,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.930859374999999
+    },
+    {
+      "c": 12,
+      "r": 19,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 13,
+      "r": 19,
+      "mark": ".",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 19,
+      "mark": ".",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 19,
+      "mark": ".",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 19,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 17,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.214843749999999
+    },
+    {
+      "c": 18,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.48359375
+    },
+    {
+      "c": 19,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.40234375
+    },
+    {
+      "c": 20,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.98671875
+    },
+    {
+      "c": 21,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.590624999999999
+    },
+    {
+      "c": 22,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.9453125
+    },
+    {
+      "c": 23,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.671875
+    },
+    {
+      "c": 24,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.1869140625
+    },
+    {
+      "c": 25,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.63125
+    },
+    {
+      "c": 26,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.9827636718749995
+    },
+    {
+      "c": 27,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.640625
+    },
+    {
+      "c": 28,
+      "r": 19,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 13.090625
+    },
+    {
+      "c": 0,
+      "r": 20,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.81875
+    },
+    {
+      "c": 1,
+      "r": 20,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 20,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 20,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 20,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 20,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 6,
+      "r": 20,
+      "mark": "#",
+      "style": "Coral",
+      "role": "coral",
+      "target_height": 5.6
+    },
+    {
+      "c": 7,
+      "r": 20,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 20,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 20,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.66640625
+    },
+    {
+      "c": 11,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.6304687499999995
+    },
+    {
+      "c": 12,
+      "r": 20,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 13,
+      "r": 20,
+      "mark": ".",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 14,
+      "r": 20,
+      "mark": "S",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 15,
+      "r": 20,
+      "mark": ".",
+      "style": "Reef",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 16,
+      "r": 20,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 17,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.2474609375
+    },
+    {
+      "c": 18,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.946093749999999
+    },
+    {
+      "c": 19,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.353222656249999
+    },
+    {
+      "c": 20,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.834375
+    },
+    {
+      "c": 21,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.2364257812499995
+    },
+    {
+      "c": 22,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.78359375
+    },
+    {
+      "c": 23,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.905078124999999
+    },
+    {
+      "c": 24,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.164062499999999
+    },
+    {
+      "c": 25,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 8.118749999999999
+    },
+    {
+      "c": 26,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.478515625
+    },
+    {
+      "c": 27,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.864062499999999
+    },
+    {
+      "c": 28,
+      "r": 20,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 14.1296875
+    },
+    {
+      "c": 0,
+      "r": 21,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.459375
+    },
+    {
+      "c": 1,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 2,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 3,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 4,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 5,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 6,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 7,
+      "r": 21,
+      "mark": ".",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 8,
+      "r": 21,
+      "mark": "%",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 9,
+      "r": 21,
+      "mark": "C",
+      "style": "Coral",
+      "role": null,
+      "target_height": 0
+    },
+    {
+      "c": 10,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 8.169531249999999
+    },
+    {
+      "c": 11,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.265624999999999
+    },
+    {
+      "c": 12,
+      "r": 21,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 13,
+      "r": 21,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 14,
+      "r": 21,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 15,
+      "r": 21,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 16,
+      "r": 21,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 17,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 5.813281249999999
+    },
+    {
+      "c": 18,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.458203125
+    },
+    {
+      "c": 19,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.36171875
+    },
+    {
+      "c": 20,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.422656249999999
+    },
+    {
+      "c": 21,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.65625
+    },
+    {
+      "c": 22,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.889843749999999
+    },
+    {
+      "c": 23,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.0523437499999995
+    },
+    {
+      "c": 24,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.2296875
+    },
+    {
+      "c": 25,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 7.6137939453125
+    },
+    {
+      "c": 26,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.4328125
+    },
+    {
+      "c": 27,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 6.219531249999999
+    },
+    {
+      "c": 28,
+      "r": 21,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 11.528125
+    },
+    {
+      "c": 0,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 8.303125
+    },
+    {
+      "c": 1,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 8.6703125
+    },
+    {
+      "c": 2,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.81875
+    },
+    {
+      "c": 3,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.7484375
+    },
+    {
+      "c": 4,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 6.7875
+    },
+    {
+      "c": 5,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 8.7796875
+    },
+    {
+      "c": 6,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 7.1
+    },
+    {
+      "c": 7,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.9271484375
+    },
+    {
+      "c": 8,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 9.209375
+    },
+    {
+      "c": 9,
+      "r": 22,
+      "mark": "#",
+      "style": "Coral",
+      "role": "rack",
+      "target_height": 10.06484375
+    },
+    {
+      "c": 10,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 10.903125
+    },
+    {
+      "c": 11,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 10.3484375
+    },
+    {
+      "c": 12,
+      "r": 22,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 13,
+      "r": 22,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 14,
+      "r": 22,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 15,
+      "r": 22,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 16,
+      "r": 22,
+      "mark": "#",
+      "style": "Reef",
+      "role": "bubble",
+      "target_height": 5.7
+    },
+    {
+      "c": 17,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 12.0125
+    },
+    {
+      "c": 18,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 13.1580078125
+    },
+    {
+      "c": 19,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 12.66875
+    },
+    {
+      "c": 20,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 11.60625
+    },
+    {
+      "c": 21,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 12.309375
+    },
+    {
+      "c": 22,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 13.16875
+    },
+    {
+      "c": 23,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 12.91875
+    },
+    {
+      "c": 24,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 11.9890625
+    },
+    {
+      "c": 25,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 11.3171875
+    },
+    {
+      "c": 26,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 13.1375
+    },
+    {
+      "c": 27,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 12.0359375
+    },
+    {
+      "c": 28,
+      "r": 22,
+      "mark": "#",
+      "style": "Channel",
+      "role": "rack",
+      "target_height": 10.684375
+    }
+  ],
+  "exposed_rack_faces": 297,
+  "outer_cells": 341,
+  "build_seconds": 1.717
+}

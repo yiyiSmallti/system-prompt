@@ -66,6 +66,9 @@ namespace SystemPrompt.Dungeon
         public float MeterStart;
         public Color Lighthouse;  // the lamp's colour: cold white while the shadow is there
         public Vector2 LighthouseCell; // may lie outside the map
+        // The area's scenery modelled in Blender (assets/scenes/<id>/, Dungeon/SeaScene.cs): Resources path of
+        // its FBX, with _outer and _drift beside it. Null: the racks and the zones' things are built in code.
+        public string Scene;
         // Light plates in reading order, as they start: | / - \ (each Enter turns one a step on). With
         // plates the goal stays dark until the light from Q (going north) reaches it.
         public string Plates = "";
@@ -145,6 +148,7 @@ namespace SystemPrompt.Dungeon
                 },
                 Lighthouse = new Color(0.86f, 0.92f, 1f),
                 LighthouseCell = new Vector2(14f, 3.5f),
+                Scene = "Scenes/CacheSeaShallows/cache_sea_shallows",
                 StartNode = "Prologue_Sea_Start",
                 SpottedNode = "Prologue_Sea_Spotted",
                 FirstBattleNode = "Prologue_Sea_FirstBattle",
@@ -221,6 +225,7 @@ namespace SystemPrompt.Dungeon
                 MeterStart = 15f,
                 Lighthouse = new Color(0.45f, 0.72f, 1f),
                 LighthouseCell = new Vector2(14f, 29f),
+                Scene = "Scenes/CacheSeaDeep/cache_sea_deep",
                 Plates = "|/|\\",
                 StartNode = "Prologue_Deep_Start",
                 LightNode = "Prologue_Deep_Light",

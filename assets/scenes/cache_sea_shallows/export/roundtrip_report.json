@@ -1,0 +1,1244 @@
+{
+  "revision": 2,
+  "settings": {
+    "axis_forward": "-Z",
+    "axis_up": "Y",
+    "apply_scale_options": "FBX_SCALE_UNITS",
+    "bake_space_transform": true,
+    "mesh_smooth_type": "FACE",
+    "object_types": [
+      "EMPTY",
+      "MESH"
+    ],
+    "use_selection": true,
+    "add_leaf_bones": false,
+    "bake_anim": false,
+    "use_mesh_modifiers": true,
+    "path_mode": "STRIP",
+    "use_custom_props": true
+  },
+  "scene_pre_rotation_degrees": 180,
+  "kit_pre_rotation_degrees": 0,
+  "root_staging_transform": "identity",
+  "scene_unity_mapping": "(Bx, Bz, By)",
+  "kit_unity_mapping": "(-Bx, Bz, -By)",
+  "blender_roundtrip_rule": "Scene meshes reimport after Rz(180); compare both raw rotated expectations and coordinates restored by inverse Rz(180). Kits compare directly.",
+  "unit_scale_length": 1,
+  "kit_files": 36,
+  "scene_roundtrips": {
+    "cache_sea_shallows.fbx": {
+      "bounds_before": {
+        "min": [
+          -0.08872891962528229,
+          -0.0887289047241211,
+          -0.6100000143051147
+        ],
+        "max": [
+          116.08872985839844,
+          92.08872985839844,
+          36.58000183105469
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -116.08873748779297,
+          -92.08872985839844,
+          -0.6100000143051147
+        ],
+        "max": [
+          0.08872634917497635,
+          0.08873825520277023,
+          36.58000183105469
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -116.08873748779297,
+          -92.08872985839844,
+          -0.609999418258667
+        ],
+        "max": [
+          0.08872658014297485,
+          0.08873835951089859,
+          36.58000946044922
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          -0.08872918039560318,
+          -0.08872900903224945,
+          -0.609999418258667
+        ],
+        "max": [
+          116.08872985839844,
+          92.08872985839844,
+          36.58000946044922
+        ]
+      },
+      "max_bounds_error_m": 7.62939453125e-06,
+      "raw_bounds_error_m": 7.62939453125e-06,
+      "landmarks": {
+        "Lighthouse_Lamp": {
+          "blender_authored": [
+            58.0,
+            76.0,
+            33.20000076293945
+          ],
+          "blender_expected_imported": [
+            -58.00000762939453,
+            -75.99999237060547,
+            33.20000076293945
+          ],
+          "blender_imported": [
+            -58.00000762939453,
+            -75.99999237060547,
+            33.200008392333984
+          ],
+          "blender_restored": [
+            58.0,
+            76.0,
+            33.200008392333984
+          ],
+          "error_m": 7.62939453125e-06,
+          "authored_bounds_center": [
+            58.0,
+            76.0,
+            33.20000076293945
+          ],
+          "restored_bounds_center": [
+            58.0,
+            76.0,
+            33.200008392333984
+          ],
+          "bounds_center_error_m": 7.62939453125e-06,
+          "unity_expected": [
+            58.0,
+            33.20000076293945,
+            76.0
+          ],
+          "unity_expected_bounds_center": [
+            58.0,
+            33.20000076293945,
+            76.0
+          ]
+        },
+        "Beacon_c14_r01_Lamp": {
+          "blender_authored": [
+            58.0,
+            86.0,
+            2.3499999046325684
+          ],
+          "blender_expected_imported": [
+            -58.00000762939453,
+            -85.99999237060547,
+            2.3499999046325684
+          ],
+          "blender_imported": [
+            -58.00000762939453,
+            -85.99999237060547,
+            2.350006341934204
+          ],
+          "blender_restored": [
+            58.0,
+            86.0,
+            2.350006341934204
+          ],
+          "error_m": 6.4373016357421875e-06,
+          "authored_bounds_center": [
+            58.0,
+            86.0,
+            2.3499999046325684
+          ],
+          "restored_bounds_center": [
+            58.0,
+            86.0,
+            2.350006341934204
+          ],
+          "bounds_center_error_m": 6.4373016357421875e-06,
+          "unity_expected": [
+            58.0,
+            2.3499999046325684,
+            86.0
+          ],
+          "unity_expected_bounds_center": [
+            58.0,
+            2.3499999046325684,
+            86.0
+          ]
+        },
+        "Terminal_c23_r17_Mesh": {
+          "blender_authored": [
+            94.0,
+            22.0,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -94.0,
+            -21.99999237060547,
+            0.0
+          ],
+          "blender_imported": [
+            -94.0,
+            -21.99999237060547,
+            1.6609532167422003e-06
+          ],
+          "blender_restored": [
+            94.0,
+            22.0,
+            1.6609532167422003e-06
+          ],
+          "error_m": 1.6609532368961717e-06,
+          "authored_bounds_center": [
+            94.0,
+            22.0,
+            0.6850000023841858
+          ],
+          "restored_bounds_center": [
+            94.0,
+            22.0,
+            0.6850016518487223
+          ],
+          "bounds_center_error_m": 1.6689300537109375e-06,
+          "unity_expected": [
+            94.0,
+            0.0,
+            22.0
+          ],
+          "unity_expected_bounds_center": [
+            94.0,
+            0.6850000023841858,
+            22.0
+          ]
+        },
+        "SunkenPhone_c14_r13_Mesh": {
+          "blender_authored": [
+            58.0,
+            38.0,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -58.000003814697266,
+            -37.999996185302734,
+            0.0
+          ],
+          "blender_imported": [
+            -58.000003814697266,
+            -37.999996185302734,
+            2.868919864340569e-06
+          ],
+          "blender_restored": [
+            58.0,
+            38.0,
+            2.868919864340569e-06
+          ],
+          "error_m": 2.86891980423011e-06,
+          "authored_bounds_center": [
+            58.02033996582031,
+            37.995553970336914,
+            0.27637937664985657
+          ],
+          "restored_bounds_center": [
+            58.020341873168945,
+            37.995553970336914,
+            0.2763822674751282
+          ],
+          "bounds_center_error_m": 2.8908252716064453e-06,
+          "unity_expected": [
+            58.0,
+            0.0,
+            38.0
+          ],
+          "unity_expected_bounds_center": [
+            58.02033996582031,
+            0.27637937664985657,
+            37.995553970336914
+          ]
+        },
+        "CacheBlock_c20_r12_Mesh": {
+          "blender_authored": [
+            82.0,
+            42.0,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -82.0,
+            -41.99999237060547,
+            0.0
+          ],
+          "blender_imported": [
+            -82.0,
+            -41.99999237060547,
+            3.1709112136013573e-06
+          ],
+          "blender_restored": [
+            82.0,
+            42.0,
+            3.1709112136013573e-06
+          ],
+          "error_m": 3.1709111587433388e-06,
+          "authored_bounds_center": [
+            82.0,
+            42.0,
+            1.25
+          ],
+          "restored_bounds_center": [
+            82.0,
+            42.0,
+            1.2500032071994838
+          ],
+          "bounds_center_error_m": 3.2186508178710938e-06,
+          "unity_expected": [
+            82.0,
+            0.0,
+            42.0
+          ],
+          "unity_expected_bounds_center": [
+            82.0,
+            1.25,
+            42.0
+          ]
+        },
+        "Gate_c23_r16_Door": {
+          "blender_authored": [
+            94.0,
+            26.0,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -94.0,
+            -25.99999237060547,
+            0.0
+          ],
+          "blender_imported": [
+            -94.0,
+            -25.99999237060547,
+            1.962944907063502e-06
+          ],
+          "blender_restored": [
+            94.0,
+            26.0,
+            1.962944907063502e-06
+          ],
+          "error_m": 1.962944881042071e-06,
+          "authored_bounds_center": [
+            94.0,
+            25.994999885559082,
+            1.799999956972897
+          ],
+          "restored_bounds_center": [
+            94.0,
+            25.994999885559082,
+            1.8000018885359168
+          ],
+          "bounds_center_error_m": 1.9073486328125e-06,
+          "unity_expected": [
+            94.0,
+            0.0,
+            26.0
+          ],
+          "unity_expected_bounds_center": [
+            94.0,
+            1.799999956972897,
+            25.994999885559082
+          ]
+        },
+        "Rack_c24_r10_S_L00": {
+          "blender_authored": [
+            98.0,
+            50.0,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -98.00000762939453,
+            -49.99999237060547,
+            0.0
+          ],
+          "blender_imported": [
+            -98.00000762939453,
+            -49.99999237060547,
+            3.7748945942439605e-06
+          ],
+          "blender_restored": [
+            98.0,
+            50.0,
+            3.7748945942439605e-06
+          ],
+          "error_m": 3.7748946495099054e-06,
+          "authored_bounds_center": [
+            98.0,
+            48.04776191711426,
+            1.149999976158142
+          ],
+          "restored_bounds_center": [
+            98.0,
+            48.04776191711426,
+            1.1500035730579157
+          ],
+          "bounds_center_error_m": 3.5762786865234375e-06,
+          "unity_expected": [
+            98.0,
+            0.0,
+            50.0
+          ],
+          "unity_expected_bounds_center": [
+            98.0,
+            1.149999976158142,
+            48.04776191711426
+          ],
+          "restored_front_normal": [
+            -6.357302595461078e-08,
+            -1.0,
+            -7.549790126404332e-08
+          ]
+        }
+      },
+      "reimported_meshes": 2741,
+      "reimported_triangles": 580031,
+      "material_slot_checks": 2741,
+      "material_slot_mismatches": [],
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      }
+    },
+    "cache_sea_shallows_outer.fbx": {
+      "bounds_before": {
+        "min": [
+          -24.007999420166016,
+          -24.007999420166016,
+          0.0
+        ],
+        "max": [
+          140.00799560546875,
+          116.00800323486328,
+          29.8359375
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -140.0080108642578,
+          -116.00800323486328,
+          0.0
+        ],
+        "max": [
+          24.00800132751465,
+          24.008010864257812,
+          29.8359375
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -140.0080108642578,
+          -116.00800323486328,
+          -1.8125545011571376e-06
+        ],
+        "max": [
+          24.00800132751465,
+          24.008012771606445,
+          29.83594512939453
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          -24.007999420166016,
+          -24.00800323486328,
+          -1.8125545011571376e-06
+        ],
+        "max": [
+          140.00799560546875,
+          116.00800323486328,
+          29.83594512939453
+        ]
+      },
+      "max_bounds_error_m": 7.62939453125e-06,
+      "raw_bounds_error_m": 7.62939453125e-06,
+      "landmarks": {},
+      "reimported_meshes": 341,
+      "reimported_triangles": 45226,
+      "material_slot_checks": 341,
+      "material_slot_mismatches": [],
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      }
+    },
+    "cache_sea_shallows_drift.fbx": {
+      "bounds_before": {
+        "min": [
+          5.866822719573975,
+          5.752862930297852,
+          8.325179100036621
+        ],
+        "max": [
+          110.2431640625,
+          86.4112777709961,
+          25.544355392456055
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -110.24317169189453,
+          -86.41127014160156,
+          8.325179100036621
+        ],
+        "max": [
+          -5.866828918457031,
+          -5.752857208251953,
+          25.544355392456055
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -110.24317169189453,
+          -86.41127014160156,
+          8.325180053710938
+        ],
+        "max": [
+          -5.866828918457031,
+          -5.752856731414795,
+          25.544361114501953
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          5.866822719573975,
+          5.752862453460693,
+          8.325180053710938
+        ],
+        "max": [
+          110.2431640625,
+          86.4112777709961,
+          25.544361114501953
+        ]
+      },
+      "max_bounds_error_m": 5.7220458984375e-06,
+      "raw_bounds_error_m": 5.7220458984375e-06,
+      "landmarks": {},
+      "reimported_meshes": 48,
+      "reimported_triangles": 2916,
+      "material_slot_checks": 48,
+      "material_slot_mismatches": [],
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      }
+    }
+  },
+  "kit_roundtrips": {
+    "Beacon": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 428,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "BubbleLow": {
+      "max_bounds_error_m": 1.341104507446289e-07,
+      "triangles": 204,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "BubbleStack_1": {
+      "max_bounds_error_m": 3.5762786865234375e-07,
+      "triangles": 612,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "BubbleStack_2": {
+      "max_bounds_error_m": 3.5762786865234375e-07,
+      "triangles": 612,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "BubbleStack_3": {
+      "max_bounds_error_m": 3.5762786865234375e-07,
+      "triangles": 612,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "CableHanging": {
+      "max_bounds_error_m": 8.940696716308594e-07,
+      "triangles": 392,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "CacheBlock": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 228,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "DataChest": {
+      "max_bounds_error_m": 5.960464477539063e-08,
+      "triangles": 122,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "EmojiCoral_1": {
+      "max_bounds_error_m": 4.76837158203125e-07,
+      "triangles": 1818,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "EmojiCoral_2": {
+      "max_bounds_error_m": 4.76837158203125e-07,
+      "triangles": 1818,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "EmojiCoral_3": {
+      "max_bounds_error_m": 4.76837158203125e-07,
+      "triangles": 1818,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "Firewall": {
+      "max_bounds_error_m": 2.980232238769531e-07,
+      "triangles": 306,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "Fragment_Draft": {
+      "max_bounds_error_m": 3.1709117109812723e-08,
+      "triangles": 98,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "Fragment_Message": {
+      "max_bounds_error_m": 3.1709117109812723e-08,
+      "triangles": 88,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "Fragment_Post": {
+      "max_bounds_error_m": 3.1709117109812723e-08,
+      "triangles": 88,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "Gate": {
+      "max_bounds_error_m": 2.980232238769531e-07,
+      "triangles": 110,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "GraveLowPair": {
+      "max_bounds_error_m": 1.1920928955078125e-07,
+      "triangles": 1816,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "GraveTall": {
+      "max_bounds_error_m": 5.960464477539062e-07,
+      "triangles": 1250,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "KelpEdge": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 210,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "Lighthouse": {
+      "max_bounds_error_m": 2.86102294921875e-06,
+      "triangles": 13922,
+      "material_slot_checks": 2,
+      "material_slot_mismatches": []
+    },
+    "LowRack": {
+      "max_bounds_error_m": 1.5061831959428673e-07,
+      "triangles": 508,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFacade_V01": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 264,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFacade_V02": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 248,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFacade_V03": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 280,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFacade_V04": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 246,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFacade_V05": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 246,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFacade_V06": {
+      "max_bounds_error_m": 2.384185791015625e-07,
+      "triangles": 246,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackFan": {
+      "max_bounds_error_m": 3.725290298461914e-08,
+      "triangles": 38,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "RackTop": {
+      "max_bounds_error_m": 1.5273690223693848e-07,
+      "triangles": 22,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "ResetConsole": {
+      "max_bounds_error_m": 8.940696716308594e-08,
+      "triangles": 182,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "Seabed_Tile": {
+      "max_bounds_error_m": 1.5273690223693848e-07,
+      "triangles": 170,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "Seabed_Vent": {
+      "max_bounds_error_m": 1.5273690223693848e-07,
+      "triangles": 180,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "Socket": {
+      "max_bounds_error_m": 1.1324685544877866e-07,
+      "triangles": 96,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "SunkenPhone": {
+      "max_bounds_error_m": 4.76837158203125e-07,
+      "triangles": 966,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "Terminal": {
+      "max_bounds_error_m": 8.940696716308594e-08,
+      "triangles": 93,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    },
+    "WallFoot_Cables": {
+      "max_bounds_error_m": 1.6391277313232422e-07,
+      "triangles": 52,
+      "material_slot_checks": 1,
+      "material_slot_mismatches": []
+    }
+  },
+  "kit_unity_facing": [
+    {
+      "face": "N",
+      "unity_y_degrees": 0,
+      "unity_forward": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "face": "E",
+      "unity_y_degrees": 90,
+      "unity_forward": [
+        1.0,
+        0.0,
+        6.123234262925839e-17
+      ]
+    },
+    {
+      "face": "S",
+      "unity_y_degrees": 180,
+      "unity_forward": [
+        1.2246468525851679e-16,
+        0.0,
+        -1.0
+      ]
+    },
+    {
+      "face": "W",
+      "unity_y_degrees": 270,
+      "unity_forward": [
+        -1.0,
+        0.0,
+        -1.8369701465288538e-16
+      ]
+    }
+  ],
+  "unity_validation": {
+    "source": "user-provided Unity batchmode measurements in round-two request",
+    "version": "6000.0.85f1",
+    "model_importer": "default",
+    "prefab_root_local_rotation": [
+      0,
+      0,
+      0
+    ],
+    "representative_scene_mesh_local_rotation": [
+      0,
+      180,
+      0
+    ],
+    "representative_scene_meshes": [
+      "Lighthouse_Lamp",
+      "Terminal_c23_r17_Mesh"
+    ],
+    "authored_child_directions_preserved": true,
+    "instantiation_modes": [
+      "Instantiate(prefab)",
+      "Instantiate(prefab, zero, identity)"
+    ],
+    "independently_rerun_this_round": false
+  },
+  "export_seconds": 9.029,
+  "total_seconds": 11.573,
+  "bounds_before": {
+    "min": [
+      -0.08872891962528229,
+      -0.0887289047241211,
+      -0.6100000143051147
+    ],
+    "max": [
+      116.08872985839844,
+      92.08872985839844,
+      36.58000183105469
+    ]
+  },
+  "bounds_after_restore": {
+    "min": [
+      -0.08872918039560318,
+      -0.08872900903224945,
+      -0.609999418258667
+    ],
+    "max": [
+      116.08872985839844,
+      92.08872985839844,
+      36.58000946044922
+    ]
+  },
+  "max_bounds_error_m": 7.62939453125e-06,
+  "landmarks": {
+    "Lighthouse_Lamp": {
+      "blender_authored": [
+        58.0,
+        76.0,
+        33.20000076293945
+      ],
+      "blender_expected_imported": [
+        -58.00000762939453,
+        -75.99999237060547,
+        33.20000076293945
+      ],
+      "blender_imported": [
+        -58.00000762939453,
+        -75.99999237060547,
+        33.200008392333984
+      ],
+      "blender_restored": [
+        58.0,
+        76.0,
+        33.200008392333984
+      ],
+      "error_m": 7.62939453125e-06,
+      "authored_bounds_center": [
+        58.0,
+        76.0,
+        33.20000076293945
+      ],
+      "restored_bounds_center": [
+        58.0,
+        76.0,
+        33.200008392333984
+      ],
+      "bounds_center_error_m": 7.62939453125e-06,
+      "unity_expected": [
+        58.0,
+        33.20000076293945,
+        76.0
+      ],
+      "unity_expected_bounds_center": [
+        58.0,
+        33.20000076293945,
+        76.0
+      ]
+    },
+    "Beacon_c14_r01_Lamp": {
+      "blender_authored": [
+        58.0,
+        86.0,
+        2.3499999046325684
+      ],
+      "blender_expected_imported": [
+        -58.00000762939453,
+        -85.99999237060547,
+        2.3499999046325684
+      ],
+      "blender_imported": [
+        -58.00000762939453,
+        -85.99999237060547,
+        2.350006341934204
+      ],
+      "blender_restored": [
+        58.0,
+        86.0,
+        2.350006341934204
+      ],
+      "error_m": 6.4373016357421875e-06,
+      "authored_bounds_center": [
+        58.0,
+        86.0,
+        2.3499999046325684
+      ],
+      "restored_bounds_center": [
+        58.0,
+        86.0,
+        2.350006341934204
+      ],
+      "bounds_center_error_m": 6.4373016357421875e-06,
+      "unity_expected": [
+        58.0,
+        2.3499999046325684,
+        86.0
+      ],
+      "unity_expected_bounds_center": [
+        58.0,
+        2.3499999046325684,
+        86.0
+      ]
+    },
+    "Terminal_c23_r17_Mesh": {
+      "blender_authored": [
+        94.0,
+        22.0,
+        0.0
+      ],
+      "blender_expected_imported": [
+        -94.0,
+        -21.99999237060547,
+        0.0
+      ],
+      "blender_imported": [
+        -94.0,
+        -21.99999237060547,
+        1.6609532167422003e-06
+      ],
+      "blender_restored": [
+        94.0,
+        22.0,
+        1.6609532167422003e-06
+      ],
+      "error_m": 1.6609532368961717e-06,
+      "authored_bounds_center": [
+        94.0,
+        22.0,
+        0.6850000023841858
+      ],
+      "restored_bounds_center": [
+        94.0,
+        22.0,
+        0.6850016518487223
+      ],
+      "bounds_center_error_m": 1.6689300537109375e-06,
+      "unity_expected": [
+        94.0,
+        0.0,
+        22.0
+      ],
+      "unity_expected_bounds_center": [
+        94.0,
+        0.6850000023841858,
+        22.0
+      ]
+    },
+    "SunkenPhone_c14_r13_Mesh": {
+      "blender_authored": [
+        58.0,
+        38.0,
+        0.0
+      ],
+      "blender_expected_imported": [
+        -58.000003814697266,
+        -37.999996185302734,
+        0.0
+      ],
+      "blender_imported": [
+        -58.000003814697266,
+        -37.999996185302734,
+        2.868919864340569e-06
+      ],
+      "blender_restored": [
+        58.0,
+        38.0,
+        2.868919864340569e-06
+      ],
+      "error_m": 2.86891980423011e-06,
+      "authored_bounds_center": [
+        58.02033996582031,
+        37.995553970336914,
+        0.27637937664985657
+      ],
+      "restored_bounds_center": [
+        58.020341873168945,
+        37.995553970336914,
+        0.2763822674751282
+      ],
+      "bounds_center_error_m": 2.8908252716064453e-06,
+      "unity_expected": [
+        58.0,
+        0.0,
+        38.0
+      ],
+      "unity_expected_bounds_center": [
+        58.02033996582031,
+        0.27637937664985657,
+        37.995553970336914
+      ]
+    },
+    "CacheBlock_c20_r12_Mesh": {
+      "blender_authored": [
+        82.0,
+        42.0,
+        0.0
+      ],
+      "blender_expected_imported": [
+        -82.0,
+        -41.99999237060547,
+        0.0
+      ],
+      "blender_imported": [
+        -82.0,
+        -41.99999237060547,
+        3.1709112136013573e-06
+      ],
+      "blender_restored": [
+        82.0,
+        42.0,
+        3.1709112136013573e-06
+      ],
+      "error_m": 3.1709111587433388e-06,
+      "authored_bounds_center": [
+        82.0,
+        42.0,
+        1.25
+      ],
+      "restored_bounds_center": [
+        82.0,
+        42.0,
+        1.2500032071994838
+      ],
+      "bounds_center_error_m": 3.2186508178710938e-06,
+      "unity_expected": [
+        82.0,
+        0.0,
+        42.0
+      ],
+      "unity_expected_bounds_center": [
+        82.0,
+        1.25,
+        42.0
+      ]
+    },
+    "Gate_c23_r16_Door": {
+      "blender_authored": [
+        94.0,
+        26.0,
+        0.0
+      ],
+      "blender_expected_imported": [
+        -94.0,
+        -25.99999237060547,
+        0.0
+      ],
+      "blender_imported": [
+        -94.0,
+        -25.99999237060547,
+        1.962944907063502e-06
+      ],
+      "blender_restored": [
+        94.0,
+        26.0,
+        1.962944907063502e-06
+      ],
+      "error_m": 1.962944881042071e-06,
+      "authored_bounds_center": [
+        94.0,
+        25.994999885559082,
+        1.799999956972897
+      ],
+      "restored_bounds_center": [
+        94.0,
+        25.994999885559082,
+        1.8000018885359168
+      ],
+      "bounds_center_error_m": 1.9073486328125e-06,
+      "unity_expected": [
+        94.0,
+        0.0,
+        26.0
+      ],
+      "unity_expected_bounds_center": [
+        94.0,
+        1.799999956972897,
+        25.994999885559082
+      ]
+    },
+    "Rack_c24_r10_S_L00": {
+      "blender_authored": [
+        98.0,
+        50.0,
+        0.0
+      ],
+      "blender_expected_imported": [
+        -98.00000762939453,
+        -49.99999237060547,
+        0.0
+      ],
+      "blender_imported": [
+        -98.00000762939453,
+        -49.99999237060547,
+        3.7748945942439605e-06
+      ],
+      "blender_restored": [
+        98.0,
+        50.0,
+        3.7748945942439605e-06
+      ],
+      "error_m": 3.7748946495099054e-06,
+      "authored_bounds_center": [
+        98.0,
+        48.04776191711426,
+        1.149999976158142
+      ],
+      "restored_bounds_center": [
+        98.0,
+        48.04776191711426,
+        1.1500035730579157
+      ],
+      "bounds_center_error_m": 3.5762786865234375e-06,
+      "unity_expected": [
+        98.0,
+        0.0,
+        50.0
+      ],
+      "unity_expected_bounds_center": [
+        98.0,
+        1.149999976158142,
+        48.04776191711426
+      ],
+      "restored_front_normal": [
+        -6.357302595461078e-08,
+        -1.0,
+        -7.549790126404332e-08
+      ]
+    }
+  },
+  "reimported_meshes": 2741,
+  "reimported_triangles": 580031,
+  "material_slot_checks": 2741,
+  "material_slot_mismatches": [],
+  "fbx_axis_units": {
+    "UpAxis": 1,
+    "UpAxisSign": 1,
+    "FrontAxis": 2,
+    "FrontAxisSign": 1,
+    "CoordAxis": 0,
+    "CoordAxisSign": 1,
+    "UnitScaleFactor": 100.0
+  }
+}

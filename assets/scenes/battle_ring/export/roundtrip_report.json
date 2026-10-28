@@ -1,0 +1,209 @@
+{
+  "pass_all": true,
+  "settings": {
+    "axis_forward": "-Z",
+    "axis_up": "Y",
+    "apply_scale_options": "FBX_SCALE_UNITS",
+    "bake_space_transform": true,
+    "mesh_smooth_type": "FACE",
+    "object_types": [
+      "EMPTY",
+      "MESH"
+    ],
+    "use_selection": true,
+    "add_leaf_bones": false,
+    "bake_anim": false,
+    "use_mesh_modifiers": true,
+    "path_mode": "STRIP",
+    "use_custom_props": true
+  },
+  "scene_pre_rotation_degrees": 180,
+  "unity_mapping": "(Bx,Bz,By)",
+  "root_transform": "identity",
+  "rule": "Compare raw Blender reimport to Rz(180) authored coordinates, then restore and compare bounds, each probe origin, centre, counts and material slots.",
+  "scene_roundtrips": {
+    "battle_ring.fbx": {
+      "bounds_before": {
+        "min": [
+          -38.0,
+          -34.599998474121094,
+          0.0
+        ],
+        "max": [
+          38.0,
+          41.400001525878906,
+          19.07200050354004
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -38.0,
+          -41.400001525878906,
+          0.0
+        ],
+        "max": [
+          38.0,
+          34.599998474121094,
+          19.07200050354004
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -38.0,
+          -41.400001525878906,
+          -2.612227262943634e-06
+        ],
+        "max": [
+          38.0,
+          34.599998474121094,
+          19.071998596191406
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          -38.0,
+          -34.599998474121094,
+          -2.612227262943634e-06
+        ],
+        "max": [
+          38.0,
+          41.400001525878906,
+          19.071998596191406
+        ]
+      },
+      "max_bounds_error_m": 2.612227262943634e-06,
+      "raw_bounds_error_m": 2.612227262943634e-06,
+      "landmarks": {
+        "BattleRack_xn03_yn09_Top": {
+          "blender_authored": [
+            -12.0,
+            -32.599998474121094,
+            5.818999767303467
+          ],
+          "blender_expected_imported": [
+            12.00000286102295,
+            32.599998474121094,
+            5.818999767303467
+          ],
+          "blender_imported": [
+            12.00000286102295,
+            32.599998474121094,
+            5.818997383117676
+          ],
+          "blender_restored": [
+            -12.0,
+            -32.599998474121094,
+            5.818997383117676
+          ],
+          "error_m": 2.384185791015625e-06,
+          "authored_bounds_center": [
+            -12.0,
+            -32.599998474121094,
+            5.793999671936035
+          ],
+          "restored_bounds_center": [
+            -12.0,
+            -32.599998474121094,
+            5.793997287750244
+          ],
+          "bounds_center_error_m": 2.384185791015625e-06,
+          "unity_expected": [
+            -12.0,
+            5.818999767303467,
+            -32.599998474121094
+          ],
+          "unity_expected_bounds_center": [
+            -12.0,
+            5.793999671936035,
+            -32.599998474121094
+          ]
+        },
+        "BattleRack_xp00_yn09_Top": {
+          "blender_authored": [
+            0.0,
+            -32.599998474121094,
+            16.065000534057617
+          ],
+          "blender_expected_imported": [
+            2.849982365660253e-06,
+            32.599998474121094,
+            16.065000534057617
+          ],
+          "blender_imported": [
+            2.849982365660253e-06,
+            32.599998474121094,
+            16.064998626708984
+          ],
+          "blender_restored": [
+            0.0,
+            -32.599998474121094,
+            16.064998626708984
+          ],
+          "error_m": 1.9073486328125e-06,
+          "authored_bounds_center": [
+            0.0,
+            -32.599998474121094,
+            16.040000915527344
+          ],
+          "restored_bounds_center": [
+            0.0,
+            -32.59999752044678,
+            16.03999900817871
+          ],
+          "bounds_center_error_m": 1.9073486328125e-06,
+          "unity_expected": [
+            0.0,
+            16.065000534057617,
+            -32.599998474121094
+          ],
+          "unity_expected_bounds_center": [
+            0.0,
+            16.040000915527344,
+            -32.599998474121094
+          ]
+        }
+      },
+      "reimported_meshes": 1655,
+      "reimported_triangles": 214693,
+      "material_slot_checks": 1655,
+      "material_slot_mismatches": [],
+      "material_face_count_mismatches": [],
+      "material_face_count_checks": 1655,
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      },
+      "material_count": 4
+    }
+  },
+  "export_seconds": 0.678,
+  "total_seconds": 1.499,
+  "verification_scope": "Blender FBX roundtrip and FBX root/axis metadata. Unity import was not run in this task."
+}

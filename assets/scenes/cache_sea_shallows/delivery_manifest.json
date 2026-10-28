@@ -1,0 +1,538 @@
+{
+  "delivery_date": "2026-10-27",
+  "blender": "5.2.3 LTS e13b728c6880",
+  "scope": "Only assets/scenes/cache_sea_shallows; reference immutable; no game writes, git writes, GUI Blender or delegation",
+  "main_triangles": 580031,
+  "material_count": 38,
+  "kit_fbx_files": 36,
+  "preview_files": [
+    "preview/kit_rack_detail.png",
+    "preview/kit_sheet.png",
+    "preview/kit_sheet_props.png",
+    "preview/persp_deleted_posts.png",
+    "preview/persp_emoji_coral.png",
+    "preview/persp_lighthouse_plaza.png",
+    "preview/persp_maintenance.png",
+    "preview/persp_maintenance_gate.png",
+    "preview/persp_rack_canyon.png",
+    "preview/persp_start_lighthouse.png",
+    "preview/persp_sunken_phone.png",
+    "preview/topdown.png"
+  ],
+  "geometry_audit_passed": true,
+  "roundtrip_bounds_error_m": 7.62939453125e-06,
+  "manual_preview_review": "Round 2: both 3200x2400 contact sheets inspected cell by cell (36/36), all six detailed rows checked, and topdown kelp edge placements verified.",
+  "readonly_inputs_checked": 45,
+  "readonly_input_changes": [],
+  "readonly_input_sha256": {
+    "assets/scenes/cache_sea_shallows/reference/layout_topdown.py": "a64c349025a7f265ec11ed45585486d8f239d9097e97f65d1f84fd9b424aa86d",
+    "assets/scenes/cache_sea_shallows/reference/concept_lighthouse_plaza.png": "66b705a9146efb1b6ab9241b27a713f44d5b6d0b4ec0c326e6f82152981814c1",
+    "assets/scenes/cache_sea_shallows/reference/concept_rack_canyon.png": "614b741f9a0e54b3d469c71171e4d8b0b16b6997e7b5aa110a385409390a9e89",
+    "assets/scenes/cache_sea_shallows/reference/layout_topdown.png": "fdec1d37c770eadc161f941f8545f3225aa9a387e546ccf6761cacf0d486658a",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaFigure.cs": "676b52ea528cc111862d1875e65e4b01dea11514a1e3ac3d8c5b62758679e8dc",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaMirror.cs": "71744a4e4eafc51770f0ff794b693189761bfe54fbccb89439db5f03934b797e",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/BattleStage.cs": "acab751adca26e5ef372e0917b5d1618481674624745b6d7126e204d20c79564",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaModels.cs": "e5ddbc78a18f378a252a7b738ccb3e534fdc6baac2669dd6349bc9e04396f5af",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/DungeonData.cs": "ae4e0e8355ff6ff895452cd632b13448a595b7d6243cf84e5eb1b3fc26789af4",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaPuzzles.cs": "57999874cf4d87a6f99a405de3c34060c8cc6f51ad42dac446ac779e41e8066b",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/DungeonWorld.cs": "5c4883b25a57cf03c71d95a2639d6ed2d30a2a419f54a8b0d18ec8f80f9550eb",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaActors.cs": "54929babab74b8a9c5ebb505af64d7bbb36af462b9b32fe7ec17d1855b258389",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/BattleEffects.cs": "7a8c7ca567d4eb3fab85dbf9712a49a0ca93137925cc9eefa3a0a5dfe55a3bed",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaArt.cs": "c9ba47d56e8a2fb2a05b23faf0363c6cab04d911689193114ae924ce5b7f81dd",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaProps.cs": "d604d9892f84f4123f02d68917a3d1812f4d6832cce8a0943963d335d136e274",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaSprings.cs": "65824e2d2dba5eface2e4df86acc8ebd742257a5f490dd3e75346c97378495ef",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/SeaDecor.cs": "ace931b200f6e92d6bff60301352df35deb5f9e55e9eccbf6d1618b4940d9388",
+    "game/Assets/SystemPrompt/Scripts/Dungeon/DungeonMap.cs": "a9ed96c86cda996e2adfea7b23863f028c522dce22140ba48e14e95de43e8ff1",
+    "game/Assets/SystemPrompt/Resources/Shaders/Mirror.shader.meta": "0da4b4f8b5ce565fe230f4043569e93d70243382f7dc6231dd831578a8c56ab5",
+    "game/Assets/SystemPrompt/Resources/Shaders/Seabed.shader": "316709ed9c50334df1182eefe879bb1a5197cec48908423c1ff6822fb9876fb0",
+    "game/Assets/SystemPrompt/Resources/Shaders/Sky.shader.meta": "b100c9d1a6d4419cb31ec874d4ec9d3a31e48cb5132a13733a4e573c1eef9325",
+    "game/Assets/SystemPrompt/Resources/Shaders/Glow.shader.meta": "17b11d60b2373e3fc10b2c7fb7f83b58fd774da3f55d4c245a532bcce5bd4085",
+    "game/Assets/SystemPrompt/Resources/Shaders/Text.shader": "7adb746f78c1d2d8fd568c392757e07e78aadb46aefb3acd384674370a06471a",
+    "game/Assets/SystemPrompt/Resources/Shaders/Holo.shader.meta": "0cbff4207203bb4bc0cb18ef8408787509d485b6fe370ca4ffcd1b8a73b5cf9c",
+    "game/Assets/SystemPrompt/Resources/Shaders/SeaCommon.cginc.meta": "f62010923ed1d026a350d00312db74faeed514be9878e279c88a057a440b4df7",
+    "game/Assets/SystemPrompt/Resources/Shaders/Holo.shader": "991897d4e09dec252d91457fae0a5120df18216dd0650fd40f374b4d9a84c6e1",
+    "game/Assets/SystemPrompt/Resources/Shaders/Toon.shader": "fc742d07fa703aa1865cfa77b23fd661b86e49eb41be9061a5968caf45df0e2b",
+    "game/Assets/SystemPrompt/Resources/Shaders/Glow.shader": "a945613b4e84002c73ed824cd89e6548f655873bec5b4a9e299b2288292c2262",
+    "game/Assets/SystemPrompt/Resources/Shaders/Text.shader.meta": "51b5da7a9181b63ac3b7c8d68f0cd713dfebc166535be4e34fc89137a337bc41",
+    "game/Assets/SystemPrompt/Resources/Shaders/Sky.shader": "afa7390c4bdb1fd01f3bbe1991f61271f6bf50354f33d4db42ee0608d0d446a5",
+    "game/Assets/SystemPrompt/Resources/Shaders/SeaCommon.cginc": "0245056a03bfabf6f8293fe307c07350f82eb97f84b6efcd1c92fe5e7abaf775",
+    "game/Assets/SystemPrompt/Resources/Shaders/Glitch.shader": "8b54d720f9168c03785f985687ab431a196d6642c62578716bb19af3c8a38114",
+    "game/Assets/SystemPrompt/Resources/Shaders/Seabed.shader.meta": "0fae588df30fe830be83dc8f8a6acfc8bf83fec069c6e6e28abe59878f69eb08",
+    "game/Assets/SystemPrompt/Resources/Shaders/Toon.shader.meta": "6fc79c26f7973f95f7d044012b54d758df231f49a5309ed838cf3a9f7ec24e8e",
+    "game/Assets/SystemPrompt/Resources/Shaders/Rack.shader.meta": "84f4c0129a798ec30a7ca6ecb36007f8fc3da804a7a7d3ab93c02b6623718aa8",
+    "game/Assets/SystemPrompt/Resources/Shaders/Shaft.shader.meta": "111815ae6463d11dfc8e310a3b57ca115c40ebbc492eb0222bcd072a4c63e0d6",
+    "game/Assets/SystemPrompt/Resources/Shaders/Mirror.shader": "45679748fa9c2f4de7ec4d528fc33dcfc102be13805bc4729ac4c6b166a84714",
+    "game/Assets/SystemPrompt/Resources/Shaders/Rack.shader": "6cd1e564bff210d4785ff638bb5accb1194a48338adee5b5b2e10f3ae320330b",
+    "game/Assets/SystemPrompt/Resources/Shaders/Scatter.shader.meta": "4a440ac5d63b69f6dab8ceff7bc1c4d4228094d17115b7d1e2753ac89b454595",
+    "game/Assets/SystemPrompt/Resources/Shaders/Shaft.shader": "a222580773c7da41d80cc86316f85fd9ef1cef2a594931693315353ba8b91fb6",
+    "game/Assets/SystemPrompt/Resources/Shaders/Shadow.shader.meta": "392c2d345a25d331a4078228bf10c031cfc78a7167e22429334ed6d4c06d1409",
+    "game/Assets/SystemPrompt/Resources/Shaders/Scatter.shader": "9327b48edf6a214ff06aef716e4ba735e488fd17502df457d8c68b9b42f9cce0",
+    "game/Assets/SystemPrompt/Resources/Shaders/Shadow.shader": "4fdec71d2b10d502cd2780ad0c506be2bde0fa8aa40b5bbde1dee365de5f0056",
+    "game/Assets/SystemPrompt/Resources/Shaders/Glitch.shader.meta": "f165f9f4405b3d54e2ede29b8ac693474b8dd41f93c250283a073e2c9b0946a9",
+    "game/Assets/SystemPrompt/Resources/Fonts/NotoSansSC-Bold.ttf": "ee09f11024b946a15d1c8e8753dce2d643ac49b4bf667da54df03d66db0f338e"
+  },
+  "files": {
+    "README.md": {
+      "bytes": 23504,
+      "sha256": "4d77cde56921b7be994d62e03451bc17396e8d7f831785a424dea9e8b9503a2b"
+    },
+    "build_report.json": {
+      "bytes": 109663,
+      "sha256": "9c7a44bdd3dbe71432c67400a2dae92173a868cded3ac3e60c4237d91a0b837c"
+    },
+    "build_scene.py": {
+      "bytes": 52675,
+      "sha256": "0e7f4111a326593a2815d46f878830e148929bb69a7cf03822b75125a5958734"
+    },
+    "cache_sea_shallows.blend": {
+      "bytes": 2053986,
+      "sha256": "32cfa7d12a95c221342c4907d6808c195eb00f00396a7835ef4e4f45e2efc795"
+    },
+    "export/cache_sea_shallows.fbx": {
+      "bytes": 5296556,
+      "sha256": "f0e089025805dcc6713ba882a4fcb0503d795220fa66d57f06392e639454c26e"
+    },
+    "export/cache_sea_shallows_drift.fbx": {
+      "bytes": 184972,
+      "sha256": "bf26b52a71f28a26471667914513ead461b54a15e9305db48a3005034b22736c"
+    },
+    "export/cache_sea_shallows_outer.fbx": {
+      "bytes": 1624732,
+      "sha256": "c6a961efd2d1db4b9747d9454b999635041606f7539cfa025180315003397f4c"
+    },
+    "export/kit/Beacon.fbx": {
+      "bytes": 29948,
+      "sha256": "b0387631f09deb1e85281e71dcaed5425afcb6048c58c75ce10f9d50f2e5ebf6"
+    },
+    "export/kit/BubbleLow.fbx": {
+      "bytes": 21068,
+      "sha256": "e44fe0e09ec34b7b4323e3e35c8e0001017dfa0c523d66f78177da5954483ae5"
+    },
+    "export/kit/BubbleStack_1.fbx": {
+      "bytes": 30428,
+      "sha256": "51e38a1fba4caca5f72e4fc7898e6922fc7e7788c918fa2e89007e9ee571824f"
+    },
+    "export/kit/BubbleStack_2.fbx": {
+      "bytes": 30428,
+      "sha256": "05c3ba5348fa16482bd7a1bc46b1a6213413573293a17c7877efd3b4599127eb"
+    },
+    "export/kit/BubbleStack_3.fbx": {
+      "bytes": 30428,
+      "sha256": "37a2fc1b1ef6e2df04199660aa46582b5d9df9cfcfd1981fe0653b324ffd5529"
+    },
+    "export/kit/CableHanging.fbx": {
+      "bytes": 26588,
+      "sha256": "bddd381d5e33c329d3f4c818ff7286e92febfb329cef8e82ba1870b3b1b44176"
+    },
+    "export/kit/CacheBlock.fbx": {
+      "bytes": 23676,
+      "sha256": "89f794958e0a6c21d158273c7f5b409b9097b3d50a9e9db55572767d82ade4e6"
+    },
+    "export/kit/DataChest.fbx": {
+      "bytes": 22348,
+      "sha256": "dac27a3be058f17b95d930a975b77ef6d25058d573d14ed70277b98278178c2f"
+    },
+    "export/kit/EmojiCoral_1.fbx": {
+      "bytes": 58908,
+      "sha256": "b4848865e22a4df3de9b3159cdf988c6e03f3959b4513778a6110b3e5bec3f54"
+    },
+    "export/kit/EmojiCoral_2.fbx": {
+      "bytes": 58812,
+      "sha256": "b5640b04606285ee585a253cc5336ebed3b206587a8abfb9530b589edce51e36"
+    },
+    "export/kit/EmojiCoral_3.fbx": {
+      "bytes": 59116,
+      "sha256": "67d2f380043a27a30036cd37406340d333bb59a182350e2d64533b0e50de0ef4"
+    },
+    "export/kit/Firewall.fbx": {
+      "bytes": 23692,
+      "sha256": "1e833e6aa8301e98d28f8a013a7774f9cc3e2b40753ae0a9cd7f51b76516e701"
+    },
+    "export/kit/Fragment_Draft.fbx": {
+      "bytes": 27244,
+      "sha256": "4ef010f03507f6ca1e4b8752e3f4ba2511ad5bff3b03d193ca84ef691ae70eb6"
+    },
+    "export/kit/Fragment_Message.fbx": {
+      "bytes": 27212,
+      "sha256": "6262f1547f4d0947f8c8a7001dfc794836ecd5b6465199d2f12561b71a6fe27d"
+    },
+    "export/kit/Fragment_Post.fbx": {
+      "bytes": 27180,
+      "sha256": "7afb2e7c017b2be03c894435e569445543722cce551eac21053773e36c7d2c25"
+    },
+    "export/kit/Gate.fbx": {
+      "bytes": 22060,
+      "sha256": "9f830c06cf6c2c46a2a1bb8066d54b2bb6f9d1d9202621112c596ba1d67eb420"
+    },
+    "export/kit/GraveLowPair.fbx": {
+      "bytes": 49420,
+      "sha256": "211b83f60a8ecefb2352c76491394d355659cefd674b6ed2929ea7e2ff81ea23"
+    },
+    "export/kit/GraveTall.fbx": {
+      "bytes": 40668,
+      "sha256": "b8b6fb4dfecabcc4586a4465ac048931009258c55ce6286da75868839ef51f16"
+    },
+    "export/kit/KelpEdge.fbx": {
+      "bytes": 22940,
+      "sha256": "2dfe4671ae7fa6d0dd3acaf8dded8752cebd4b55c9e53d7be13cf84b3fd2f8d2"
+    },
+    "export/kit/Lighthouse.fbx": {
+      "bytes": 300172,
+      "sha256": "b9ee0ea7a1121363c6c0d96fdaa853d94454bec31f48fd001a87dd64ad294123"
+    },
+    "export/kit/LowRack.fbx": {
+      "bytes": 27244,
+      "sha256": "955bc0cf71086de496cc70028c79f639f0fd6537ad17314cdca33cf073467967"
+    },
+    "export/kit/RackFacade_V01.fbx": {
+      "bytes": 24428,
+      "sha256": "c38fe75e4ddb7a4dab975684ff22ca304d14e674234bd3b276095cff090072da"
+    },
+    "export/kit/RackFacade_V02.fbx": {
+      "bytes": 24188,
+      "sha256": "940f50695fb7b1875974f4b62c062046f01bb26ecd4bcc1448bfc29d1d98d833"
+    },
+    "export/kit/RackFacade_V03.fbx": {
+      "bytes": 24860,
+      "sha256": "49cedcfa5cb951ba935951915352dbf3a92a06b72dcde25b378309c179c05ef8"
+    },
+    "export/kit/RackFacade_V04.fbx": {
+      "bytes": 24236,
+      "sha256": "f032cabfa8c8ac21b6a78ec291cac8064bba68593fc7ad86ff320fb6417daded"
+    },
+    "export/kit/RackFacade_V05.fbx": {
+      "bytes": 24188,
+      "sha256": "37e3f464b4bd97197ab2264fc509d9138f91e9d2871fac78e4aecffadd862281"
+    },
+    "export/kit/RackFacade_V06.fbx": {
+      "bytes": 24188,
+      "sha256": "e6ce08fbcbac57cf6a1165067dbccd5a51d9a32fd5ed821bd3b3f22b489c1f71"
+    },
+    "export/kit/RackFan.fbx": {
+      "bytes": 17868,
+      "sha256": "0d04e497942b4fa36d93d6b995fde95d0c82552d2a5212fc8e4a5116b8854684"
+    },
+    "export/kit/RackTop.fbx": {
+      "bytes": 17500,
+      "sha256": "7286287cb1d096afc4f8d41bc62a59f00cf2b18ac2e7af675a6b96c8afcb8ed0"
+    },
+    "export/kit/ResetConsole.fbx": {
+      "bytes": 23980,
+      "sha256": "05083d68d584d9b37513425ab36ab6af6c1f5dd545978a526c47830172cb5275"
+    },
+    "export/kit/Seabed_Tile.fbx": {
+      "bytes": 20668,
+      "sha256": "ba93239fecf4a8a9b6de8f8867c0749bf77d03408a2fae85809469e677bbf6bf"
+    },
+    "export/kit/Seabed_Vent.fbx": {
+      "bytes": 22044,
+      "sha256": "4079a4d65e0c875ca21f28520167e448c1b47836d8466d268b1b3fb826b2ae72"
+    },
+    "export/kit/Socket.fbx": {
+      "bytes": 18124,
+      "sha256": "4b04aa7d15f679411a880ee55bbd39882ef7e958f445728c1cf487a3d7f56d05"
+    },
+    "export/kit/SunkenPhone.fbx": {
+      "bytes": 50380,
+      "sha256": "c0a88e3a6f5d038dd3a84834e5e5cef496220a463b196710daaf110fc7472d21"
+    },
+    "export/kit/Terminal.fbx": {
+      "bytes": 22316,
+      "sha256": "3fd71898274793b34e116d25a8a71c13653314c5bf77f82bf0344373ea786011"
+    },
+    "export/kit/WallFoot_Cables.fbx": {
+      "bytes": 19756,
+      "sha256": "04e2fbf165af9bfbcbfde5b55dd4130921a1a35192fadcda4238bf85cac28424"
+    },
+    "export/roundtrip_report.json": {
+      "bytes": 30048,
+      "sha256": "39a9b6ccbb6c9089084fee6a3c5f35a0c85541bb2666a9332f4f9aaa605ee441"
+    },
+    "export_fbx.py": {
+      "bytes": 12903,
+      "sha256": "a0acf6db3f26ab73695166e52cfaefedfe616249be406e20ea4a94c0d7b8fa95"
+    },
+    "pipeline_report.json": {
+      "bytes": 2179,
+      "sha256": "f786f416a193da92bba01a09245085472a2e0f0ee6e2978167958ba511d81f9c"
+    },
+    "preview/kit_contact_report.json": {
+      "bytes": 31948,
+      "sha256": "2dc8bb676e0a5d293347169020b34043eb93d7c0d70cc42e337a66bc508fe089"
+    },
+    "preview/kit_rack_detail.png": {
+      "bytes": 1357486,
+      "sha256": "df7f2d8dd1f71ac117e705ce2b396c4df0c348f9d5ee646a712ae9f4c05e72ec"
+    },
+    "preview/kit_sheet.png": {
+      "bytes": 5416518,
+      "sha256": "ed7e3b5e5ac39bf8620e88ba85b3dc01a05db8558aa23ad3b9abc6a8f232e15f"
+    },
+    "preview/kit_sheet_props.png": {
+      "bytes": 5609851,
+      "sha256": "c3728b3cee0e4a76f2ba4ffa683e965f30fb599099f6cfca376534b0c54fc3f8"
+    },
+    "preview/persp_deleted_posts.png": {
+      "bytes": 1741227,
+      "sha256": "8ce5c76a7e415de6b9b6fdd8e61813580bcea3e4a2845aa8024137e969509d70"
+    },
+    "preview/persp_emoji_coral.png": {
+      "bytes": 1939890,
+      "sha256": "fe0a7c11eb1124c78ab81a13b04ca3bde615f288d69c4ea7a4384d31399f687b"
+    },
+    "preview/persp_lighthouse_plaza.png": {
+      "bytes": 1932160,
+      "sha256": "a676794c6ab336d3677581594ab368ff576bcf71b7ae17827e02f8c58f37010b"
+    },
+    "preview/persp_maintenance.png": {
+      "bytes": 1748538,
+      "sha256": "2c42e1f084d45966cf898773ecf3595afbdf7941047556bbcb9e84073a0e18b5"
+    },
+    "preview/persp_maintenance_gate.png": {
+      "bytes": 1554310,
+      "sha256": "bb0907ceaa6ac3a6381d4cab8f10915aee1df8284b7b623c46e9d21d181f4614"
+    },
+    "preview/persp_rack_canyon.png": {
+      "bytes": 1588581,
+      "sha256": "c960d6ecdf0d7ee76ba5df830826c276ad1b51c56dc8ddd0b3a9b434b2526207"
+    },
+    "preview/persp_start_lighthouse.png": {
+      "bytes": 1729476,
+      "sha256": "5388405c357033c3e5cd5abb339297c718b3db494ed21cb92c8eba1e38c808e0"
+    },
+    "preview/persp_sunken_phone.png": {
+      "bytes": 1770277,
+      "sha256": "cfb38c2f8bbb61fb302cf50b3c396f1d94dc796b8a0d5e0f3258642ef930f560"
+    },
+    "preview/render_report.json": {
+      "bytes": 418,
+      "sha256": "e57bb31782095753ea26d6fbac979362b5bfb5fb225f710e35ba89cb01b2e826"
+    },
+    "preview/topdown.png": {
+      "bytes": 2589860,
+      "sha256": "cf4a76f6a2c8dbebbdfbbadabd64d6fe35b929490315e743ab1b5d982c28e952"
+    },
+    "render_previews.py": {
+      "bytes": 20017,
+      "sha256": "b97c26653a2caa767e56040dc9ca699211e7ccfff5dbe8b22d6d797b5940c9af"
+    },
+    "validate_scene.py": {
+      "bytes": 9893,
+      "sha256": "e5b065d782ff2e1364388aa656c85450fa596a3087130736ff1b3177617eaaf9"
+    },
+    "validation_report.json": {
+      "bytes": 7954,
+      "sha256": "e8aacddb4bbdf0961f809c919bf3b7c9eb017068c178282802cb5839adadc220"
+    }
+  },
+  "other_worktree_changes_observed": [
+    " M game/Assets/SystemPrompt/E2E/PrologueRun.cs",
+    " M game/Assets/SystemPrompt/Editor/UiAssetImporter.cs",
+    " M game/Assets/SystemPrompt/Resources/UI/SystemPrompt.uss",
+    " M game/Assets/SystemPrompt/Scripts/Core/GameRoot.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Battle/BattleScreen.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Dungeon/DungeonScreen.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Elements/Fx.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Elements/MenuList.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Elements/Transitions.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Screens/TitleScreen.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Story/StoryFx.cs",
+    " M game/README.md",
+    "?? game/Assets/SystemPrompt/Resources/Art/Transitions.meta",
+    "?? game/Assets/SystemPrompt/Resources/Art/Transitions/",
+    "?? game/Assets/SystemPrompt/Resources/Shaders/ScreenFx.shader",
+    "?? game/Assets/SystemPrompt/Resources/Shaders/ScreenFx.shader.meta",
+    "?? game/Assets/SystemPrompt/Scripts/UI/Elements/FxSurface.cs",
+    "?? game/Assets/SystemPrompt/Scripts/UI/Elements/FxSurface.cs.meta",
+    "?? game/Tools/transition_textures.py"
+  ],
+  "revision": 2,
+  "coordinate_conventions": {
+    "authored_blender": "(X east, Y north, Z up), metres",
+    "axis_forward": "-Z",
+    "axis_up": "Y",
+    "scene_pre_rotation": "each MESH world matrix left-multiplied by world Rz(pi); root EMPTY identity; restore after export",
+    "scene_unity_mapping": "(Bx, Bz, By)",
+    "kit_pre_rotation": "none",
+    "kit_unity_mapping": "(-Bx, Bz, -By)",
+    "kit_front": "Blender -Y -> Unity +Z",
+    "kit_facing_y_degrees": {
+      "north": 0,
+      "east": 90,
+      "south": 180,
+      "west": 270
+    },
+    "unity_y_turn_rule": "clockwise viewed from above; +Z at +90 degrees becomes +X"
+  },
+  "unity_validation": {
+    "source": "user-provided Unity batchmode measurements in round-two request",
+    "version": "6000.0.85f1",
+    "model_importer": "default",
+    "prefab_root_local_rotation": [
+      0,
+      0,
+      0
+    ],
+    "representative_scene_mesh_local_rotation": [
+      0,
+      180,
+      0
+    ],
+    "representative_scene_meshes": [
+      "Lighthouse_Lamp",
+      "Terminal_c23_r17_Mesh"
+    ],
+    "authored_child_directions_preserved": true,
+    "instantiation_modes": [
+      "Instantiate(prefab)",
+      "Instantiate(prefab, zero, identity)"
+    ],
+    "independently_rerun_this_round": false,
+    "measured_positions_provided_by_user": {
+      "Lighthouse_Lamp": [
+        58,
+        33.2,
+        76
+      ],
+      "Terminal_c23_r17_Mesh": [
+        94,
+        0,
+        22
+      ],
+      "Rack_c24_r10_S_L00_renderer_bounds_center": [
+        98,
+        1.15,
+        48.05
+      ]
+    }
+  },
+  "kelp_placement": [
+    {
+      "c": 17,
+      "r": 10,
+      "edge": "E",
+      "passed": true
+    },
+    {
+      "c": 17,
+      "r": 11,
+      "edge": "E",
+      "passed": true
+    },
+    {
+      "c": 5,
+      "r": 12,
+      "edge": "W",
+      "passed": true
+    },
+    {
+      "c": 1,
+      "r": 13,
+      "edge": "W",
+      "passed": true
+    },
+    {
+      "c": 5,
+      "r": 13,
+      "edge": "N",
+      "passed": true
+    },
+    {
+      "c": 1,
+      "r": 14,
+      "edge": "W",
+      "passed": true
+    },
+    {
+      "c": 11,
+      "r": 15,
+      "edge": "S",
+      "passed": true
+    },
+    {
+      "c": 11,
+      "r": 16,
+      "edge": "W",
+      "passed": true
+    },
+    {
+      "c": 4,
+      "r": 18,
+      "edge": "W",
+      "passed": true
+    },
+    {
+      "c": 4,
+      "r": 19,
+      "edge": "N",
+      "passed": true
+    },
+    {
+      "c": 8,
+      "r": 20,
+      "edge": "S",
+      "passed": true
+    },
+    {
+      "c": 8,
+      "r": 21,
+      "edge": "S",
+      "passed": true
+    }
+  ],
+  "contact_sheets": {
+    "preview/kit_sheet.png": {
+      "cells": 18,
+      "pixels": [
+        3200,
+        2400
+      ]
+    },
+    "preview/kit_sheet_props.png": {
+      "cells": 18,
+      "pixels": [
+        3200,
+        2400
+      ]
+    }
+  },
+  "pipeline": {
+    "order": [
+      "build",
+      "validate",
+      "export",
+      "render"
+    ],
+    "all_passed": true,
+    "total_wall_seconds": 108.754,
+    "exit_codes": {
+      "build": 0,
+      "validate": 0,
+      "export": 0,
+      "render": 0
+    }
+  },
+  "round2_worktree_status_at_start": [
+    " M game/Assets/SystemPrompt/E2E/PrologueRun.cs",
+    " M game/Assets/SystemPrompt/Editor/UiAssetImporter.cs",
+    " M game/Assets/SystemPrompt/Resources/UI/SystemPrompt.uss",
+    " M game/Assets/SystemPrompt/Scripts/Core/GameRoot.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Battle/BattleScreen.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Dungeon/DungeonScreen.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Elements/Fx.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Elements/MenuList.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Elements/Transitions.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Screens/TitleScreen.cs",
+    " M game/Assets/SystemPrompt/Scripts/UI/Story/StoryFx.cs",
+    " M game/README.md",
+    "?? assets/scenes/",
+    "?? assets/ui/",
+    "?? game/Assets/SystemPrompt/Resources/Art/Transitions.meta",
+    "?? game/Assets/SystemPrompt/Resources/Art/Transitions/",
+    "?? game/Assets/SystemPrompt/Resources/Shaders/ScreenFx.shader",
+    "?? game/Assets/SystemPrompt/Resources/Shaders/ScreenFx.shader.meta",
+    "?? game/Assets/SystemPrompt/Scripts/UI/Elements/FxSurface.cs",
+    "?? game/Assets/SystemPrompt/Scripts/UI/Elements/FxSurface.cs.meta",
+    "?? game/Tools/transition_textures.py"
+  ]
+}

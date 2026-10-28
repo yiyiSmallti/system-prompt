@@ -37,6 +37,7 @@ namespace SystemPrompt.Dungeon
         float shake, shakeLeft, punch, punchLeft, punchLength;
         float time;
         BattleEffects effects;
+        SeaScene ring;
 
         // partyIds in BattleScreen's order (GameState.PlayerId first); foeKinds the noise bodies' kinds.
         public static BattleStage Create(string playerGender, IList<string> partyIds, IList<string> foeKinds)
@@ -97,28 +98,16 @@ namespace SystemPrompt.Dungeon
             Cut(Reveal(0f));
         }
 
-        // A ring of rack stacks beyond the field, lower in front of the camera's usual side, lost in the fog.
-        void BuildRacks()
-        {
-            const float cell = 4f;
-            var blocks = new Dictionary<Vector2Int, float>();
-            for (var y = -9; y <= 9; y++)
-            for (var x = -9; x <= 9; x++)
-            {
-                var d = new Vector2(x, y).magnitude;
-                var h = DungeonWorld.Hash(x + 40, y + 40);
-                if (d < 4.2f || d > 9.5f || h < 0.3f + (d - 4.2f) * 0.05f) continue;
-                blocks[new Vector2Int(x, y)] = 4f + DungeonWorld.Hash(y + 40, x + 40) * (5f + (d - 4.2f) * 2.2f);
-            }
-            var walls = SeaArt.Walls(blocks, c => Centre + new Vector3(c.x * cell, 0f, c.y * cell), cell, c => new Color(0.25f, 0.95f, 0.85f, 0.6f));
-            Parts.Shape("Racks", transform, walls, SeaArt.Plain("Rack"));
-        }
+        // A ring of rack stacks beyond the field, lower in front of the camera's usual side, lost in the fog:
+        // modelled in Blender (assets/scenes/battle_ring/, SeaScene.Ring), its fans turning.
+        void BuildRacks() => ring = SeaScene.Ring(transform);
 
         void Update()
         {
             var dt = Time.unscaledDeltaTime;
             time += dt;
             DungeonWorld.ApplySea(time, Vector3.zero, 9f);
+            ring.Animate(time);
             foreach (var m in party)
             {
                 var moved = dt > 0f ? Vector3.Distance(m.Root.localPosition, m.At) / dt : 0f;

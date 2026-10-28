@@ -9,14 +9,30 @@ namespace SystemPrompt.EditorTools
     // Import settings for the Tripo character models and motions (Mixamo rigs, exported as FBX): humanoid
     // avatars so one set of motions plays on every character, looping in-place clips (the battle's cut to the
     // part used, some played once), and no imported materials, since SeaFigure puts the toon shader on them
-    // with the base colour texture.
+    // with the base colour texture. Also the areas' scenery modelled in Blender (Resources/Scenes).
     class ModelAssetImporter : AssetPostprocessor
     {
         const string ModelRoot = "Assets/SystemPrompt/Resources/Models/";
         const string PropRoot = ModelRoot + "Props/"; // still things (Dungeon/SeaModels.cs): plain meshes
+        const string SceneRoot = "Assets/SystemPrompt/Resources/Scenes/"; // Dungeon/SeaScene.cs
 
         void OnPreprocessModel()
         {
+            if (assetPath.StartsWith(SceneRoot))
+            {
+                // Plain meshes. Their materials come in only for their names, which SeaScene turns into the sea's
+                // cel shading, and the meshes stay readable so it can batch them.
+                var scene = (ModelImporter)assetImporter;
+                scene.animationType = ModelImporterAnimationType.None;
+                scene.importAnimation = false;
+                scene.importCameras = false;
+                scene.importLights = false;
+                scene.importBlendShapes = false;
+                scene.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
+                scene.isReadable = true;
+                scene.indexFormat = ModelImporterIndexFormat.Auto;
+                return;
+            }
             if (!assetPath.StartsWith(ModelRoot)) return;
             var importer = (ModelImporter)assetImporter;
             importer.materialImportMode = ModelImporterMaterialImportMode.None;

@@ -1,6 +1,6 @@
 // Cel shading for the latent-space props, the player's avatar and the lighthouse: two flat tones split
 // by the light, a rim that glows like the sea light behind, and an ink outline from an inverted hull
-// (not on the character models, see Dungeon/SeaFigure.cs).
+// (not on the character models, see Dungeon/SeaFigure.cs). Scenery can also take the avatar's lamp (_Lamp).
 // The character models bring their base colour as _MainTex, with how much of each texel is skin in its
 // alpha (Editor/ModelAssetImporter.cs) and _SkinMask on, so skin takes its own warmer shade; everything
 // else leaves the texture white and the mask off. A figure with drawn expressions also brings them
@@ -25,6 +25,7 @@ Shader "SystemPrompt/Toon"
         _RimColor ("Rim", Color) = (0.4,0.9,1,1)
         _RimPower ("Rim power", Float) = 3
         _Emission ("Emission", Color) = (0,0,0,0)
+        _Lamp ("Lit by the avatar's lamp", Float) = 0
         _OutlineColor ("Outline", Color) = (0.03,0.03,0.06,1)
         _OutlineWidth ("Outline width", Float) = 0.025
         _Cutoff ("Alpha cutoff", Float) = 0
@@ -88,7 +89,7 @@ Shader "SystemPrompt/Toon"
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float4 _Color, _ShadeColor, _SkinShade, _RimColor, _Emission;
-            float _RimPower, _SkinMask, _CameraLight, _Cutoff, _ZWrite;
+            float _RimPower, _SkinMask, _CameraLight, _Cutoff, _ZWrite, _Lamp;
             sampler2D _Faces, _FaceDepth;
             float _FaceOn;
             float4 _FaceCells, _FaceForward;
@@ -147,6 +148,15 @@ Shader "SystemPrompt/Toon"
                 float lit = lerp(smoothstep(-0.05, 0.05, ndl), smoothstep(-0.45, -0.25, ndl), skin);
                 float3 shade = lerp(_ShadeColor.rgb, _SkinShade.rgb, skin);
                 float3 col = lerp(shade, _Color.rgb, lit) * albedo.rgb;
+                // The scenery modelled in Blender (Dungeon/SeaScene.cs) takes the lamp the avatar carries, a
+                // point light at _SeaGlowPos, as the racks built in code do (Rack.shader).
+                if (_Lamp > 0)
+                {
+                    float3 toLamp = _SeaGlowPos.xyz + float3(0, 1.4, 0) - i.world;
+                    float d = length(toLamp);
+                    float reach = saturate(1.0 - d / max(_SeaGlowPos.w * 2.0, 0.01));
+                    col += _Color.rgb * albedo.rgb * _SeaGlowColor.rgb * reach * reach * saturate(dot(n, toLamp / max(d, 0.001))) * 2.0 * _Lamp;
+                }
                 float rim = pow(1.0 - saturate(dot(n, view)), _RimPower);
                 col += _RimColor.rgb * smoothstep(0.35, 0.55, rim) * _RimColor.a;
                 col += _Emission.rgb;

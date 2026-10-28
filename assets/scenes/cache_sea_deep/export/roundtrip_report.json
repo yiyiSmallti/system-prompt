@@ -1,0 +1,435 @@
+{
+  "pass_all": true,
+  "settings": {
+    "axis_forward": "-Z",
+    "axis_up": "Y",
+    "apply_scale_options": "FBX_SCALE_UNITS",
+    "bake_space_transform": true,
+    "mesh_smooth_type": "FACE",
+    "object_types": [
+      "EMPTY",
+      "MESH"
+    ],
+    "use_selection": true,
+    "add_leaf_bones": false,
+    "bake_anim": false,
+    "use_mesh_modifiers": true,
+    "path_mode": "STRIP",
+    "use_custom_props": true
+  },
+  "scene_pre_rotation_degrees": 180,
+  "unity_mapping": "(Bx,Bz,By)",
+  "root_transform": "identity",
+  "rule": "Compare raw Blender reimport to Rz(180) authored coordinates, then restore and compare bounds, each probe origin, centre, counts and material slots.",
+  "scene_roundtrips": {
+    "cache_sea_deep.fbx": {
+      "bounds_before": {
+        "min": [
+          -1.7467070279053587e-07,
+          -22.729400634765625,
+          -0.23999999463558197
+        ],
+        "max": [
+          116.0,
+          100.0,
+          36.58000183105469
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -116.00000762939453,
+          -100.0,
+          -0.23999999463558197
+        ],
+        "max": [
+          0.0,
+          22.729406356811523,
+          36.58000183105469
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -116.00000762939453,
+          -100.0,
+          -0.24000170826911926
+        ],
+        "max": [
+          6.357302595461078e-08,
+          22.72941017150879,
+          36.58000183105469
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          -2.8617978387046605e-07,
+          -22.72940444946289,
+          -0.24000170826911926
+        ],
+        "max": [
+          116.0,
+          100.00000762939453,
+          36.58000183105469
+        ]
+      },
+      "max_bounds_error_m": 7.62939453125e-06,
+      "raw_bounds_error_m": 3.814697265625e-06,
+      "landmarks": {
+        "Lighthouse_Lamp": {
+          "blender_authored": [
+            58.0,
+            -18.0,
+            33.20000076293945
+          ],
+          "blender_expected_imported": [
+            -58.0,
+            18.0000057220459,
+            33.20000076293945
+          ],
+          "blender_imported": [
+            -58.0,
+            18.00000762939453,
+            33.20000076293945
+          ],
+          "blender_restored": [
+            58.0,
+            -18.000001907348633,
+            33.20000076293945
+          ],
+          "error_m": 1.9073486328125e-06,
+          "authored_bounds_center": [
+            58.0,
+            -18.0,
+            33.20000076293945
+          ],
+          "restored_bounds_center": [
+            58.0,
+            -18.000001907348633,
+            33.20000076293945
+          ],
+          "bounds_center_error_m": 1.9073486328125e-06,
+          "unity_expected": [
+            58.0,
+            33.20000076293945,
+            -18.0
+          ],
+          "unity_expected_bounds_center": [
+            58.0,
+            33.20000076293945,
+            -18.0
+          ]
+        },
+        "WhiteDoor_Frame": {
+          "blender_authored": [
+            58.0,
+            94.5,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -58.00000762939453,
+            -94.49999237060547,
+            0.0
+          ],
+          "blender_imported": [
+            -58.00000762939453,
+            -94.49999237060547,
+            7.1345511969411746e-06
+          ],
+          "blender_restored": [
+            58.0,
+            94.5,
+            7.1345511969411746e-06
+          ],
+          "error_m": 7.134551208918946e-06,
+          "authored_bounds_center": [
+            57.99999809265137,
+            94.45375061035156,
+            6.5
+          ],
+          "restored_bounds_center": [
+            57.99999809265137,
+            94.45375061035156,
+            6.500007325632396
+          ],
+          "bounds_center_error_m": 7.152557373046875e-06,
+          "unity_expected": [
+            58.0,
+            0.0,
+            94.5
+          ],
+          "unity_expected_bounds_center": [
+            57.99999809265137,
+            6.5,
+            94.45375061035156
+          ]
+        },
+        "ServerRow_c10_r10_N_L00": {
+          "blender_authored": [
+            42.0,
+            58.0,
+            0.0
+          ],
+          "blender_expected_imported": [
+            -42.000003814697266,
+            -57.999996185302734,
+            0.0
+          ],
+          "blender_imported": [
+            -42.000003814697266,
+            -57.999996185302734,
+            4.378878202260239e-06
+          ],
+          "blender_restored": [
+            42.0,
+            58.0,
+            4.378878202260239e-06
+          ],
+          "error_m": 4.378878294966335e-06,
+          "authored_bounds_center": [
+            42.0,
+            59.85223960876465,
+            1.149999976158142
+          ],
+          "restored_bounds_center": [
+            42.0,
+            59.85223960876465,
+            1.1500044955018893
+          ],
+          "bounds_center_error_m": 4.5299530029296875e-06,
+          "unity_expected": [
+            42.0,
+            0.0,
+            58.0
+          ],
+          "unity_expected_bounds_center": [
+            42.0,
+            1.149999976158142,
+            59.85223960876465
+          ]
+        }
+      },
+      "reimported_meshes": 3233,
+      "reimported_triangles": 533118,
+      "material_slot_checks": 3233,
+      "material_slot_mismatches": [],
+      "material_face_count_mismatches": [],
+      "material_face_count_checks": 3233,
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      },
+      "material_count": 23
+    },
+    "cache_sea_deep_outer.fbx": {
+      "bounds_before": {
+        "min": [
+          -24.0,
+          -24.0,
+          0.0
+        ],
+        "max": [
+          140.0,
+          124.0,
+          29.8359375
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -140.00001525878906,
+          -124.0,
+          0.0
+        ],
+        "max": [
+          24.000001907348633,
+          24.000011444091797,
+          29.8359375
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -140.00001525878906,
+          -124.0,
+          -1.8119504829883226e-06
+        ],
+        "max": [
+          24.000001907348633,
+          24.00001335144043,
+          29.83594512939453
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          -24.000001907348633,
+          -24.000003814697266,
+          -1.8119504829883226e-06
+        ],
+        "max": [
+          140.0,
+          124.0,
+          29.83594512939453
+        ]
+      },
+      "max_bounds_error_m": 7.62939453125e-06,
+      "raw_bounds_error_m": 7.62939453125e-06,
+      "landmarks": {},
+      "reimported_meshes": 339,
+      "reimported_triangles": 44478,
+      "material_slot_checks": 339,
+      "material_slot_mismatches": [],
+      "material_face_count_mismatches": [],
+      "material_face_count_checks": 339,
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      },
+      "material_count": 3
+    },
+    "cache_sea_deep_drift.fbx": {
+      "bounds_before": {
+        "min": [
+          5.773691654205322,
+          5.769857883453369,
+          7.284907817840576
+        ],
+        "max": [
+          110.23014068603516,
+          94.23816680908203,
+          24.77106285095215
+        ]
+      },
+      "expected_rotated_import_bounds": {
+        "min": [
+          -110.23014068603516,
+          -94.23816680908203,
+          7.284907817840576
+        ],
+        "max": [
+          -5.77369499206543,
+          -5.769848346710205,
+          24.77106285095215
+        ]
+      },
+      "raw_imported_bounds": {
+        "min": [
+          -110.23014068603516,
+          -94.23816680908203,
+          7.284908771514893
+        ],
+        "max": [
+          -5.77369499206543,
+          -5.769846439361572,
+          24.771066665649414
+        ]
+      },
+      "bounds_after_restore": {
+        "min": [
+          5.773691654205322,
+          5.769855976104736,
+          7.284908771514893
+        ],
+        "max": [
+          110.23014068603516,
+          94.23816680908203,
+          24.771066665649414
+        ]
+      },
+      "max_bounds_error_m": 3.814697265625e-06,
+      "raw_bounds_error_m": 3.814697265625e-06,
+      "landmarks": {},
+      "reimported_meshes": 56,
+      "reimported_triangles": 1326,
+      "material_slot_checks": 56,
+      "material_slot_mismatches": [],
+      "material_face_count_mismatches": [],
+      "material_face_count_checks": 56,
+      "fbx_metadata": {
+        "version": 7400,
+        "axis_units": {
+          "UpAxis": 1,
+          "UpAxisSign": 1,
+          "FrontAxis": 2,
+          "FrontAxisSign": 1,
+          "CoordAxis": 0,
+          "CoordAxisSign": 1,
+          "UnitScaleFactor": 100.0
+        },
+        "root_model_transform": {
+          "Lcl Translation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Rotation": [
+            0,
+            0,
+            0
+          ],
+          "Lcl Scaling": [
+            1,
+            1,
+            1
+          ]
+        },
+        "explicit_root_model_properties": {},
+        "omitted_transform_properties_use_fbx_defaults": true
+      },
+      "material_count": 7
+    }
+  },
+  "export_seconds": 1.946,
+  "total_seconds": 4.171,
+  "verification_scope": "Blender FBX roundtrip and FBX root/axis metadata. Unity import was not run in this task."
+}

@@ -1,0 +1,348 @@
+{
+  "pass_all": true,
+  "map_cells": 725,
+  "solid_or_kelp_cells": 405,
+  "required_solid_or_kelp_cells": 405,
+  "missing_cells": [],
+  "walkability_violations": [],
+  "reserved_M_Q_D_violations": [],
+  "door_panel_violations": [],
+  "context_3_5_to_6_5m_violations": [],
+  "low_wall_violations": [],
+  "max_low_wall_z_m": 1.2999999523162842,
+  "max_wall_projection_m": 2.384185791015625e-07,
+  "kelp_edge_checks": [
+    {
+      "c": 1,
+      "r": 9,
+      "edge": "W",
+      "passed": true,
+      "strip": [
+        -2,
+        -1,
+        -2,
+        2
+      ],
+      "clear_middle_m": 2,
+      "adjacent_mark": "#",
+      "nearest_wall_note": ""
+    },
+    {
+      "c": 1,
+      "r": 10,
+      "edge": "W",
+      "passed": true,
+      "strip": [
+        -2,
+        -1,
+        -2,
+        2
+      ],
+      "clear_middle_m": 2,
+      "adjacent_mark": "#",
+      "nearest_wall_note": ""
+    },
+    {
+      "c": 6,
+      "r": 16,
+      "edge": "E",
+      "passed": true,
+      "strip": [
+        1,
+        2,
+        -2,
+        2
+      ],
+      "clear_middle_m": 2,
+      "adjacent_mark": "%",
+      "nearest_wall_note": "c6,r16 has no # in its four neighbours; east edge faces the wall beyond the adjacent % cell"
+    },
+    {
+      "c": 7,
+      "r": 16,
+      "edge": "E",
+      "passed": true,
+      "strip": [
+        1,
+        2,
+        -2,
+        2
+      ],
+      "clear_middle_m": 2,
+      "adjacent_mark": "#",
+      "nearest_wall_note": ""
+    }
+  ],
+  "row_end_checks": [
+    {
+      "object": "ServerRow_c08_r09_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r09_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r10_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r10_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r11_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r11_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r12_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c08_r12_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c10_r10_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c10_r12_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c10_r14_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c10_r16_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c13_r10_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c13_r12_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c13_r14_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c13_r16_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c15_r10_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c15_r12_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c15_r14_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c15_r16_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c18_r10_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c18_r12_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c18_r14_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c18_r16_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r09_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r09_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r10_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r10_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r11_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r11_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r12_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r12_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r13_E_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r13_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r14_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r15_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    },
+    {
+      "object": "ServerRow_c20_r16_W_LabelSurface",
+      "flatness_error_m": 0.0,
+      "passed": true
+    }
+  ],
+  "row_end_flatness_max_m": 0.0,
+  "height_errors": [],
+  "rack_interior_ranges_m": {
+    "Channel": [
+      5.630468845367432,
+      8.184765815734863
+    ],
+    "Rift": [
+      9.7255859375,
+      12.91796875
+    ],
+    "Servers": [
+      4.616406440734863,
+      5.188281059265137
+    ],
+    "RecycleBin": [
+      4.140625,
+      6.91796875
+    ],
+    "Context": [
+      7.01953125,
+      8.9375
+    ],
+    "WhiteHall": [
+      9.140625,
+      11.8828125
+    ]
+  },
+  "rack_edge_ranges_m": {
+    "Channel": [
+      10.254688262939453,
+      14.180469512939453
+    ],
+    "Rift": [
+      16.234375,
+      18.64453125
+    ],
+    "RecycleBin": [
+      9.0,
+      12.9375
+    ],
+    "Context": [
+      11.3125,
+      14.994140625
+    ],
+    "WhiteHall": [
+      14.109375,
+      17.796875
+    ]
+  },
+  "height_rule": "interior Low+Hash*(High-Low); map boundary High+2+Hash*4; white door frame is a separate 13m landmark",
+  "triangle_cell_intersection_checks": 62,
+  "mesh_integrity_issues": [],
+  "wall_facing_errors": [],
+  "triangles": {
+    "Layout": 519052,
+    "Landmarks": 14066,
+    "Outer": 44478,
+    "Drift": 1326
+  },
+  "budgets": {
+    "main": true,
+    "outer": true,
+    "drift": true
+  },
+  "material_counts": {
+    "Layout": 18,
+    "Landmarks": 11,
+    "Outer": 3,
+    "Drift": 7
+  },
+  "unexpected_code_hidden_meshes": [],
+  "lighthouse_lamp_blender": [
+    58.0,
+    -18.0,
+    33.20000076293945
+  ],
+  "lighthouse_lamp_unity": [
+    58,
+    33.2,
+    -18
+  ],
+  "unique_meshes_checked": 1496,
+  "preview_objects_excluded": "All floor, people, cameras and lights are in Reference; FBX selects Layout/Landmarks or Outer/Drift only.",
+  "seconds": 2.243
+}
