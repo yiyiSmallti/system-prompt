@@ -25,7 +25,7 @@ namespace SystemPrompt.Battle
     // Skills used in the prologue (design/skills.md). Normal attacks use the weapon's attack as power.
     public static class Skills
     {
-        public static readonly SkillDef Screenshot = new SkillDef { Id = "screenshot", Name = "截图", Element = Element.Physical, Kind = SkillKind.Attack, Description = "举起手机对敌人截图。物理攻击。" };
+        public static readonly SkillDef Screenshot = new SkillDef { Id = "screenshot", Name = "截图", Element = Element.Almighty, Kind = SkillKind.Attack, Description = "举起手机对敌人截图。万能攻击，不看相性。" };
         public static readonly SkillDef Spoon = new SkillDef { Id = "spoon", Name = "饭勺", Element = Element.Physical, Kind = SkillKind.Attack, Description = "用饭勺敲。物理攻击。" };
         public static readonly SkillDef ColdCurrent = new SkillDef { Id = "cold_current", Name = "寒流", Element = Element.Ice, Power = 30, SpCost = 4, Kind = SkillKind.Magic, Description = "冰属性，敌方一体。" };
         public static readonly SkillDef DeepCurrent = new SkillDef { Id = "deep_current", Name = "深海潜流", Element = Element.Ice, Power = 20, SpCost = 8, AllTargets = true, Kind = SkillKind.Magic, Description = "冰属性，敌方全体。" };
@@ -265,10 +265,12 @@ namespace SystemPrompt.Battle
             var hit = new Hit { Element = s.Element, Affinity = t.AffinityTo(s.Element) };
             var tutorial = battle.Tutorial;
             var physical = s.Element == Element.Physical;
+            // A normal attack counts as physical for hit and crit even when it is not (the screenshot is almighty).
+            var struck = physical || s.Kind == SkillKind.Attack;
 
             if (!tutorial)
             {
-                var baseHit = physical && !a.IsEnemy ? Skills.WeaponAccuracy(a.Id) : 95f;
+                var baseHit = struck && !a.IsEnemy ? Skills.WeaponAccuracy(a.Id) : 95f;
                 var chance = Mathf.Clamp(baseHit * (1f + (a.Agi - t.Agi) / 100f), 5f, 99f);
                 if (Random.value * 100f >= chance)
                 {
@@ -284,7 +286,7 @@ namespace SystemPrompt.Battle
 
             amount *= hit.Affinity switch { Affinity.Weak => 1.5f, Affinity.Resist => 0.5f, Affinity.Null => 0f, _ => 1f };
 
-            if (physical && !tutorial && hit.Affinity != Affinity.Null)
+            if (struck && !tutorial && hit.Affinity != Affinity.Null)
             {
                 var critRate = Mathf.Clamp(5f + (a.Luck - t.Luck) * 0.5f, 1f, 40f);
                 hit.Critical = Random.value * 100f < critRate;

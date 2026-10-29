@@ -595,6 +595,7 @@ namespace SystemPrompt.E2E
                 {
                     yield return Wait(0.3f);
                     Check(Visible(ui.Q(className: "sp-battle__items")), "道具列表打开");
+                    if (!ate) yield return Snap("battle-items", "道具列表在左栏，当前队员露在它右边");
                     for (var i = 0; i < 6 && !ItemSelected("白米饭"); i++) yield return Press(Key.DownArrow);
                     Check(ItemSelected("白米饭"), "道具列表里选中白米饭");
                     yield return Press(Key.Enter);
@@ -1079,6 +1080,14 @@ namespace SystemPrompt.E2E
             Watch("battle-slash", "DeepSeek 冲上去斩击（刀光、火花）", () => game.InBattle && !Seen("battle-prompt") && OnStage("Slash"), 0.06f, false);
             // Each skill's and attack's own look (design/skills.md 战斗特效), filmed while it plays.
             Film("battle-capture", "截图：取景框收紧在噪声体上，连同打下的像素飞回手机，缩略图从画面中央缩到左下角", () => OnStage("Snap"), 12, 0.12f);
+            // The 截图's other two ways of holding the phone and the 饭勺's four ways in (BattleStage.Shoot, Dash),
+            // each taken in turn.
+            Film("battle-shot-reach", "截图：单手把手机伸到臂长，侧着拍，缩略图跟着歪", () => Exists("sp-viewfinder") && Stage?.Held == SeaFigure.PhoneHold.Reach, 10, 0.12f);
+            Film("battle-shot-low", "截图：单膝跪地，手机放低往上仰拍", () => Exists("sp-viewfinder") && Stage?.Held == SeaFigure.PhoneHold.Low, 10, 0.12f);
+            Film("battle-spoon-slash", "饭勺·横斩：冲上去横着斩，勺尖拖出光带", () => OnStage("Spoon Slash"), 10, 0.1f);
+            Film("battle-spoon-sweep", "饭勺·回旋扫：从另一侧冲上去，单脚转身低扫一圈，海床上扩开水环", () => OnStage("Spoon Sweep"), 10, 0.1f);
+            Film("battle-spoon-rush", "饭勺·鱼跃连击：贴地鱼跃翻滚过去，起身左右两下", () => OnStage("Spoon Rush"), 12, 0.1f);
+            Film("battle-spoon-leap", "饭勺·跃劈：跳起落到噪声体面前砸下，海床冲起水柱", () => OnStage("Spoon Leap"), 10, 0.09f);
             Film("battle-current", "寒流：冰晶寒流从掌心横穿画面、镜头横移跟随，噪声体结冰碎裂", () => OnStage("Stream"), 12, 0.08f);
             Film("battle-maelstrom", "深海潜流：冰蓝漩涡卷起噪声体、镜头后拉，全体冻结碎裂", () => OnStage("Vortex"), 14, 0.12f);
             Watch("battle-impact", "打中弱点：放射光线和冲击环", () => OnStage("Impact"), 0.05f, false);
@@ -1086,7 +1095,7 @@ namespace SystemPrompt.E2E
             Film("battle-forward", "转发型「转发保平安」：分叉箭头升空分裂、落向全队", () => OnStage("Forward"), 10, 0.08f);
             Film("battle-toss", "道具：冰镇汽水翻滚着飞过去、炸开泡沫和冰霜", () => OnStage("Can"), 10, 0.08f);
             Film("battle-blaze", "道具：辣条着火飞过去、炸成火球", () => OnStage("Strip"), 10, 0.08f);
-            Watch("battle-skill", "技能列表", () => Visible(ui.Q(className: "sp-battle__skills")), 0.2f);
+            Watch("battle-skill", "技能列表在左栏，当前队员露在它右边", () => Visible(ui.Q(className: "sp-battle__skills")), 0.2f);
             Watch("battle-cutin", "技能特写", () => Exists("sp-cutin"), 0.2f, false);
             Watch("battle-weak", "对抗样本", () => StampShown("对抗样本！"), 0.15f, false);
             Watch("battle-onemore", "One More", () => StampShown("ONE MORE!"), 0.25f);
@@ -1131,8 +1140,9 @@ namespace SystemPrompt.E2E
         bool Seen(string id) => checkpoints.Any(c => c.Id == id && c.At >= 0);
 
         // Something of this name is up on the 3D battle field (Dungeon/BattleStage.cs, BattleEffects.cs).
-        static bool OnStage(string name) => UnityEngine.Object.FindAnyObjectByType<BattleStage>() is BattleStage stage
-            && stage.GetComponentsInChildren<Transform>().Any(t => t.name == name);
+        static bool OnStage(string name) => Stage is BattleStage stage && stage.GetComponentsInChildren<Transform>().Any(t => t.name == name);
+
+        static BattleStage Stage => UnityEngine.Object.FindAnyObjectByType<BattleStage>();
 
         // Lets the watcher notice what just happened, then waits until it has finished capturing.
         IEnumerator Idle()

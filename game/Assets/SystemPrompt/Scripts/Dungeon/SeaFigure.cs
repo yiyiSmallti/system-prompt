@@ -26,6 +26,7 @@ namespace SystemPrompt.Dungeon
         // on the VRoid models.
         const float WalkPace = 0.87f, RunPace = 5.7f;
         const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds
+        const float FlinchOut = 0.2f, FlinchWeight = 0.75f; // a hit's jolt easing off at the end, seconds, and not quite all of it
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
         const float RiceGrow = 0.15f; // the 道具's rice ball coming into the hand and going, in seconds
         static readonly Color Shade = new Color(0.78f, 0.74f, 0.8f);
@@ -77,11 +78,17 @@ namespace SystemPrompt.Dungeon
         public readonly Animator Animator;
         readonly PlayableGraph graph;
         readonly AnimationMixerPlayable mixer;
-        readonly AnimationLayerMixerPlayable layers; // the idle, walk and run under the motion playing over them
+        readonly AnimationLayerMixerPlayable layers; // the idle, walk and run under the motion playing over them, a flinch over both
+        readonly AnimationMixerPlayable actions; // the motion playing, and the one it is taking over from
         readonly AnimationClipPlayable walk, run;
         readonly float stride; // the avatar's human scale in metres as the model is sized, which the paces scale by
-        AnimationClipPlayable idle, action;
+        AnimationClipPlayable idle, action, leaving;
+        int actionInput, leavingInput; // their inputs on actions
         float actionTime, actionLength, actionWeight; // length infinite for a loop, which plays until Stop
+        float handover; // 0 to 1, from the motion leaving to the one playing
+        AnimationClipPlayable flinch; // a hit's jolt, from the waist up only
+        float flinchTime, flinchLength;
+        static AvatarMask upperBody;
         readonly Material look; // null on a VRoid model, whose parts each bring their own
         // The expressions are drawn on a picture of the face taken straight from the front (Editor/FaceCapture.cs)
         // and laid back over it from the front by the toon shader, in a box that moves with the head bone.
@@ -104,6 +111,10 @@ namespace SystemPrompt.Dungeon
         float phoneTime, phoneLength, phoneWeight;
         Transform riceBall;
         float riceTime, riceLength;
+        PhoneHold hold;
+        Transform spoon;
+        float spoonShown;
+        bool wielding;
 
         // A tail that curves down from the hips and lies along the floor (DeepSeek's battle dress, bones Tail1–Tail6).
         // The motions are made for figures without one and carry it stiffly on the hips, so every lean and bob of
@@ -276,9 +287,12 @@ namespace SystemPrompt.Dungeon
             graph = PlayableGraph.Create("Figure " + model);
             graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
             mixer = AnimationMixerPlayable.Create(graph, 3);
-            layers = AnimationLayerMixerPlayable.Create(graph, 2);
+            layers = AnimationLayerMixerPlayable.Create(graph, 3);
             graph.Connect(mixer, 0, layers, 0);
             layers.SetInputWeight(0, 1f);
+            actions = AnimationMixerPlayable.Create(graph, 2);
+            graph.Connect(actions, 0, layers, 1);
+            layers.SetLayerMaskFromAvatarMask(2, UpperBody);
             AnimationPlayableOutput.Create(graph, model, Animator).SetSourcePlayable(layers);
             idle = Connect(Idle(idleOf ?? model), 0);
             walk = Connect(Motion("Walk"), 1);
@@ -383,19 +397,29 @@ namespace SystemPrompt.Dungeon
         }
 
         // Plays one of the motions once over whatever the figure is doing (a loop until Stop), speed times its
-        // own pace; returns how long it plays, in seconds.
+        // own pace; returns how long it plays, in seconds. One played while another is still on takes over from
+        // it in FadeIn, so a run of them (a roll into a jab into a cross) flows on without jumping.
         public float Play(string motion, float speed = 1f)
         {
             var clip = Motion(motion);
+            if (leaving.IsValid()) Release(ref leaving, leavingInput);
+            var input = 0;
             if (action.IsValid())
             {
-                graph.Disconnect(layers, 1);
-                action.Destroy();
+                if (actionWeight > 0f)
+                {
+                    leaving = action;
+                    leavingInput = actionInput;
+                    input = 1 - actionInput;
+                    handover = 0f;
+                }
+                else Release(ref action, actionInput);
             }
             action = AnimationClipPlayable.Create(graph, clip);
             action.SetApplyFootIK(false);
             action.SetSpeed(speed);
-            graph.Connect(action, 0, layers, 1);
+            graph.Connect(action, 0, actions, input);
+            actionInput = input;
             actionTime = 0f;
             actionLength = clip.isLooping ? float.PositiveInfinity : clip.length / speed;
             // Straight from one motion into the next, without dipping back into the idle between them.
@@ -420,14 +444,71 @@ namespace SystemPrompt.Dungeon
         // Where the rice ball is held now.
         public Vector3 RiceBallAt => riceBall.position;
 
-        // The 截图's phone, brought up in both hands in front of the face, held, and lowered again, seconds in
-        // all, over whatever the figure is doing (in battle the fighting stance): the chest turns square to
-        // ahead, the arms bend to the phone's two ends and the head looks out over it.
-        public void RaisePhone(float seconds)
+        // How the 截图's phone is held up (RaisePhone): in both hands in front of the face; out at arm's length
+        // in the right hand, turned over a little; in both hands low before the chest, tipped back to look up,
+        // for a shot from down on one knee (the Kneel motion under it).
+        public enum PhoneHold { Eye, Reach, Low }
+
+        // The 截图's phone, brought up, held, and lowered again, seconds in all, over whatever the figure is doing
+        // (in battle the fighting stance): the chest turns square to ahead, the arms bend to the phone and the
+        // head looks out over it.
+        public void RaisePhone(float seconds, PhoneHold how = PhoneHold.Eye)
         {
             if (phone == null) phone = BuildPhone();
             phoneTime = 0f;
             phoneLength = seconds;
+            hold = how;
+        }
+
+        // Which way is up on the phone's screen, for the picture it takes (BattleStage.Photo).
+        public Vector3 ScreenUp => phone != null && phone.gameObject.activeSelf ? phone.up : Root.up;
+
+        // The 饭勺 in DeepSeek's right hand (her normal attack), coming into it while wield, going when not.
+        public void Wield(bool wield)
+        {
+            if (spoon == null) spoon = BuildSpoon();
+            wielding = wield;
+        }
+
+        // The end of the 饭勺's bowl, for the trail its swing leaves.
+        public Transform SpoonTip => (spoon != null ? spoon : spoon = BuildSpoon()).Find("Tip");
+
+        void Release(ref AnimationClipPlayable playable, int input)
+        {
+            graph.Disconnect(actions, input);
+            playable.Destroy();
+        }
+
+        // One of the hit reactions (HitChest, HitHead) jolting the figure from the waist up, speed times its own
+        // pace, over whatever it is doing: the legs keep their stance.
+        public void Flinch(string motion, float speed = 1f)
+        {
+            if (flinch.IsValid())
+            {
+                graph.Disconnect(layers, 2);
+                flinch.Destroy();
+            }
+            var clip = Motion(motion);
+            flinch = AnimationClipPlayable.Create(graph, clip);
+            flinch.SetApplyFootIK(false);
+            flinch.SetSpeed(speed);
+            graph.Connect(flinch, 0, layers, 2);
+            flinchTime = 0f;
+            flinchLength = clip.length / speed;
+        }
+
+        // The spine, head and arms, not the legs nor where the body stands.
+        static AvatarMask UpperBody
+        {
+            get
+            {
+                if (upperBody != null) return upperBody;
+                upperBody = new AvatarMask { name = "Upper Body", hideFlags = HideFlags.DontUnloadUnusedAsset };
+                for (var part = AvatarMaskBodyPart.Root; part < AvatarMaskBodyPart.LastBodyPart; part++)
+                    upperBody.SetHumanoidBodyPartActive(part, part is AvatarMaskBodyPart.Body or AvatarMaskBodyPart.Head
+                        or AvatarMaskBodyPart.LeftArm or AvatarMaskBodyPart.RightArm or AvatarMaskBodyPart.LeftFingers or AvatarMaskBodyPart.RightFingers);
+                return upperBody;
+            }
         }
 
         // Fades the motion playing back into the idle.
@@ -453,15 +534,30 @@ namespace SystemPrompt.Dungeon
                 actionTime += dt;
                 var target = actionTime < actionLength - FadeOut ? 1f : 0f;
                 actionWeight = Mathf.MoveTowards(actionWeight, target, dt / (target > 0f ? FadeIn : FadeOut));
+                handover = Mathf.MoveTowards(handover, 1f, dt / FadeIn);
+                if (leaving.IsValid() && handover >= 1f) Release(ref leaving, leavingInput);
                 if (actionTime >= actionLength && actionWeight <= 0f)
                 {
-                    graph.Disconnect(layers, 1);
-                    action.Destroy();
+                    Release(ref action, actionInput);
+                    if (leaving.IsValid()) Release(ref leaving, leavingInput);
                 }
             }
             else actionWeight = 0f;
+            for (var i = 0; i < 2; i++)
+                actions.SetInputWeight(i, !leaving.IsValid() ? (i == actionInput ? 1f : 0f) : i == actionInput ? handover : 1f - handover);
             layers.SetInputWeight(0, 1f);
             layers.SetInputWeight(1, actionWeight);
+            if (flinch.IsValid())
+            {
+                flinchTime += dt;
+                // In at once, out over the last of it.
+                layers.SetInputWeight(2, FlinchWeight * Mathf.Clamp01(Mathf.Min(flinchTime / 0.04f, (flinchLength - flinchTime) / FlinchOut)));
+                if (flinchTime >= flinchLength)
+                {
+                    graph.Disconnect(layers, 2);
+                    flinch.Destroy();
+                }
+            }
             graph.Evaluate(dt);
 
             if (phoneLength > 0f)
@@ -479,6 +575,17 @@ namespace SystemPrompt.Dungeon
             {
                 InHand(out var at, out var turn);
                 phone.SetPositionAndRotation(at, turn);
+            }
+            if (spoon != null)
+            {
+                spoonShown = Mathf.MoveTowards(spoonShown, wielding ? 1f : 0f, dt / RiceGrow);
+                spoon.gameObject.SetActive(spoonShown > 0f);
+                if (spoonShown > 0f)
+                {
+                    SpoonInHand(out var at, out var turn);
+                    spoon.SetPositionAndRotation(at, turn);
+                    spoon.localScale = Vector3.one * Ease.OutBack(spoonShown);
+                }
             }
             if (riceLength > 0f)
             {
@@ -525,6 +632,21 @@ namespace SystemPrompt.Dungeon
             return body.transform;
         }
 
+        // A wooden rice paddle (the 木饭勺) along +z from the grip: a round handle and a flat oval bowl, Tip at its end.
+        Transform BuildSpoon()
+        {
+            var s = height / 1.7f;
+            var wood = SeaArt.Toon(new Color(0.93f, 0.8f, 0.6f), new Color(0.7f, 0.52f, 0.4f), Rim, default, 0f);
+            var paddle = Parts.Node("Spoon", Root);
+            var handle = Parts.Shape("Handle", paddle, SeaArt.Cylinder(0.013f * s, 0.016f * s, 0.17f * s, 10), wood, new Vector3(0f, 0f, -0.03f * s));
+            handle.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            var bowl = Parts.Shape("Bowl", paddle, SeaArt.Sphere(0.055f * s, 0f, 16, 10), wood, new Vector3(0f, 0f, 0.19f * s));
+            bowl.transform.localScale = new Vector3(1f, 0.22f, 1.4f);
+            Parts.Node("Tip", paddle, new Vector3(0f, 0f, 0.27f * s));
+            paddle.gameObject.SetActive(false);
+            return paddle;
+        }
+
         // A rice ball: a white triangle a hand across, edge on to its front and back, a band of nori round its foot.
         Transform BuildRiceBall()
         {
@@ -566,7 +688,7 @@ namespace SystemPrompt.Dungeon
             at = middle.position + (fingers * 0.02f + palm * 0.05f) * s;
         }
 
-        // The pose as evaluated, bent to hold the phone up, w of the way.
+        // The pose as evaluated, bent to hold the phone up as `hold` says, w of the way.
         void HoldPhone(float w)
         {
             Vector3 up = Root.up, ahead = Root.forward, right = Root.right;
@@ -576,24 +698,67 @@ namespace SystemPrompt.Dungeon
             var chest = Vector3.ProjectOnPlane(Vector3.Cross(Bone(HumanBodyBones.RightUpperArm).position - Bone(HumanBodyBones.LeftUpperArm).position, up), up);
             if (spine != null && chest.sqrMagnitude > 1e-6f)
                 spine.rotation = Quaternion.AngleAxis(Mathf.Clamp(Vector3.SignedAngle(chest, ahead, up), -60f, 60f) * w, up) * spine.rotation;
+            // Down on one knee the motion bows over the seabed: the back straightened up again, a little forward,
+            // so the phone is held up before the chest rather than the head bent back over a bowed body.
+            var neck = Bone(HumanBodyBones.Neck);
+            if (hold == PhoneHold.Low && spine != null && neck != null)
+                spine.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(neck.position - spine.position, up + 0.25f * ahead), w * 0.85f) * spine.rotation;
 
-            // A forearm's length out in front of the face and a little below it, clear of the face's own camera.
-            var at = FaceCentre + (ahead * 0.33f - up * 0.11f) * s;
             Transform leftHand = Bone(HumanBodyBones.LeftHand), rightHand = Bone(HumanBodyBones.RightHand);
+            Vector3 at, look;
+            Quaternion turn;
+            if (hold == PhoneHold.Reach)
+            {
+                // At the end of the right arm held out straight ahead, a little over the shoulder, turned over 18
+                // degrees: the hand holds it by its right end, the phone out to the left of it.
+                Transform upper = Bone(HumanBodyBones.RightUpperArm), lower = Bone(HumanBodyBones.RightLowerArm);
+                var arm = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, rightHand.position);
+                var wrist = upper.position + (ahead + 0.12f * up - 0.1f * right).normalized * (arm * 0.97f);
+                turn = Quaternion.LookRotation(ahead, Quaternion.AngleAxis(-18f, ahead) * up);
+                at = wrist + turn * new Vector3(-0.07f, 0.03f, 0.03f) * s;
+                look = (at - FaceCentre).normalized;
+            }
+            else
+            {
+                // A forearm's length out in front of the face and a little below it, clear of the face's own camera;
+                // held low, before the chest and tipped back 25 degrees.
+                var low = hold == PhoneHold.Low;
+                at = FaceCentre + (ahead * 0.33f - up * (low ? 0.24f : 0.11f)) * s;
+                var facing = low ? Quaternion.AngleAxis(-25f, right) * ahead : ahead;
+                turn = Quaternion.LookRotation(facing, Vector3.Cross(facing, right));
+                look = low ? (ahead + 0.2f * up).normalized : (ahead - 0.1f * up).normalized;
+            }
             // Up out of the right hand in the stance, or out of nowhere between the hands.
             var from = (leftHand.position + rightHand.position) / 2f;
             var fromTurn = Quaternion.LookRotation(ahead, up);
             if (inStance && carriesPhone) InHand(out from, out fromTurn);
-            phone.SetPositionAndRotation(Vector3.Lerp(from, at, w), Quaternion.Slerp(fromTurn, Quaternion.LookRotation(ahead, up), w));
-            // The wrists just past the phone's two ends, a little below and behind its middle.
-            Vector3 End(float side) => at + (side * 0.095f * right - 0.04f * up - 0.015f * ahead) * s;
+            phone.SetPositionAndRotation(Vector3.Lerp(from, at, w), Quaternion.Slerp(fromTurn, turn, w));
+            // The wrists just past the phone's two ends, a little below and behind its middle; held out, the right
+            // one alone, the left staying in the stance.
+            Vector3 End(float side) => at + turn * new Vector3(side * 0.095f, -0.04f, -0.015f) * s;
+            Vector3 across = turn * Vector3.right;
             Reach(HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, rightHand, End(1f), right, w);
-            Reach(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, leftHand, End(-1f), -right, w);
-            Grip(HumanBodyBones.RightHand, HumanBodyBones.RightIndexProximal, HumanBodyBones.RightLittleProximal, HumanBodyBones.RightMiddleProximal, right, w);
-            Grip(HumanBodyBones.LeftHand, HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftMiddleProximal, -right, w);
+            Grip(HumanBodyBones.RightHand, HumanBodyBones.RightIndexProximal, HumanBodyBones.RightLittleProximal, HumanBodyBones.RightMiddleProximal, across, turn, w);
+            if (hold != PhoneHold.Reach)
+            {
+                Reach(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, leftHand, End(-1f), -right, w);
+                Grip(HumanBodyBones.LeftHand, HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftMiddleProximal, -across, turn, w);
+            }
 
-            // The head up and out over the phone.
-            head.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(FaceForward, (ahead - 0.1f * up).normalized), w * 0.8f) * head.rotation;
+            // The head up and out over the phone, or along the arm to it.
+            head.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(FaceForward, look), w * 0.8f) * head.rotation;
+        }
+
+        // The 饭勺 out of DeepSeek's right palm along the forearm, its bowl's face turned up off the arm. Her battle
+        // dress has no finger bones, so the palm is taken a little on from the wrist along the forearm.
+        void SpoonInHand(out Vector3 at, out Quaternion turn)
+        {
+            var wrist = Bone(HumanBodyBones.RightHand).position;
+            var along = (wrist - Bone(HumanBodyBones.RightLowerArm).position).normalized;
+            at = wrist + along * (0.06f * height / 1.7f);
+            var across = Vector3.Cross(along, Root.up);
+            if (across.sqrMagnitude < 0.01f) across = Root.right;
+            turn = Quaternion.LookRotation(along, Vector3.Cross(across.normalized, along));
         }
 
         // Gripped in the right fist of the stance (StancePoser curls those fingers): along the knuckles, its
@@ -627,12 +792,12 @@ namespace SystemPrompt.Dungeon
         }
 
         // Turns the hand onto the phone's end on side: the fingers up and over its top, the palm in to it, the
-        // index finger's edge back toward the face.
-        void Grip(HumanBodyBones handBone, HumanBodyBones indexBone, HumanBodyBones littleBone, HumanBodyBones middleBone, Vector3 side, float w)
+        // index finger's edge back toward the face. phone: the phone's turn, whose up and ahead these are.
+        void Grip(HumanBodyBones handBone, HumanBodyBones indexBone, HumanBodyBones littleBone, HumanBodyBones middleBone, Vector3 side, Quaternion phone, float w)
         {
             Transform hand = Bone(handBone), index = Bone(indexBone), little = Bone(littleBone), middle = Bone(middleBone);
             if (index == null || little == null || middle == null) return;
-            Vector3 up = Root.up, ahead = Root.forward;
+            Vector3 up = phone * Vector3.up, ahead = phone * Vector3.forward;
             var now = Quaternion.LookRotation(middle.position - hand.position, index.position - little.position);
             var want = Quaternion.LookRotation(up + ahead - 0.4f * side, -ahead);
             hand.rotation = Quaternion.Slerp(Quaternion.identity, want * Quaternion.Inverse(now), w) * hand.rotation;

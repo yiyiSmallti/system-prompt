@@ -63,7 +63,6 @@ namespace SystemPrompt.EditorTools
         {
             ["Slash"] = (0.9f, 3.6f, false),
             ["Cast"] = (0.8f, 4.4f, false),
-            ["Hit"] = (0f, 0f, false),
             ["Cheer"] = (0f, 0f, true),
         };
 

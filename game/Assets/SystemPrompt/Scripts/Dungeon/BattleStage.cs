@@ -16,10 +16,17 @@ namespace SystemPrompt.Dungeon
     {
         static readonly Vector3 Centre = new Vector3(0f, 0f, 3.4f); // between the lines; the camera swings round it
         // The motions' pace and the moment in each (seconds at that pace) that lands: the slash's blade passing
-        // in front of her, the cast's arm thrown out.
+        // in front of her, the sweep's arm coming round across her front, the jab's and the cross's fist out,
+        // the leap's feet leaving the seabed and the landing's crouch, the cast's arm thrown out.
         const float SlashPace = 1.5f, SlashLands = 0.85f;
+        const float SweepPace = 1.35f, SweepLands = 0.48f;
+        const float RollPace = 1.7f, RollSeconds = 0.5f; // the dive and the roll over, across the floor
+        const float JabPace = 1.6f, JabLands = 0.17f, CrossPace = 1.5f, CrossLands = 0.22f;
+        const float LeapPace = 1.6f, LeapOff = 0.1f, LeapSeconds = 0.5f, LeapHeight = 1.5f, LandPace = 1.5f, LandLands = 0.04f;
         const float CastPace = 1.6f, CastLands = 1.3f;
         const float ShootSeconds = 1.1f; // the phone up, the shutter and down again
+        const float KneelPace = 2.1f; // down on one knee for the low shot, a little ahead of the phone coming up
+        const float FlinchPace = 0.8f; // a hit's jolt, a little slower than the library's
         // The poses struck in place (SeaFigure.Act): how long after the start each has been reached and seen,
         // when the command goes on, the 道具's rice ball used up at that moment; the way back follows by itself.
         const float GuardSeen = 0.75f, ItemUsed = 0.75f, ThinkSeen = 0.6f, FaceRound = 60f;
@@ -38,6 +45,12 @@ namespace SystemPrompt.Dungeon
         float time;
         BattleEffects effects;
         SeaScene ring;
+        // DeepSeek's 饭勺 and the player's 截图 each go through their ways in turn, picking up in the next battle
+        // where the last left off, so no two in a row look alike.
+        enum Strike { Slash, Sweep, Rush, Leap }
+        static int strikes, shots;
+        Strike strike; // the 饭勺 under way, whose blow Slash lights
+        public SeaFigure.PhoneHold Held { get; private set; } // how the last 截图 was taken
 
         // partyIds in BattleScreen's order (GameState.PlayerId first); foeKinds the noise bodies' kinds.
         public static BattleStage Create(string playerGender, IList<string> partyIds, IList<string> foeKinds)
@@ -167,24 +180,43 @@ namespace SystemPrompt.Dungeon
         // The noise bodies from down at their feet, tipped, the camera pushing in (push 0 to 1) as the battle opens.
         Shot Reveal(float push) => new Shot(FoeCentre + new Vector3(1.7f - push * 0.5f, -0.8f, -3.4f + push * 0.9f), FoeCentre + Vector3.up * 0.3f, 11f, 40f);
 
-        // Behind and right of the party, the whole enemy line in view.
-        public Shot Overview => new Shot(new Vector3(2.7f, 2f, -4.9f), new Vector3(-0.2f, 1.1f, 5.4f), -3f, 46f, 0.05f);
+        // Behind and right of the party, the whole enemy line in view, the party standing up off the cards.
+        public Shot Overview
+        {
+            get
+            {
+                var eye = new Vector3(2.7f, 2f, -4.9f);
+                return new Shot(eye, Aim(eye, PartyCentre + Vector3.up * 0.9f, 0.4f, 0.44f, 46f, -3f), -3f, 46f, 0.05f);
+            }
+        }
 
-        // Low behind the member choosing, three-quarters from their right: the member on the left third, full
-        // length, the noise bodies over the rest, drawn up by a longish lens. With a noise body to aim at: behind
-        // the member's right shoulder on the line to it, the member's back on the left and the noise body picked
+        // The overview's, lower and wider, the party down near the cards: room over the field for what comes down
+        // on them from high above it (转发保平安's arrows).
+        Shot Skyward
+        {
+            get
+            {
+                var eye = new Vector3(2.7f, 1.6f, -5.2f);
+                return new Shot(eye, Aim(eye, PartyCentre + Vector3.up * 0.9f, 0.4f, 0.34f, 56f, -3f), -3f, 56f, 0.05f);
+            }
+        }
+
+        // Low behind the member choosing, over their right shoulder: the member just right of the command menu,
+        // all but their feet, the noise bodies over the rest of the view, drawn up by a longish lens. With a noise
+        // body to aim at: in closer on the line to it, the member's back on the left and the noise body picked
         // out by a long lens. No shot here comes nearer a member than a couple of metres, nor round to their
         // faces: the generated models do not stand a close look, and the cards and cut-ins show the faces in 2D.
         public Shot Behind(int member, int foe = -1)
         {
             var m = party[member].Home;
-            if (foe < 0) return new Shot(m + new Vector3(1.5f, 1.1f, -3f), FoeCentre + Vector3.down * 0.15f, -3f, 40f, 0.05f);
-            var f = foes[foe].Home;
-            var ahead = f - m;
-            ahead.y = 0f;
-            ahead.Normalize();
-            var right = new Vector3(ahead.z, 0f, -ahead.x);
-            return new Shot(m - ahead * 2.4f + right * 0.85f + Vector3.up * 1.25f, f + Vector3.up * NoiseLook.Height, 4f, 38f, 0.025f);
+            if (foe < 0)
+            {
+                var eye = Over(m, FoeCentre, 2.6f, 1.2f, 0.38f, 0.65f, 40f);
+                return new Shot(eye, Aim(eye, m + Vector3.up * 1.1f, 0.38f, 0.5f, 40f, -3f), -3f, 40f, 0.05f);
+            }
+            var f = foes[foe].Home + Vector3.up * NoiseLook.Height;
+            var near = Over(m, f, 2.5f, 1.25f, 0.27f, 0.62f, 38f);
+            return new Shot(near, Aim(near, f, 0.62f, 0.56f, 38f, 4f), 4f, 38f, 0.025f);
         }
 
         // Low, a third of the way over from the party, at a noise body: out to its side, so it crosses the view
@@ -198,29 +230,62 @@ namespace SystemPrompt.Dungeon
         }
 
         // Low behind the member a noise body has picked, the noise body over them: it comes at them and the camera.
+        // Over the shoulder on the outside of the line, where nobody stands between: the right one on the left
+        // of the view, clear of the cards; the left one on the right, stood up over them. Far enough back that
+        // the hit throwing them back does not fill the view with them.
         public Shot Threat(int foe, int member)
         {
             var m = party[member].Home;
             var f = foes[foe].Home + Vector3.up * NoiseLook.Height;
-            var side = f.x >= m.x ? 1f : -1f;
-            return new Shot(m + new Vector3(0.9f * side, 1.2f, -2.6f), f + Vector3.up * 0.25f, -7f * side, 44f, 0.02f);
+            var left = party.Count > 1 && m.x < PartyCentre.x;
+            var eye = Over(m, f, 3.2f, left ? 1.3f : 1.05f, left ? 0.68f : 0.3f, left ? 0.4f : 0.6f, 44f);
+            return new Shot(eye, Aim(eye, m + Vector3.up * 1.05f, left ? 0.68f : 0.3f, left ? 0.6f : 0.42f, 44f, -6f), -6f, 44f, 0.02f);
         }
 
         // Down on the floor beside the run at a noise body, tipped, a wide lens: the member comes in from the side
-        // and strikes across the view.
-        Shot Charge(int member, int foe)
+        // (side 1 her right, -1 her left) and strikes across the view.
+        Shot Charge(int member, int foe, float side = 1f)
+        {
+            Vector3 m = party[member].Home, f = foes[foe].Home;
+            var run = f - m;
+            run.y = 0f;
+            run.Normalize();
+            var right = new Vector3(run.z, 0f, -run.x) * side;
+            return new Shot(Vector3.Lerp(m, f, 0.55f) + right * 2.6f - run * 0.4f + Vector3.up * 0.35f, Vector3.Lerp(m, f, 0.8f) + Vector3.up * 0.95f, 12f * side, 56f);
+        }
+
+        // Behind her right shoulder and above it, a longish lens down the run: she dives off across the floor
+        // away from the camera and comes up jabbing into the noise body. Her right, not her left, where the
+        // player stands too near the camera.
+        Shot Chase(int member, int foe)
         {
             Vector3 m = party[member].Home, f = foes[foe].Home;
             var run = f - m;
             run.y = 0f;
             run.Normalize();
             var right = new Vector3(run.z, 0f, -run.x);
-            return new Shot(Vector3.Lerp(m, f, 0.55f) + right * 2.6f - run * 0.4f + Vector3.up * 0.35f, Vector3.Lerp(m, f, 0.8f) + Vector3.up * 0.95f, 12f, 56f);
+            return new Shot(m - run * 1.6f + right * 1.3f + Vector3.up * 1.9f, Vector3.Lerp(m, f, 0.75f) + Vector3.up * 0.8f, 6f, 44f, 0.02f);
+        }
+
+        // Out to her right, down on the seabed and looking up, a wide lens: she goes up out of the frame's middle
+        // and comes down on the noise body; landed, the camera has come in on the blow.
+        Shot Under(int member, int foe, bool landed)
+        {
+            Vector3 m = party[member].Home, f = foes[foe].Home;
+            var run = f - m;
+            run.y = 0f;
+            run.Normalize();
+            var right = new Vector3(run.z, 0f, -run.x);
+            return landed
+                ? new Shot(Vector3.Lerp(m, f, 0.7f) + right * 2.4f + Vector3.up * 0.25f, f - run * 0.6f + Vector3.up * 0.7f, 14f, 54f)
+                : new Shot(Vector3.Lerp(m, f, 0.45f) + right * 3.4f - run * 0.6f + Vector3.up * 0.15f, Vector3.Lerp(m, f, 0.6f) + Vector3.up * 1.7f, 9f, 62f);
         }
 
         // Behind the member and out to their right, a little over their eyes: their back and the phone coming
         // up past their shoulder on the left, the noise body it is held up at beyond (SeaFigure.RaisePhone's pose).
-        Shot OverPhone(int member, int foe)
+        // Held out at arm's length: higher and further back, the arm reaching out of the frame's middle at the
+        // noise body. Held low from down on one knee: down by the seabed, looking up past them.
+        Shot OverPhone(int member, int foe, SeaFigure.PhoneHold hold)
         {
             var m = party[member].Home;
             var f = foes[foe].Home + Vector3.up * NoiseLook.Height;
@@ -230,7 +295,12 @@ namespace SystemPrompt.Dungeon
             var right = new Vector3(ahead.z, 0f, -ahead.x);
             var eye = party[member].Figure.FaceCentre.y;
             var phone = m + ahead * 0.46f + Vector3.up * (eye - 0.11f);
-            return new Shot(m + right * 1.05f - ahead * 2.3f + Vector3.up * (eye + 0.25f), Vector3.Lerp(phone, f, 0.55f), -5f, 40f, 0.015f);
+            return hold switch
+            {
+                SeaFigure.PhoneHold.Reach => new Shot(m + right * 0.8f - ahead * 2.6f + Vector3.up * (eye + 0.55f), Vector3.Lerp(phone + ahead * 0.3f, f, 0.5f), 7f, 38f, 0.015f),
+                SeaFigure.PhoneHold.Low => new Shot(m + right * 1.1f - ahead * 2.1f + Vector3.up * 0.4f, Vector3.Lerp(m + Vector3.up * 0.9f, f, 0.6f), -10f, 46f, 0.015f),
+                _ => new Shot(m + right * 1.05f - ahead * 2.3f + Vector3.up * (eye + 0.25f), Vector3.Lerp(phone, f, 0.55f), -5f, 40f, 0.015f),
+            };
         }
 
         // Beside the member on its outer side, low and a little behind, looking past it at the noise bodies:
@@ -239,7 +309,9 @@ namespace SystemPrompt.Dungeon
         {
             var m = party[member].Home;
             var side = m.x >= 0f ? 1f : -1f;
-            return new Shot(m + new Vector3(2.8f * side, 0.8f, -2f), Vector3.Lerp(m + Vector3.up * 1.3f, FoeCentre, 0.6f), -9f * side, 52f, 0.02f);
+            // The member to the side the camera is on, the noise bodies across from them, all up off the cards.
+            var eye = m + new Vector3(2.8f * side, 0.8f, -2f);
+            return new Shot(eye, Aim(eye, m + Vector3.up * 0.9f, side > 0f ? 0.3f : 0.7f, 0.57f, 52f, -9f * side), -9f * side, 52f, 0.02f);
         }
 
         // Out on the member's outer side and behind, a little over their head, three and a half metres off: a pose
@@ -251,8 +323,9 @@ namespace SystemPrompt.Dungeon
         {
             var m = party[member].Home;
             var side = m.x >= 0f ? 1f : -1f;
-            var at = Quaternion.Euler(0f, -round * side, 0f) * Vector3.back * 3.4f + Vector3.up * 1.4f;
-            return new Shot(m + at, m + new Vector3(0f, 0.95f, 0.5f), -5f * side, 42f, 0.02f);
+            var eye = m + Quaternion.Euler(0f, -round * side, 0f) * Vector3.back * 3.4f + Vector3.up * 1.4f;
+            // Off the middle toward the field, standing up off the cards.
+            return new Shot(eye, Aim(eye, m + Vector3.up * 0.95f, side > 0f ? 0.6f : 0.4f, 0.57f, 42f, -5f * side), -5f * side, 42f, 0.02f);
         }
 
         // Low and to one side of the noise bodies, all down, turning slowly round them: the hold-up before the 集成.
@@ -262,6 +335,63 @@ namespace SystemPrompt.Dungeon
         // right, under the results, coming slowly round (slow enough that a long look at the results still
         // leaves the camera behind them).
         public Shot Victory => new Shot(new Vector3(-1.6f, 2.5f, -5.6f), new Vector3(-2.4f, 1.1f, 2.5f), -4f, 42f, 0.03f, 1.5f);
+
+        // Framing round the battle UI (1920 by 1080): the command menu down the left (to 0.29 of the width) and
+        // the party's cards along the bottom (the lowest fifth, from the right edge to 0.42 with two of them).
+        // A member the shot is about stands clear of both: right of the menu, above the cards.
+
+        // Where to look from `eye` to have `subject` at screen point (x, y), 0 to 1 from the left and from the
+        // bottom, through a lens fov degrees high, with the view tipped roll degrees (Shot.Roll) as it will be.
+        Vector3 Aim(Vector3 eye, Vector3 subject, float x, float y, float fov, float roll)
+        {
+            var tanY = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
+            var tanX = tanY * Camera.aspect;
+            // Where it has to be before the tip turns the picture round its middle.
+            var tip = roll * Mathf.Deg2Rad;
+            float u = (x - 0.5f) * 2f * tanX, v = (y - 0.5f) * 2f * tanY;
+            x = 0.5f + (u * Mathf.Cos(tip) - v * Mathf.Sin(tip)) / (2f * tanX);
+            y = 0.5f + (u * Mathf.Sin(tip) + v * Mathf.Cos(tip)) / (2f * tanY);
+            var far = Vector3.Distance(eye, subject);
+            var look = subject;
+            for (var i = 0; i < 5; i++)
+            {
+                var turn = Quaternion.LookRotation(look - eye);
+                var seen = Quaternion.Inverse(turn) * (subject - eye);
+                var across = Mathf.Atan(seen.x / seen.z) - Mathf.Atan((x - 0.5f) * 2f * tanX);
+                var up = Mathf.Atan(seen.y / seen.z) - Mathf.Atan((y - 0.5f) * 2f * tanY);
+                look = eye + turn * Quaternion.Euler(-up * Mathf.Rad2Deg, across * Mathf.Rad2Deg, 0f) * Vector3.forward * far;
+            }
+            return look;
+        }
+
+        // Behind `member` and round off the line on from them to `at`, `back` metres from them and `up` over the
+        // seabed: as far round as sets the two apart across the view, the member at screen x `mx` and `at` at `ax`
+        // (0 the left edge, 1 the right), through a lens fov degrees high. Round to their right with them on the
+        // left of the view, to their left with them on the right.
+        Vector3 Over(Vector3 member, Vector3 at, float back, float up, float mx, float ax, float fov)
+        {
+            var ahead = at - member;
+            ahead.y = 0f;
+            var far = ahead.magnitude;
+            ahead /= far;
+            var right = new Vector3(ahead.z, 0f, -ahead.x);
+            var half = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) * Camera.aspect;
+            var apart = Mathf.Atan((ax - 0.5f) * 2f * half) - Mathf.Atan((mx - 0.5f) * 2f * half);
+            var round = apart + Mathf.Asin(Mathf.Clamp(back * Mathf.Sin(apart) / far, -1f, 1f));
+            var eye = member + (right * Mathf.Sin(round) - ahead * Mathf.Cos(round)) * back;
+            eye.y = up;
+            return eye;
+        }
+
+        Vector3 PartyCentre
+        {
+            get
+            {
+                var sum = Vector3.zero;
+                foreach (var m in party) sum += m.Home;
+                return sum / party.Count;
+            }
+        }
 
         Vector3 FoeCentre
         {
@@ -371,47 +501,150 @@ namespace SystemPrompt.Dungeon
 
         // ------------------------------------------------------------------ party
 
-        // Runs at the noise body, stops short of it and slashes; done as the blade lands (Slash lights it), the
-        // run back follows once the slash is through.
+        // DeepSeek's 饭勺 (design/skills.md 战斗特效), the next of its four ways in: runs at the noise body and
+        // slashes across it; runs in from her other side and sweeps low round on one foot; dives across the floor,
+        // rolls up and jabs left, right; jumps and comes down on it. The spoon comes into her hand as she goes and
+        // its bowl trails light through the swing. Done as the blow lands (Slash lights it), the way back follows
+        // once the motion is through.
         public async Awaitable Dash(int member, int foe)
         {
             var m = party[member];
+            strike = (Strike)(strikes++ % 4);
             var target = foes[foe].Home;
             var to = target - m.Home;
             to.y = 0f;
-            var stop = m.Home + to.normalized * Mathf.Max(0f, to.magnitude - 1.6f);
+            var stop = m.Home + to.normalized * Mathf.Max(0f, to.magnitude - (strike == Strike.Rush ? 1.3f : strike == Strike.Leap ? 1.1f : 1.6f));
             var yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
             m.Yaw = yaw;
-            Move(Charge(member, foe), 0.25f);
-            var wake = effects.Streak(m.Root, Sea, 0.7f, 0.22f, "Wake");
-            await Anim.Tween(0.3f, t => m.At = Vector3.Lerp(m.Home, stop, t), Ease.InOutCubic);
-            if (wake != null) Destroy(wake.gameObject, 0.25f);
-            var length = m.Figure.Play("Slash", SlashPace);
-            await Anim.Wait(SlashLands);
+            m.Figure.Wield(true);
+            var trail = effects.Streak(m.Figure.SpoonTip, Sea, 0.16f, 0.2f, "Spoon " + strike);
+            if (trail != null) trail.transform.localPosition = Vector3.zero;
+            float length, lands;
+            switch (strike)
+            {
+                case Strike.Sweep:
+                    Move(Charge(member, foe, -1f), 0.25f);
+                    await RunIn(m, stop);
+                    length = m.Figure.Play("Sweep", SweepPace);
+                    await Anim.Wait(lands = SweepLands);
+                    break;
+                case Strike.Rush:
+                {
+                    Move(Chase(member, foe), 0.3f);
+                    m.Figure.Play("Roll", RollPace);
+                    var bubbles = effects.Streak(m.Root, Sea, 0.5f, 0.25f, "Wake");
+                    if (bubbles != null) bubbles.transform.localPosition = Vector3.up * 0.4f;
+                    await Anim.Tween(RollSeconds, t => m.At = Vector3.Lerp(m.Home, stop, t), Ease.OutCubic);
+                    if (bubbles != null) Destroy(bubbles.gameObject, 0.25f);
+                    m.Figure.Play("Jab", JabPace);
+                    await Anim.Wait(JabLands);
+                    Poke(foe);
+                    Move(Charge(member, foe), 0.35f);
+                    length = m.Figure.Play("Cross", CrossPace);
+                    await Anim.Wait(lands = CrossLands);
+                    break;
+                }
+                case Strike.Leap:
+                {
+                    Move(Under(member, foe, false), 0.25f);
+                    m.Figure.Play("Leap", LeapPace);
+                    await Anim.Wait(LeapOff);
+                    var landing = false;
+                    length = 0f;
+                    await Anim.Tween(LeapSeconds, t =>
+                    {
+                        m.At = Vector3.Lerp(m.Home, stop, Ease.InOutCubic(t)) + Vector3.up * (LeapHeight * 4f * t * (1f - t));
+                        // The landing's own drop starts a little before the feet are down.
+                        if (t < 0.8f || landing) return;
+                        landing = true;
+                        length = m.Figure.Play("Land", LandPace);
+                        Move(Under(member, foe, true), 0.2f);
+                    });
+                    m.At = stop;
+                    await Anim.Wait(lands = LandLands);
+                    break;
+                }
+                default:
+                    Move(Charge(member, foe), 0.25f);
+                    await RunIn(m, stop);
+                    length = m.Figure.Play("Slash", SlashPace);
+                    await Anim.Wait(lands = SlashLands);
+                    break;
+            }
             Back().Forget();
 
             async Awaitable Back()
             {
-                await Anim.Wait(length - SlashLands - 0.35f);
+                await Anim.Wait(Mathf.Max(0.15f, length - lands - 0.35f));
                 m.Figure.Stop();
+                m.Figure.Wield(false);
+                if (trail != null) Destroy(trail.gameObject);
                 Anim.Tween(0.4f, t => m.At = Vector3.Lerp(stop, m.Home, t), Ease.InOutCubic).Forget();
                 Anim.Tween(0.4f, t => m.Yaw = Mathf.LerpAngle(yaw, 0f, t)).Forget();
             }
         }
 
-        // The 饭勺's blade of seawater across the noise body: three crescents, the deep blue one back the other
-        // way, water thrown off it, sparks and a ring.
+        // The run in up to `stop`, a wake of water behind.
+        async Awaitable RunIn(Member m, Vector3 stop)
+        {
+            var wake = effects.Streak(m.Root, Sea, 0.7f, 0.22f, "Wake");
+            await Anim.Tween(0.3f, t => m.At = Vector3.Lerp(m.Home, stop, t), Ease.InOutCubic);
+            if (wake != null) Destroy(wake.gameObject, 0.25f);
+        }
+
+        // The jab before the cross: a small burst of water off the noise body and a jolt.
+        void Poke(int foe)
+        {
+            var at = FoePoint(foe) + Vector3.down * 0.1f;
+            effects.Flash(at, Sea, 1.3f, 0.18f);
+            effects.Sparks(at, Sea, 12, 6f);
+            effects.Ring(at, (Camera.transform.position - at).normalized, Color.white, 0.7f, 0.25f);
+            Shake(0.03f, 0.1f);
+        }
+
+        // The 饭勺's blow landing on the noise body, after the way it came in. The slash: three crescents of
+        // seawater across it, the deep blue one back the other way. The sweep: two crescents low round its
+        // foot and one back over the top, a ring out across the seabed. The cross: two short cuts crossing.
+        // The leap: crescents straight down, a ring and a spout of water out of the seabed.
+        // Each with water thrown off, sparks and a ring.
         public void Slash(int foe)
         {
             var at = FoePoint(foe) + Vector3.down * 0.15f;
-            effects.Slash(at, Sea, 1.25f, -32f);
-            effects.Slash(at, Color.white, 1.0f, -20f, 0.26f);
-            effects.Slash(at, new Color(0.15f, 0.45f, 1f), 1.5f, 150f, 0.4f);
+            var feet = new Vector3(at.x, 0.05f, at.z);
+            var facing = (Camera.transform.position - at).normalized;
+            switch (strike)
+            {
+                case Strike.Sweep:
+                    var low = at + Vector3.down * 0.45f;
+                    effects.Slash(low, Sea, 1.7f, 176f);
+                    effects.Slash(low, Color.white, 1.4f, 182f, 0.26f);
+                    effects.Slash(at, new Color(0.15f, 0.45f, 1f), 1.6f, 10f, 0.4f);
+                    effects.Ring(feet, Vector3.up, Sea, 2.6f, 0.5f);
+                    break;
+                case Strike.Rush:
+                    effects.Slash(at, Color.white, 0.95f, 68f, 0.24f);
+                    effects.Slash(at, Sea, 1.15f, -64f, 0.3f);
+                    effects.Ring(at, facing, Color.white, 1.0f, 0.3f);
+                    break;
+                case Strike.Leap:
+                    effects.Slash(at, Color.white, 1.3f, 96f, 0.26f);
+                    effects.Slash(at, Sea, 1.7f, 84f);
+                    effects.Ring(feet, Vector3.up, Sea, 3.2f, 0.55f);
+                    effects.Ring(feet, Vector3.up, Color.white, 2f, 0.35f);
+                    effects.Pillar(feet, Sea, 0.7f, 2.6f, 0.5f);
+                    break;
+                default:
+                    effects.Slash(at, Sea, 1.25f, -32f);
+                    effects.Slash(at, Color.white, 1.0f, -20f, 0.26f);
+                    effects.Slash(at, new Color(0.15f, 0.45f, 1f), 1.5f, 150f, 0.4f);
+                    break;
+            }
             effects.Splash(at, Sea);
             effects.Sparks(at, Sea, 28, 8f);
             effects.Flash(at, Sea, 2.2f);
-            effects.Ring(at, (Camera.transform.position - at).normalized, Sea, 1.3f, 0.35f);
-            Shake(0.06f, 0.2f);
+            effects.Ring(at, facing, Sea, 1.3f, 0.35f);
+            if (strike == Strike.Leap) Shake(0.1f, 0.3f);
+            else Shake(0.06f, 0.2f);
         }
 
         // A step out in front of the line and back, with a cast.
@@ -423,20 +656,24 @@ namespace SystemPrompt.Dungeon
             Anim.Tween(0.45f, t => m.At = Vector3.Lerp(out_, m.Home, t), Ease.InOutCubic).Forget();
         }
 
-        // The player's 截图: turns to the noise body where they stand and brings the phone up in both hands.
+        // The player's 截图: turns to the noise body where they stand and brings the phone up, the next of three
+        // ways in turn: in both hands at the eyes, out at arm's length in one, or low from down on one knee.
         public void Shoot(int member, int foe)
         {
             var m = party[member];
+            var hold = Held = (SeaFigure.PhoneHold)(shots++ % 3);
             var to = foes[foe].Home - m.Home;
             var yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
             Anim.Tween(0.2f, t => m.Yaw = Mathf.LerpAngle(0f, yaw, t)).Forget();
-            Move(OverPhone(member, foe), 0.3f);
-            m.Figure.RaisePhone(ShootSeconds);
+            Move(OverPhone(member, foe, hold), 0.3f);
+            if (hold == SeaFigure.PhoneHold.Low) m.Figure.Play("Kneel", KneelPace);
+            m.Figure.RaisePhone(ShootSeconds, hold);
             Turn().Forget();
 
             async Awaitable Turn()
             {
                 await Anim.Wait(ShootSeconds);
+                if (hold == SeaFigure.PhoneHold.Low) m.Figure.Stop();
                 await Anim.Tween(0.3f, t => m.Yaw = Mathf.LerpAngle(yaw, 0f, t));
             }
         }
@@ -465,7 +702,8 @@ namespace SystemPrompt.Dungeon
             Quaternion rotation = eye.rotation;
             var lens = Camera.fieldOfView;
             eye.position = target + (Hand(member) - target).normalized * 3f;
-            eye.rotation = Quaternion.LookRotation(target - eye.position);
+            // Turned over, or looking up, as the phone was held.
+            eye.rotation = Quaternion.LookRotation(target - eye.position, party[member].Figure.ScreenUp);
             Camera.fieldOfView = 34f;
             Camera.aspect = (float)width / height;
             Camera.targetTexture = photo;
@@ -770,20 +1008,21 @@ namespace SystemPrompt.Dungeon
             Move(Overview, 0.6f);
         }
 
-        // Knocked back a little by a hit, wincing, sparks off where it struck.
+        // Jolted a step back by a hit, wincing, sparks off where it struck: the chest or the head thrown back by
+        // turns, from the waist up, the legs keeping their stance.
         public void Recoil(int member)
         {
             var m = party[member];
             m.Wince = 0.7f;
             m.Shield?.Flare();
             Punch(3f, 0.3f);
-            if (m.Fall <= 0f) m.Figure.Play("Hit", 1.1f);
+            if (m.Fall <= 0f) m.Figure.Flinch(m.Hits++ % 2 == 0 ? "HitChest" : "HitHead", FlinchPace);
             effects.Sparks(MemberPoint(member), Harm, 18, 5f);
             effects.Flash(MemberPoint(member), Harm, 1.2f, 0.2f);
-            Anim.Tween(0.35f, t =>
+            Anim.Tween(0.3f, t =>
             {
                 var k = Mathf.Sin(t * Mathf.PI) * (1f - t * 0.3f);
-                m.At = m.Home + new Vector3(Random.Range(-0.04f, 0.04f), 0f, -0.35f * k);
+                m.At = m.Home + new Vector3(Random.Range(-0.02f, 0.02f), 0f, -0.15f * k);
             }, Ease.Linear).Forget();
         }
 
@@ -921,11 +1160,11 @@ namespace SystemPrompt.Dungeon
         }
 
         // 转发型's 转发保平安: forked arrows shot up out of it that split and come down on the whole party, the
-        // camera back to take in the field. Done when all have landed.
+        // camera back to take in the field and the height over it. Done when all have landed.
         public async Awaitable Forward(int foe, IList<int> members)
         {
             foes[foe].Heat = 1f;
-            Move(Overview, 0.35f);
+            Move(Skyward, 0.35f);
             await Anim.Wait(0.2f);
             if (this == null) return;
             var targets = new List<Vector3>();
@@ -958,6 +1197,7 @@ namespace SystemPrompt.Dungeon
             public Vector3 Home, At;
             public float Yaw, Speed, Fall;
             public float Wince;  // seconds left of the face pulled at a hit
+            public int Hits;     // taken so far, the jolt going by turns
             public string Mood;  // the face otherwise (SeaFigure's names), null as modelled
             public Transform Shadow; // on the seabed, apart so it stays flat when they fall
             public BattleEffects.Held Shield, Aura; // 防御's shield, 深度思考's charge
