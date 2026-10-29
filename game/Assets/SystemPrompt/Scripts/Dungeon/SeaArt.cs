@@ -190,7 +190,7 @@ namespace SystemPrompt.Dungeon
 
         public const int AtlasBubble = 0, AtlasEmoji = 1, AtlasCard = 2, AtlasDot = 3;
 
-        static Texture2D atlas, beam, white, firewall, ring, flare, cells, socket, sheen, dial;
+        static Texture2D atlas, beam, white, firewall, ring, flare, cells, socket, sheen, dial, spark, glare, puff, wave, across;
 
         // Four 128px cells: a chat bubble, an emoji face, a web card and a soft dot, white on clear.
         public static Texture2D Atlas => atlas ??= MakeAtlas();
@@ -203,6 +203,15 @@ namespace SystemPrompt.Dungeon
         public static Texture2D SocketMark => socket ??= MakeSocket();
         public static Texture2D Sheen => sheen ??= MakeSheen();
         public static Texture2D Dial => dial ??= MakeDial();
+        // The battle's effects (Dungeon/BattleEffects.cs): a hot point with a little glow round it, stretched
+        // into a streak by a spark's speed; a flash's glare; a puff of smoke or flame; a shock wave; and the
+        // cross-section of a trail of light.
+        public static Texture2D Spark => spark ??= Radial(64, r => Mathf.Exp(-r * r * 30f) + 0.22f * Mathf.Exp(-r * r * 5f));
+        public static Texture2D Glare => glare ??= Radial(128, r => 0.85f * Mathf.Exp(-r * r * 20f) + 0.4f * Mathf.Exp(-r * r * 3.5f));
+        public static Texture2D Puff => puff ??= MakePuff();
+        public static Texture2D Wave => wave ??= Radial(128, r => r < 0.92f ? Mathf.Pow(Mathf.Clamp01((r - 0.6f) / 0.32f), 2.6f) * 0.6f + Mathf.Exp(-Mathf.Pow((r - 0.92f) / 0.025f, 2f)) * 0.4f
+            : Mathf.Exp(-Mathf.Pow((r - 0.92f) / 0.025f, 2f)));
+        public static Texture2D Across => across ??= MakeAcross();
 
         // The atlas rectangle of one cell, for a material's scale and offset.
         public static Vector4 AtlasCell(int i) => new Vector4(0.25f, 1f, 0.25f * i, 0f);
@@ -370,6 +379,61 @@ namespace SystemPrompt.Dungeon
                 var diagonal = (Mathf.Exp(-Mathf.Abs(p.x - p.y) * 30f) + Mathf.Exp(-Mathf.Abs(p.x + p.y) * 30f)) * Mathf.Pow(fall, 2.5f);
                 var a = dot + 0.9f * cross + 0.35f * diagonal;
                 px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // White, its alpha `shape(r)` out from the middle (r 1 at the edge), brought down to nothing at the edge.
+        static Texture2D Radial(int size, System.Func<float, float> shape)
+        {
+            var t = New(size, size);
+            var px = new Color32[size * size];
+            for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var r = new Vector2(x - size / 2f + 0.5f, y - size / 2f + 0.5f).magnitude / (size / 2f);
+                var a = shape(r) * Mathf.Clamp01((1f - r) * 6f);
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // A billowing puff: clumped noise in a soft round.
+        static Texture2D MakePuff()
+        {
+            const int S = 128;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f) / (S / 2f);
+                var fall = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(0.15f, 1f, p.magnitude));
+                float n = 0f, amp = 0.5f, f = 2.2f;
+                for (var o = 0; o < 4; o++, amp *= 0.5f, f *= 2.1f) n += amp * Mathf.PerlinNoise(p.x * f + 17.3f + o * 5.1f, p.y * f + 3.7f + o * 9.4f);
+                var a = Mathf.Pow(Mathf.Clamp01(fall * (n * 1.9f - 0.25f)), 1.2f);
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // Across a trail (v) from edge to edge: soft at the edges and hot down the middle; the same all along it.
+        static Texture2D MakeAcross()
+        {
+            const int W = 4, H = 64;
+            var t = New(W, H);
+            var px = new Color32[W * H];
+            for (var y = 0; y < H; y++)
+            {
+                var d = Mathf.Abs((y + 0.5f) / H - 0.5f) * 2f;
+                var a = 0.5f * Mathf.Pow(1f - d, 1.5f) + 0.5f * Mathf.Exp(-d * d * 40f);
+                for (var x = 0; x < W; x++) px[y * W + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
             }
             t.SetPixels32(px);
             t.Apply();

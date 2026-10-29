@@ -10,12 +10,16 @@ namespace SystemPrompt.Dungeon
     // a thrown can of soda bursting into foam and a 辣条 into flame; the 标题党型's pop-up windows and the 转发型's
     // splitting arrows; lines of light at a weakness; light trails behind whoever dashes, pillars of light, and
     // the whale of the 集成. Nearly all of it is additive light on the Glow shader (the whale on Holo, the ice on
-    // Ice, the can and the windows solid on Toon), made in code and gone once played.
+    // Ice, the can and the windows solid on Toon), made in code and gone once played. The field is drawn in HDR
+    // and glows (BattleGlow): the hot middles of the effects go past white and bloom, their bodies stay under
+    // it. Smoke is drawn over what is behind it, to stand the flames out against. The flares light the noise
+    // bodies, the figures and the seabed round them (Light, SeaFlash in Shaders/SeaCommon.cginc).
     sealed class BattleEffects
     {
         readonly Transform parent;
         readonly Camera camera;
-        readonly Material white, dot, ring, beam, bubble, glint; // shared; arcs and lances fade by vertex colour
+        readonly Material white, ring, beam, bubble, glint; // shared; arcs and lances fade by vertex colour
+        readonly Material spark, trail, glare, wave, flame, smoke; // the HDR ones; glare, wave, smoke copied for each use
         readonly Mesh quad; // the rings' and flashes'
         // Made the first time they are wanted.
         Mesh lance, ice, shard, frame, arrow, can, rim, strip, adChrome, adPage, adBar;
@@ -27,53 +31,132 @@ namespace SystemPrompt.Dungeon
             this.parent = parent;
             this.camera = camera;
             white = SeaArt.Glow(SeaArt.White, Color.white);
-            dot = SeaArt.Glow(SeaArt.Atlas, Color.white);
-            var cell = SeaArt.AtlasCell(SeaArt.AtlasDot);
-            dot.mainTextureScale = new Vector2(cell.x, cell.y);
-            dot.mainTextureOffset = new Vector2(cell.z, cell.w);
             ring = SeaArt.Glow(SeaArt.Ring, Color.white);
             beam = SeaArt.Glow(SeaArt.Beam, Color.white);
             bubble = SeaArt.Glow(SeaArt.Atlas, Color.white);
             glint = SeaArt.Glow(SeaArt.Flare, Color.white);
+            spark = SeaArt.Glow(SeaArt.Spark, Color.white * 2.2f);
+            trail = SeaArt.Glow(SeaArt.Across, Color.white * 1.2f);
+            glare = SeaArt.Glow(SeaArt.Glare, Color.white);
+            wave = SeaArt.Glow(SeaArt.Wave, Color.white);
+            flame = SeaArt.Glow(SeaArt.Puff, Color.white * 1.8f);
+            smoke = SeaArt.Glow(SeaArt.Puff, Color.white);
+            smoke.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            smoke.renderQueue = 2990; // under the light drawn with it
             quad = SeaArt.Quad();
         }
 
         // The shared materials and meshes, when the field is taken down (BattleStage.Drop); what is playing then
-        // goes with the field.
+        // goes with the field, and so does its light.
         public void Dispose()
         {
-            foreach (var o in new Object[] { white, dot, ring, beam, bubble, glint, quad, lance, ice, shard, frame, arrow, can, rim, strip,
-                         adChrome, adPage, adBar, canLook, rimLook, stripLook, chrome, page, bar })
+            foreach (var o in new Object[] { white, ring, beam, bubble, glint, spark, trail, glare, wave, flame, smoke, quad, lance, ice, shard,
+                         frame, arrow, can, rim, strip, adChrome, adPage, adBar, canLook, rimLook, stripLook, chrome, page, bar })
                 if (o != null) Object.Destroy(o);
+            glims.Clear();
+            Shader.SetGlobalColor("_SeaFlashColor", Color.clear);
+        }
+
+        // ------------------------------------------------------------------ light
+
+        // A light an effect throws on the field, at At out to Radius metres.
+        sealed class Glim
+        {
+            public Vector3 At;
+            public Color Color;
+            public float Radius;
+        }
+
+        readonly List<Glim> glims = new List<Glim>();
+        const float MaxLight = 0.8f;
+
+        // A flare of light at `at` (its colour past 1 for a bright one), reaching `radius` metres: there at
+        // once and dying away over `seconds`.
+        public void Light(Vector3 at, Color color, float radius, float seconds)
+        {
+            var glim = new Glim { At = at, Color = color, Radius = radius };
+            glims.Add(glim);
+            Fade().Forget();
+
+            async Awaitable Fade()
+            {
+                await Anim.Tween(seconds, t => glim.Color = color * ((1f - t) * (1f - t)));
+                glims.Remove(glim);
+            }
+        }
+
+        // A light carried along with something until the returned Glim is put out (Out).
+        Glim Lamp(Vector3 at, Color color, float radius)
+        {
+            var glim = new Glim { At = at, Color = color, Radius = radius };
+            glims.Add(glim);
+            return glim;
+        }
+
+        void Out(Glim glim) => glims.Remove(glim);
+
+        // Every frame (BattleStage.Update): the shaders take one light, so those burning are taken as one, as
+        // bright as all of them together (up to MaxLight, so what it lights stays itself) and where the
+        // brightest are.
+        public void Shine()
+        {
+            var sum = Color.black;
+            var at = Vector3.zero;
+            float radius = 0f, weight = 0f;
+            foreach (var g in glims)
+            {
+                var w = g.Color.maxColorComponent;
+                if (w <= 0f) continue;
+                sum += g.Color;
+                at += g.At * w;
+                radius += g.Radius * w;
+                weight += w;
+            }
+            if (weight > 0f)
+            {
+                at /= weight;
+                radius /= weight;
+            }
+            Shader.SetGlobalVector("_SeaFlashPos", new Vector4(at.x, at.y, at.z, Mathf.Max(radius, 0.01f)));
+            var over = sum.maxColorComponent / MaxLight;
+            if (over > 1f) sum /= over;
+            Shader.SetGlobalColor("_SeaFlashColor", new Color(sum.r, sum.g, sum.b, 0f));
         }
 
         // ------------------------------------------------------------------ slash
 
         // A crescent swept across `at` in the plane facing the camera, rolled by `roll` degrees: the light runs
-        // along it from one end to the other in a tenth of a second and fades from its tail.
+        // along it from one end to the other in a tenth of a second and fades from its tail. Across it, from the
+        // inside out: a soft body of the colour, then a hot edge past white, sharp on its outer side; the head
+        // burns brightest and throws sparks off along the way it is going.
         public void Slash(Vector3 at, Color color, float size, float roll, float seconds = 0.34f)
         {
-            const int Steps = 28;
+            const int Steps = 32, Rows = 4;
             var facing = (camera.transform.position - at).normalized;
             var basis = Quaternion.LookRotation(-facing) * Quaternion.Euler(0f, 0f, roll);
             var mesh = new Mesh { name = "Slash" };
-            var vertices = new Vector3[(Steps + 1) * 3];
+            var vertices = new Vector3[(Steps + 1) * Rows];
             var colors = new Color[vertices.Length];
             var triangles = new List<int>();
+            Vector3 Dir(float u)
+            {
+                var angle = Mathf.Lerp(-105f, 105f, u) * Mathf.Deg2Rad;
+                return new Vector3(Mathf.Sin(angle), Mathf.Cos(angle) * 0.55f, 0f);
+            }
             for (var i = 0; i <= Steps; i++)
             {
                 var u = (float)i / Steps;
-                var angle = Mathf.Lerp(-105f, 105f, u) * Mathf.Deg2Rad;
-                var dir = new Vector3(Mathf.Sin(angle), Mathf.Cos(angle) * 0.55f, 0f);
+                var dir = Dir(u);
                 // Sin(π) comes out a hair below 0 in floats, and a negative to the power 0.7 is NaN.
-                var width = size * 0.3f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(u * Mathf.PI)), 0.7f);
-                vertices[i * 3] = dir * (size - width);
-                vertices[i * 3 + 1] = dir * (size - width * 0.35f);
-                vertices[i * 3 + 2] = dir * size;
+                var width = size * 0.34f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(u * Mathf.PI)), 0.7f);
+                vertices[i * Rows] = dir * (size - width);
+                vertices[i * Rows + 1] = dir * (size - width * 0.45f);
+                vertices[i * Rows + 2] = dir * (size - width * 0.06f);
+                vertices[i * Rows + 3] = dir * (size + width * 0.07f);
                 if (i == Steps) continue;
-                for (var row = 0; row < 2; row++)
+                for (var row = 0; row < Rows - 1; row++)
                 {
-                    int a = i * 3 + row, b = a + 1, c = a + 3, d = a + 4;
+                    int a = i * Rows + row, b = a + 1, c = a + Rows, d = c + 1;
                     triangles.AddRange(new[] { a, c, d, a, d, b });
                 }
             }
@@ -83,7 +166,8 @@ namespace SystemPrompt.Dungeon
             mesh.RecalculateBounds();
             var shape = Parts.Shape("Slash", parent, mesh, white);
             shape.transform.SetPositionAndRotation(at, basis);
-            var core = Color.Lerp(color, Color.white, 0.65f);
+            var hot = Color.Lerp(color, Color.white, 0.55f);
+            var thrown = Spray(Color.Lerp(color, Color.white, 0.4f), seconds);
             Run(shape.gameObject, seconds, t =>
             {
                 var head = Mathf.Clamp01(t / 0.32f) * 1.3f;
@@ -92,27 +176,73 @@ namespace SystemPrompt.Dungeon
                 {
                     var u = (float)i / Steps;
                     var lit = u > head ? 0f : (1f - Mathf.Clamp01((head - u) / 0.85f)) * fade;
-                    colors[i * 3] = Color.clear;
-                    colors[i * 3 + 1] = core * lit;
-                    colors[i * 3 + 2] = color * (lit * 0.45f);
+                    var burn = u > head ? 0f : 1f + 1.5f * Mathf.Exp(-Mathf.Pow((head - u) / 0.09f, 2f));
+                    colors[i * Rows] = Color.clear;
+                    colors[i * Rows + 1] = color * (lit * 0.55f);
+                    colors[i * Rows + 2] = hot * (lit * 1.9f * burn);
+                    colors[i * Rows + 3] = Color.clear;
                 }
                 mesh.colors = colors;
+                if (thrown == null || head > 1f || fade < 1f) return;
+                var tip = shape.transform.TransformPoint(Dir(head) * size);
+                var ahead = shape.transform.TransformDirection(Dir(Mathf.Min(1f, head + 0.02f)) - Dir(Mathf.Max(0f, head - 0.02f))).normalized;
+                for (var k = 0; k < 2; k++)
+                    thrown.Emit(new ParticleSystem.EmitParams
+                    {
+                        position = tip,
+                        velocity = ahead * Random.Range(3f, 9f) + Random.insideUnitSphere * 2f,
+                        startSize = Random.Range(0.06f, 0.13f),
+                        startLifetime = Random.Range(0.2f, 0.45f),
+                    }, 1);
             }, () => Object.Destroy(mesh));
+        }
+
+        // Sparks for an effect to throw off itself as it goes (ParticleSystem.Emit), there until `seconds` are
+        // up and the last has died.
+        ParticleSystem Spray(Color color, float seconds)
+        {
+            var ps = Burst("Spray", Vector3.zero, 0, 0.2f, 0.45f, 0f, 0.1f, spark);
+            var main = ps.main;
+            main.duration = seconds;
+            main.maxParticles = 120;
+            main.startColor = color;
+            main.gravityModifier = 0.5f;
+            Stretch(ps, 0.04f, 1.2f);
+            Dying(ps);
+            ps.Play();
+            return ps;
         }
 
         // ------------------------------------------------------------------ bursts
 
-        // Short bright streaks flying out of `at` and falling.
+        // Short streaks flying out of `at` and falling, white-hot in their middles.
         public void Sparks(Vector3 at, Color color, int count, float speed, float size = 0.08f)
         {
-            var ps = Burst("Sparks", at, count, 0.22f, 0.5f, speed, size, dot);
+            var ps = Burst("Sparks", at, count, 0.22f, 0.55f, speed, size * 1.6f, spark);
             var main = ps.main;
-            main.startColor = color;
+            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.Lerp(color, Color.white, 0.6f));
             main.gravityModifier = 0.7f;
-            var renderer = ps.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.05f;
-            renderer.lengthScale = 1.5f;
+            Stretch(ps, 0.05f, 1f);
+            Dying(ps);
+            ps.Play();
+        }
+
+        // Sparks that hang in the water a while after a blow, slowing and sinking (or, `rise` below 0, going up
+        // like embers), flickering out.
+        public void Embers(Vector3 at, Color color, int count, float speed, float rise = 0.35f)
+        {
+            var ps = Burst("Embers", at, count, 0.5f, 1.2f, speed, 0.1f, spark);
+            var main = ps.main;
+            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.Lerp(color, Color.white, 0.5f));
+            main.gravityModifier = rise;
+            var drag = ps.limitVelocityOverLifetime;
+            drag.dampen = 0.12f;
+            var wander = ps.noise;
+            wander.enabled = true;
+            wander.strength = 0.6f;
+            wander.frequency = 1.5f;
+            Stretch(ps, 0.03f, 1f);
+            Dying(ps);
             ps.Play();
         }
 
@@ -167,43 +297,76 @@ namespace SystemPrompt.Dungeon
             return ps;
         }
 
-        // A ring of light spreading from `at` across the plane facing `normal`, out to `radius`.
-        public void Ring(Vector3 at, Vector3 normal, Color color, float radius, float seconds = 0.45f)
+        // A shock wave spreading from `at` across the plane facing `normal`, out to `radius`: a sharp bright
+        // front with a fading wake inside it, thinning as it goes.
+        public void Ring(Vector3 at, Vector3 normal, Color color, float radius, float seconds = 0.45f, float heat = 1.5f)
         {
-            var shape = Parts.Shape("Ring", parent, quad, new Material(ring) { color = color });
+            var shape = Parts.Shape("Ring", parent, quad, new Material(wave) { color = color });
             shape.transform.SetPositionAndRotation(at, Quaternion.LookRotation(normal));
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
             {
-                shape.transform.localScale = Vector3.one * (radius * 2f * Mathf.Lerp(0.15f, 1f, Ease.OutCubic(t)));
-                material.color = color * (1f - t * t);
+                shape.transform.localScale = Vector3.one * (radius * 2f * Mathf.Lerp(0.12f, 1f, Ease.OutCubic(t)));
+                material.color = color * (heat * (1f - t) * (1f - t));
             }, () => Object.Destroy(material));
         }
 
-        // A round flash at `at`, turned to the camera.
-        public void Flash(Vector3 at, Color color, float size, float seconds = 0.28f)
+        // A round flash at `at`, turned to the camera: a glare with a hot middle, past white by `heat`.
+        public void Flash(Vector3 at, Color color, float size, float seconds = 0.28f, float heat = 1.5f)
         {
-            var shape = Parts.Shape("Flash", parent, quad, new Material(dot) { color = color });
+            var shape = Parts.Shape("Flash", parent, quad, new Material(glare) { color = color });
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
             {
                 shape.transform.SetPositionAndRotation(at, camera.transform.rotation);
-                shape.transform.localScale = Vector3.one * (size * Mathf.Lerp(0.5f, 1.2f, Ease.OutCubic(t)));
-                material.color = color * (1f - t);
+                shape.transform.localScale = Vector3.one * (size * Mathf.Lerp(0.6f, 1.15f, Ease.OutCubic(t)));
+                material.color = color * (heat * (1f - t) * (1f - t));
             }, () => Object.Destroy(material));
         }
 
-        // Water thrown off a blow: drops flung out and falling, and a few bubbles.
+        // A four-pointed star of light at `at` turned to the camera and rolled by `roll`, its rays shrinking
+        // back into it as it fades: the glint of a blow landing.
+        public void Star(Vector3 at, Color color, float size, float seconds = 0.25f, float roll = 0f, float heat = 2.4f)
+        {
+            var shape = Parts.Shape("Star", parent, quad, new Material(glint) { color = color });
+            var material = shape.sharedMaterial;
+            Run(shape.gameObject, seconds, t =>
+            {
+                shape.transform.SetPositionAndRotation(at, camera.transform.rotation * Quaternion.Euler(0f, 0f, roll + 25f * t));
+                shape.transform.localScale = Vector3.one * (size * Mathf.Lerp(1f, 0.35f, Ease.InCubic(t)) * Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(t * 8f)));
+                material.color = color * (heat * (1f - t));
+            }, () => Object.Destroy(material));
+        }
+
+        // Soft puffs at `at` drifting up and spreading, `alpha` thick: smoke drawn over what is behind, or
+        // (`lit`) a glow of mist.
+        public void Mist(Vector3 at, Color color, int count, float size, float alpha, bool lit = false)
+        {
+            var ps = Burst("Mist", at, count, 0.7f, 1.4f, 1.6f, size, lit ? flame : smoke);
+            var main = ps.main;
+            main.startColor = new Color(color.r, color.g, color.b, alpha);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.gravityModifier = -0.08f;
+            var shape = ps.shape;
+            shape.radius = size * 0.25f;
+            var spin = ps.rotationOverLifetime;
+            spin.enabled = true;
+            spin.z = new ParticleSystem.MinMaxCurve(-1f, 1f);
+            var grow = ps.sizeOverLifetime;
+            grow.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.5f));
+            Fading(ps);
+            ps.Play();
+        }
+
+        // Water thrown off a blow: drops flung out and falling, a few bubbles and a breath of mist.
         public void Splash(Vector3 at, Color color)
         {
-            var drops = Burst("Splash", at, 30, 0.35f, 0.7f, 8f, 0.12f, dot);
+            var drops = Burst("Splash", at, 30, 0.35f, 0.7f, 8f, 0.16f, spark);
             var main = drops.main;
             main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
             main.gravityModifier = 1.6f;
-            var renderer = drops.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.04f;
-            renderer.lengthScale = 1.2f;
+            Stretch(drops, 0.04f, 1f);
+            Dying(drops);
             drops.Play();
             var bubbles = Burst("Bubbles", at, 12, 0.6f, 1.1f, 2.5f, 0.3f, bubble);
             var rise = bubbles.main;
@@ -211,43 +374,61 @@ namespace SystemPrompt.Dungeon
             rise.gravityModifier = -0.2f;
             Bubbly(bubbles);
             bubbles.Play();
+            Mist(at, color, 5, 1.1f, 0.18f, true);
         }
 
-        // A blow on a weakness or a critical: lines of light flung out of `at` all round, a wide ring and a flash,
-        // and for a critical two cuts crossing over it.
+        // A blow on a weakness or a critical, in layers: the field lit up in its colour, a white-hot flash in a
+        // wider glare of the colour, a star, lines of light flung out all round, embers left hanging and two shock
+        // waves; for a critical, two cuts crossing over it and a third wave after.
         public void Impact(Vector3 at, Color color, bool critical)
         {
-            var lines = Burst("Impact", at, 30, 0.14f, 0.28f, 26f, 0.1f, white);
+            var facing = (camera.transform.position - at).normalized;
+            var hot = Color.Lerp(color, Color.white, 0.6f);
+            Light(at, color * (critical ? 3.5f : 2.6f), 7f, 0.45f);
+            Flash(at, Color.white, 1.2f, 0.12f, 2.1f);
+            Flash(at, color, 2.4f, 0.3f, 0.8f);
+            Star(at, hot, critical ? 4.4f : 3.4f, 0.26f, Random.Range(0f, 90f));
+            var lines = Burst("Impact", at, 28, 0.12f, 0.26f, 28f, 0.18f, spark);
             var main = lines.main;
             main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
-            var renderer = lines.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.07f;
-            renderer.lengthScale = 2f;
+            Stretch(lines, 0.05f, 2f);
+            Dying(lines);
             lines.Play();
-            Ring(at, (camera.transform.position - at).normalized, color, 2.6f, 0.4f);
-            Flash(at, Color.white, 3.6f, 0.22f);
+            Embers(at, hot, 22, 7f);
+            Ring(at, facing, color, 2.8f, 0.34f);
+            Ring(at, facing, Color.white, 1.6f, 0.22f, 2f);
             if (!critical) return;
             Slash(at, Color.white, 1.5f, 40f, 0.3f);
             Slash(at, new Color(1f, 0.35f, 0.4f), 1.5f, -40f, 0.3f);
+            Ring(at, facing, new Color(1f, 0.35f, 0.4f), 4f, 0.5f, 0.9f);
         }
 
-        // A column of light standing up out of the seabed at `at`.
+        // A column of light standing up out of the seabed at `at`, a hotter core inside it, lighting what is round.
         public void Pillar(Vector3 at, Color color, float radius, float height, float seconds = 0.8f)
         {
+            var foot = new Vector3(at.x, 0f, at.z);
             var tube = SeaArt.Tube(radius, radius * 0.6f, 1f, 24);
             var shape = Parts.Shape("Pillar", parent, tube, new Material(beam) { color = color });
-            shape.transform.position = new Vector3(at.x, 0f, at.z);
+            shape.transform.position = foot;
             var material = shape.sharedMaterial;
+            var coreTube = SeaArt.Tube(radius * 0.32f, radius * 0.2f, 1f, 16);
+            var core = Parts.Shape("Core", shape.transform, coreTube, new Material(beam) { color = Color.white });
+            var coreLook = core.sharedMaterial;
+            var hot = Color.Lerp(color, Color.white, 0.6f);
+            Light(foot + Vector3.up * 1.2f, color * 2f, radius * 6f + 2f, seconds * 0.8f);
             Run(shape.gameObject, seconds, t =>
             {
                 var rise = Ease.OutCubic(Mathf.Clamp01(t / 0.3f));
+                var fade = 1f - Mathf.Clamp01((t - 0.35f) / 0.65f);
                 shape.transform.localScale = new Vector3(1f + t * 0.4f, height * rise, 1f + t * 0.4f);
-                material.color = color * (1f - Mathf.Clamp01((t - 0.35f) / 0.65f));
+                material.color = color * (0.7f * fade);
+                coreLook.color = hot * (1.3f * fade * fade);
             }, () =>
             {
                 Object.Destroy(material);
+                Object.Destroy(coreLook);
                 Object.Destroy(tube);
+                Object.Destroy(coreTube);
             });
         }
 
@@ -354,8 +535,9 @@ namespace SystemPrompt.Dungeon
                 var away = Ease.InCubic(Mathf.Clamp01((t - 0.3f) / 0.7f));
                 snap.SetPositionAndRotation(Vector3.Lerp(at, phone, away), camera.transform.rotation);
                 snap.localScale = Vector3.one * (Mathf.Lerp(1.6f, 1f, shut) * Mathf.Lerp(1f, 0.08f, away));
-                look.color = color * Mathf.Lerp(1.8f, 1f, shut);
+                look.color = color * Mathf.Lerp(2.4f, 1.3f, shut);
             }, () => Object.Destroy(look));
+            Light(at, color * 2.2f, 6f, 0.4f);
             Siphon(at, phone, a, b);
         }
 
@@ -431,8 +613,9 @@ namespace SystemPrompt.Dungeon
             if (parent == null) return;
             var root = Parts.Node("Stream", parent);
             root.position = from;
-            var headLook = new Material(dot) { color = Color.Lerp(color, Color.white, 0.6f) };
+            var headLook = new Material(glare) { color = Color.Lerp(color, Color.white, 0.6f) * 2.2f };
             var head = Parts.Shape("Head", root, quad, headLook).transform;
+            var lamp = Lamp(from, color * 1.8f, 5f);
             var strands = new Transform[width > 0.5f ? 5 : 3];
             for (var i = 0; i < strands.Length; i++)
             {
@@ -448,8 +631,9 @@ namespace SystemPrompt.Dungeon
                 if (root == null) return;
                 var p = Vector3.Lerp(from, to, t) + up * (Mathf.Sin(t * Mathf.PI) * 0.3f);
                 head.SetPositionAndRotation(p, camera.transform.rotation);
-                head.localScale = Vector3.one * (width * (2.2f + 0.4f * Mathf.Sin(t * 47f)));
+                head.localScale = Vector3.one * (width * (2.6f + 0.5f * Mathf.Sin(t * 47f)));
                 crystals.transform.position = p;
+                lamp.At = p;
                 for (var i = 0; i < strands.Length; i++)
                 {
                     // The first down the middle, the rest round it, closing in toward the target.
@@ -458,6 +642,7 @@ namespace SystemPrompt.Dungeon
                     strands[i].position = p + (side * Mathf.Cos(turn) + up * Mathf.Sin(turn)) * r;
                 }
             }, t => t * (0.6f + 0.4f * t), () => root == null);
+            Out(lamp);
             if (root != null)
             {
                 Object.Destroy(head.gameObject);
@@ -481,6 +666,8 @@ namespace SystemPrompt.Dungeon
             Ring(new Vector3(at.x, 0.05f, at.z), Vector3.up, color, size * 1.8f, 0.5f);
             Flash(at, Color.Lerp(color, Color.white, 0.5f), size * 2.4f, 0.22f);
             Sparks(at, Color.white, 16, 3.5f, 0.07f);
+            Mist(at + Vector3.down * 0.5f, color, 6, size * 1.4f, 0.22f, true);
+            Light(at, color * 2.2f, 6f, 0.5f);
             return shell;
         }
 
@@ -495,8 +682,12 @@ namespace SystemPrompt.Dungeon
             Object.Destroy(look);
             Shards(at, color, Mathf.RoundToInt(36f * size), 7.5f * size);
             Sparks(at, Color.white, 22, 9f, 0.08f);
-            Flash(at, Color.white, size * 3.2f, 0.25f);
-            Ring(at, (camera.transform.position - at).normalized, color, size * 2f, 0.4f);
+            Embers(at, color, 18, 5f, 0.25f);
+            Flash(at, Color.white, size * 1.1f, 0.14f, 1.8f);
+            Flash(at, color, size * 2.8f, 0.3f, 1.1f);
+            Star(at, Color.Lerp(color, Color.white, 0.6f), size * 3f, 0.25f, Random.Range(0f, 90f));
+            Ring(at, (camera.transform.position - at).normalized, color, size * 2.2f, 0.4f);
+            Light(at, color * 2.6f, 7f, 0.4f);
         }
 
         // Splinters of ice flung out of `at`, turning over as they fall.
@@ -570,7 +761,14 @@ namespace SystemPrompt.Dungeon
             if (parent == null) return;
             var root = Parts.Node("Vortex", parent, new Vector3(centre.x, 0.04f, centre.z));
             Mesh floorMesh = Spiral(radius, 6), spoutMesh = Spout(radius, 4.8f, 6);
-            Material floorLook = new Material(white) { color = color }, spoutLook = new Material(white) { color = color * 1.2f };
+            // Dimmer than the rest: seen through the spout the bands lie over one another many deep.
+            var deep = new Color(0.12f, 0.35f, 0.95f);
+            Material floorLook = new Material(white) { color = color }, spoutLook = new Material(white) { color = color * 0.5f };
+            var underLook = new Material(glare) { color = deep };
+            var under = Parts.Shape("Under", root, quad, underLook).transform;
+            under.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            under.localScale = Vector3.zero;
+            var lamp = Lamp(root.position + Vector3.up * 1.5f, Color.clear, radius * 2.2f);
             var floor = Parts.Shape("Whirl", root, floorMesh, floorLook).transform;
             var spout = Parts.Shape("Spout", root, spoutMesh, spoutLook).transform;
             floor.localScale = spout.localScale = Vector3.zero;
@@ -587,15 +785,21 @@ namespace SystemPrompt.Dungeon
                 floor.localScale = new Vector3(open, 1f, open);
                 spout.localRotation = Quaternion.Euler(0f, turned * 1.4f, 0f);
                 spout.localScale = new Vector3(open, Ease.OutCubic(Mathf.Clamp01((t - 0.1f) / 0.4f)), open);
-                floorLook.color = color * (0.9f + 0.2f * Mathf.Sin(t * 37f));
+                floorLook.color = color * (0.8f + 0.2f * Mathf.Sin(t * 37f));
+                under.localScale = Vector3.one * (radius * 3f * open);
+                underLook.color = deep * (0.9f + 0.15f * Mathf.Sin(t * 23f));
+                lamp.Color = color * (open * (0.8f + 0.15f * Mathf.Sin(t * 31f)));
                 whirl?.Invoke(t);
             }, Ease.Linear, () => root == null);
+            Out(lamp);
             if (root != null)
             {
                 crystals.Stop();
                 bubbles.Stop();
-                Flash(centre + Vector3.up * 1.4f, Color.white, radius * 2.4f, 0.4f);
+                Flash(centre + Vector3.up * 1.4f, Color.white, radius * 1.4f, 0.25f, 2.4f);
+                Flash(centre + Vector3.up * 1.4f, color, radius * 2.6f, 0.45f, 1.2f);
                 Ring(root.position, Vector3.up, Color.white, radius * 1.6f, 0.5f);
+                Light(centre + Vector3.up * 1.4f, color * 3f, radius * 2.5f, 0.6f);
             }
             Fall().Forget();
 
@@ -606,12 +810,13 @@ namespace SystemPrompt.Dungeon
                     if (root == null) return;
                     floor.localScale = new Vector3(1f + 0.3f * t, 1f, 1f + 0.3f * t);
                     spout.localScale = new Vector3(1f + 0.4f * t, 1f - t, 1f + 0.4f * t);
-                    floorLook.color = color * (1f - t);
-                    spoutLook.color = color * (1.2f * (1f - t));
+                    floorLook.color = color * (0.8f * (1f - t));
+                    spoutLook.color = color * (0.5f * (1f - t));
+                    underLook.color = deep * (1f - t);
                 }, Ease.OutCubic, () => root == null);
                 await Anim.Wait(1.2f); // the last crystals and bubbles out
                 if (root != null) Object.Destroy(root.gameObject);
-                foreach (var o in new Object[] { floorMesh, spoutMesh, floorLook, spoutLook }) Object.Destroy(o);
+                foreach (var o in new Object[] { floorMesh, spoutMesh, floorLook, spoutLook, underLook }) Object.Destroy(o);
             }
         }
 
@@ -637,7 +842,9 @@ namespace SystemPrompt.Dungeon
                     vertices.Add(dir * r);
                     vertices.Add(dir * (r + width * 0.5f));
                     colors.Add(Color.clear);
-                    colors.Add(new Color(1f, 1f, 1f, Mathf.Pow(Mathf.Sin(u * Mathf.PI), 0.7f) * (1f - 0.4f * u)));
+                    // Sin(π) comes out a hair below 0, and a negative to a fractional power is NaN (a speck the glow
+                    // would blow up into a disc).
+                    colors.Add(new Color(1f, 1f, 1f, Mathf.Pow(Mathf.Max(0f, Mathf.Sin(u * Mathf.PI)), 0.7f) * (1f - 0.4f * u)));
                     colors.Add(Color.clear);
                     if (i == Steps) continue;
                     for (var row = 0; row < 2; row++)
@@ -671,7 +878,7 @@ namespace SystemPrompt.Dungeon
                     vertices.Add(middle);
                     vertices.Add(middle + half);
                     colors.Add(Color.clear);
-                    colors.Add(new Color(1f, 1f, 1f, Mathf.Pow(Mathf.Sin(u * Mathf.PI), 0.6f)));
+                    colors.Add(new Color(1f, 1f, 1f, Mathf.Pow(Mathf.Max(0f, Mathf.Sin(u * Mathf.PI)), 0.6f)));
                     colors.Add(Color.clear);
                     if (i == Steps) continue;
                     for (var row = 0; row < 2; row++)
@@ -854,13 +1061,14 @@ namespace SystemPrompt.Dungeon
             var mesh = Cells(0.95f, 1.15f, 0.17f);
             Parts.Shape("Cells", root, mesh, look);
             var held = new Held();
-            var flare = 1.6f;
+            var flare = 0.8f;
             held.OnFlare = () =>
             {
-                flare = 2.4f;
+                flare = 1.1f;
                 if (root == null) return;
                 Ring(root.position, facing, color, 1.3f, 0.35f);
                 Sparks(root.position, Color.Lerp(color, Color.white, 0.5f), 16, 5f);
+                Light(root.position, color * 1.6f, 4f, 0.3f);
             };
             Hold().Forget();
             return held;
@@ -872,7 +1080,7 @@ namespace SystemPrompt.Dungeon
                 {
                     var dt = Time.unscaledDeltaTime;
                     t += dt;
-                    flare = Mathf.MoveTowards(flare, 0f, dt * 4f);
+                    flare = Mathf.MoveTowards(flare, 0f, dt * 2.5f);
                     root.localScale = Vector3.one * Ease.OutBack(Mathf.Clamp01(t / 0.25f));
                     look.color = color * (0.85f + 0.1f * Mathf.Sin(t * 5f) + flare);
                     await Awaitable.NextFrameAsync();
@@ -947,16 +1155,18 @@ namespace SystemPrompt.Dungeon
             var body = Parts.Node("Body", thing);
             body.localScale = Vector3.one * 1.6f; // big enough to read across the field
             Material flame = null;
+            Glim lamp = null;
             if (fire)
             {
                 strip ??= SeaArt.Box(new Vector3(0.1f, 0.03f, 0.36f), 0.012f);
                 stripLook ??= SeaArt.Toon(Palette.Hex("#E2421B"), Palette.Hex("#8A1E0A"), new Color(1f, 0.6f, 0.2f, 0.8f), Palette.Hex("#401000"), 0.01f);
                 Parts.Shape("Strip", body, strip, stripLook);
-                flame = new Material(dot) { color = color };
-                Parts.Shape("Flame", thing, quad, flame).gameObject.AddComponent<Billboard>().transform.localScale = Vector3.one * 0.9f;
-                var embers = Shed(thing, color, 30f, dot);
+                flame = new Material(glare) { color = color };
+                Parts.Shape("Flame", thing, quad, flame).gameObject.AddComponent<Billboard>().transform.localScale = Vector3.one * 1.1f;
+                var embers = Shed(thing, color, 30f, spark);
                 var rise = embers.main;
                 rise.gravityModifier = -0.4f;
+                lamp = Lamp(from, color * 1.4f, 4.5f);
             }
             else
             {
@@ -977,8 +1187,10 @@ namespace SystemPrompt.Dungeon
                 if (thing == null) return;
                 thing.position = Vector3.Lerp(from, to, t) + Vector3.up * (height * 4f * t * (1f - t));
                 body.localRotation = Quaternion.AngleAxis(t * 1080f, axis);
-                if (flame != null) flame.color = color * (0.8f + 0.3f * Mathf.Sin(t * 60f));
+                if (flame != null) flame.color = color * (1.8f + 0.5f * Mathf.Sin(t * 60f));
+                if (lamp != null) lamp.At = thing.position;
             }, Ease.Linear, () => thing == null);
+            if (lamp != null) Out(lamp);
             if (thing != null) Object.Destroy(thing.gameObject);
             if (flame != null) Object.Destroy(flame);
         }
@@ -998,29 +1210,55 @@ namespace SystemPrompt.Dungeon
             Bubbly(foam);
             foam.Play();
             Sparks(at, Color.white, 26, 6f, 0.07f);
-            Flash(at, color, 3.4f, 0.55f);
-            Ring(at, (camera.transform.position - at).normalized, color, 1.5f, 0.35f);
+            Flash(at, Color.white, 1.4f, 0.16f, 2.6f);
+            Flash(at, color, 3.6f, 0.5f, 1.2f);
+            Mist(at, new Color(0.85f, 0.97f, 1f), 10, 1.6f, 0.35f);
+            Ring(at, (camera.transform.position - at).normalized, color, 1.8f, 0.35f);
+            Light(at, color * 2.4f, 6f, 0.55f);
             Frost(at, color, 0.6f).Forget();
         }
 
-        // The 辣条 bursting into a ball of flame where it hits: tongues of fire rising, embers, a ring of heat.
+        // The 辣条 bursting into a ball of flame where it hits: a white-hot flash, billows of flame rolling up and
+        // out from yellow through orange to deep red, dark smoke rising behind them, embers going up, a ring of heat
+        // across the seabed, and the field lit orange.
         public void Blaze(Vector3 at, Color color)
         {
-            var fire = Burst("Blaze", at, 48, 0.35f, 0.85f, 3.5f, 0.75f, dot);
+            var fire = Burst("Blaze", at, 42, 0.35f, 0.8f, 3.2f, 1.1f, flame);
             var main = fire.main;
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.9f, 0.55f), color);
-            main.gravityModifier = -0.6f;
+            main.startColor = Color.white;
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.gravityModifier = -0.7f;
+            var shape = fire.shape;
+            shape.radius = 0.3f;
+            var spin = fire.rotationOverLifetime;
+            spin.enabled = true;
+            spin.z = new ParticleSystem.MinMaxCurve(-2f, 2f);
+            var grow = fire.sizeOverLifetime;
+            grow.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.5f, 1f, 1.3f));
             var shade = fire.colorOverLifetime;
             shade.enabled = true;
             var burn = new Gradient();
-            burn.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.95f, 0.7f), 0f), new GradientColorKey(color, 0.35f), new GradientColorKey(new Color(0.8f, 0.12f, 0.05f), 1f) },
-                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.8f, 0.5f), new GradientAlphaKey(0f, 1f) });
+            burn.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.95f, 0.75f), 0f), new GradientColorKey(new Color(1f, 0.7f, 0.25f), 0.2f),
+                    new GradientColorKey(color, 0.5f), new GradientColorKey(new Color(0.6f, 0.08f, 0.04f), 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.9f, 0.45f), new GradientAlphaKey(0f, 1f) });
             shade.color = new ParticleSystem.MinMaxGradient(burn);
             fire.Play();
+            var soot = Burst("Smoke", at + Vector3.up * 0.3f, 14, 0.9f, 1.6f, 2f, 1.5f, smoke);
+            var dark = soot.main;
+            dark.startColor = new Color(0.07f, 0.05f, 0.06f, 0.6f);
+            dark.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            dark.gravityModifier = -0.25f;
+            var swell = soot.sizeOverLifetime;
+            swell.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.5f, 1f, 1.6f));
+            Fading(soot);
+            soot.Play();
+            Flash(at, new Color(1f, 0.92f, 0.7f), 2f, 0.18f, 3f);
+            Flash(at, color, 5f, 0.45f, 1.3f);
             Sparks(at, new Color(1f, 0.75f, 0.35f), 30, 7f, 0.07f);
-            Flash(at, Color.Lerp(color, Color.white, 0.35f), 3.8f, 0.35f);
-            Ring(new Vector3(at.x, 0.05f, at.z), Vector3.up, color, 2.2f, 0.55f);
-            Ring(at, (camera.transform.position - at).normalized, color, 1.5f, 0.3f);
+            Embers(at, new Color(1f, 0.6f, 0.2f), 26, 3.5f, -0.5f);
+            Ring(new Vector3(at.x, 0.05f, at.z), Vector3.up, color, 2.6f, 0.55f);
+            Ring(at, (camera.transform.position - at).normalized, new Color(1f, 0.85f, 0.5f), 1.8f, 0.3f);
+            Light(at, color * 3.2f, 8f, 0.8f);
         }
 
         // ------------------------------------------------------------------ the noise bodies' attacks
@@ -1058,6 +1296,7 @@ namespace SystemPrompt.Dungeon
             Pixels(to, a, b, 22, 4.5f);
             Flash(to, a, 1.8f, 0.2f);
             Ring(to, (camera.transform.position - to).normalized, b, 1f, 0.3f);
+            Light(to, a * 1.8f, 4f, 0.3f);
         }
 
         // A pop-up window like those round a 标题党型 (NoiseLook): its chrome, a red title bar, a dark page and
@@ -1130,6 +1369,7 @@ namespace SystemPrompt.Dungeon
             if (!lands) return;
             Flash(to, color, 1.1f, 0.2f);
             Sparks(to, color, 8, 4f);
+            Light(to, color * 1.2f, 3.5f, 0.25f);
         }
 
         // ------------------------------------------------------------------ trails and the whale
@@ -1141,9 +1381,9 @@ namespace SystemPrompt.Dungeon
             go.transform.SetParent(follow, false);
             go.transform.localPosition = Vector3.up * 1f;
             var trail = go.AddComponent<TrailRenderer>();
-            trail.sharedMaterial = white;
+            trail.sharedMaterial = this.trail;
             trail.time = seconds;
-            trail.widthMultiplier = width;
+            trail.widthMultiplier = width * 1.2f; // the cross-section is soft out to its edges
             trail.widthCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0.1f);
             trail.colorGradient = Fade(color);
             trail.minVertexDistance = 0.1f;
@@ -1162,6 +1402,7 @@ namespace SystemPrompt.Dungeon
             var wake = Streak(body, color, length * 0.35f, 0.5f);
             wake.transform.localPosition = Vector3.zero;
             var bubbles = BubbleTrail(body, length);
+            var lamp = Lamp(from, color * 2.4f, length * 1.4f);
             var passed = false;
             Vector3 At(float t) => Vector3.Lerp(Vector3.Lerp(from, over, t), Vector3.Lerp(over, to, t), t);
             await Anim.Tween(seconds, t =>
@@ -1170,12 +1411,14 @@ namespace SystemPrompt.Dungeon
                 var p = At(t);
                 var ahead = At(Mathf.Min(1f, t + 0.02f)) - At(Mathf.Max(0f, t - 0.02f));
                 body.SetPositionAndRotation(p, Quaternion.LookRotation(ahead) * Quaternion.Euler(0f, 0f, Mathf.Sin(t * Mathf.PI * 2f) * 10f));
+                lamp.At = p;
                 if (!passed && t >= 0.5f)
                 {
                     passed = true;
                     passing?.Invoke();
                 }
             }, Ease.Linear, () => body == null);
+            Out(lamp);
             if (body == null) return;
             bubbles.Stop();
             Object.Destroy(wake.gameObject, 0.6f);
@@ -1227,9 +1470,9 @@ namespace SystemPrompt.Dungeon
         TrailRenderer Trail(GameObject go, Color color, float width, float seconds)
         {
             var trail = go.AddComponent<TrailRenderer>();
-            trail.sharedMaterial = white;
+            trail.sharedMaterial = this.trail;
             trail.time = seconds;
-            trail.widthMultiplier = width;
+            trail.widthMultiplier = width * 1.2f;
             trail.widthCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
             trail.colorGradient = Fade(color);
             trail.minVertexDistance = 0.05f;
@@ -1279,6 +1522,26 @@ namespace SystemPrompt.Dungeon
             var g = new Gradient();
             g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.2f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            shade.color = new ParticleSystem.MinMaxGradient(g);
+        }
+
+        // Particles drawn stretched along the way they fly, longer the faster.
+        static void Stretch(ParticleSystem ps, float speed, float length)
+        {
+            var renderer = ps.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = speed;
+            renderer.lengthScale = length;
+        }
+
+        // Particles going out in their last third rather than only shrinking to nothing.
+        static void Dying(ParticleSystem ps)
+        {
+            var shade = ps.colorOverLifetime;
+            shade.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.6f), new GradientAlphaKey(0f, 1f) });
             shade.color = new ParticleSystem.MinMaxGradient(g);
         }
 

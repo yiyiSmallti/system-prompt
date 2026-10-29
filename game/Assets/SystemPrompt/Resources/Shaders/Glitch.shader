@@ -114,6 +114,7 @@ Shader "SystemPrompt/Glitch"
                     col += step(0.42, h) * smoothstep(0.3, 0.0, length(i.uv - float2(0.22, 0.78))) * 0.25;
                     col = lerp(col, float3(1, 1, 1), step(0.975, h) * 0.85);
                 }
+                col += (col * 0.6 + 0.1) * SeaFlash(i.world, normalize(i.normal));
                 float3 view = normalize(_WorldSpaceCameraPos - i.world);
                 float rim = pow(1.0 - saturate(dot(normalize(i.normal), view)), 3.0);
                 col += lerp(_ColorB.rgb, float3(1, 0.2, 0.2), _Alert) * smoothstep(0.4, 0.6, rim) * 0.6;

@@ -1,5 +1,6 @@
 // Additive light for everything that shines in the sea: floating fragments, beams, motes, the vision
-// fans of the noise bodies and the firewall. Fades into the fog instead of tinting toward it.
+// fans of the noise bodies and the firewall. Fades into the fog instead of tinting toward it. Drawn over what
+// is behind (premultiplied: _DstBlend OneMinusSrcAlpha) it is smoke instead (Dungeon/BattleEffects.cs).
 Shader "SystemPrompt/Glow"
 {
     Properties
@@ -7,11 +8,13 @@ Shader "SystemPrompt/Glow"
         _MainTex ("Shape", 2D) = "white" {}
         _Color ("Color", Color) = (1,1,1,1)
         _Scroll ("UV scroll (x, y per second)", Vector) = (0,0,0,0)
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source blend", Float) = 1
+        [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Destination blend", Float) = 1
     }
     SubShader
     {
         Tags { "RenderType"="Transparent" "Queue"="Transparent" "IgnoreProjector"="True" }
-        Blend One One
+        Blend [_SrcBlend] [_DstBlend]
         ZWrite Off
         Cull Off
         Pass
@@ -42,7 +45,7 @@ Shader "SystemPrompt/Glow"
             {
                 fixed4 t = tex2D(_MainTex, i.uv);
                 float a = t.a * i.color.a * _Color.a * SeaClear(i.world);
-                return fixed4(t.rgb * i.color.rgb * _Color.rgb * a, 1);
+                return fixed4(t.rgb * i.color.rgb * _Color.rgb * a, a);
             }
             ENDCG
         }

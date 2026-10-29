@@ -12,6 +12,8 @@ float _SeaFogDensity;   // per metre
 float _SeaTime;         // unscaled seconds
 float4 _SeaGlowPos;     // xyz: the player's avatar, which lights the seabed around it; w: radius
 float4 _SeaGlowColor;
+float4 _SeaFlashPos;    // xyz: where the battle's effects flare up (Dungeon/BattleEffects.cs); w: how far their light reaches
+float4 _SeaFlashColor;  // that light, past 1 when bright; 0 when nothing flares
 
 // 1 near the camera, 0 deep in the fog.
 inline float SeaClear(float3 worldPos)
@@ -25,6 +27,16 @@ inline float3 SeaFog(float3 col, float3 worldPos)
     // Higher up the fog takes the surface light's colour.
     float3 fog = lerp(_SeaFogColor.rgb, _SeaSurfaceColor.rgb, saturate(worldPos.y / 60.0) * 0.5);
     return lerp(fog, col, SeaClear(worldPos));
+}
+
+// The light a flare in a battle throws on a surface facing n: fading out to its reach, wrapped a little round
+// the side turned away, so a blow lights the noise body it lands on and the figures and seabed round it.
+inline float3 SeaFlash(float3 worldPos, float3 n)
+{
+    float3 to = _SeaFlashPos.xyz - worldPos;
+    float d = length(to);
+    float reach = saturate(1.0 - d / max(_SeaFlashPos.w, 0.01));
+    return _SeaFlashColor.rgb * reach * reach * saturate(dot(n, to / max(d, 0.001)) * 0.75 + 0.25);
 }
 
 inline float SeaHash(float2 p)

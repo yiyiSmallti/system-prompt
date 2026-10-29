@@ -109,6 +109,7 @@ Shader "SystemPrompt/Seabed"
                 float3 h = normalize(normalize(toLamp) + normalize(_WorldSpaceCameraPos - i.world));
                 float reach = saturate(1.0 - length(toLamp) / max(_SeaGlowPos.w * 2.0, 0.01));
                 col += _SeaGlowColor.rgb * pow(saturate(dot(n, h)), 60.0) * reach * reach * 0.5 * (1.0 - saturate(dot(n, float3(0, 1, 0)) * 40.0 - 39.0));
+                col += SeaFlash(i.world, float3(0, 1, 0)) * 0.5;
                 return fixed4(SeaFog(col, i.world), 1);
             }
             ENDCG

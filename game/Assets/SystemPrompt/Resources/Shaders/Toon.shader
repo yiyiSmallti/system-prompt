@@ -157,6 +157,7 @@ Shader "SystemPrompt/Toon"
                     float reach = saturate(1.0 - d / max(_SeaGlowPos.w * 2.0, 0.01));
                     col += _Color.rgb * albedo.rgb * _SeaGlowColor.rgb * reach * reach * saturate(dot(n, toLamp / max(d, 0.001))) * 2.0 * _Lamp;
                 }
+                col += _Color.rgb * albedo.rgb * SeaFlash(i.world, n);
                 float rim = pow(1.0 - saturate(dot(n, view)), _RimPower);
                 col += _RimColor.rgb * smoothstep(0.35, 0.55, rim) * _RimColor.a;
                 col += _Emission.rgb;
