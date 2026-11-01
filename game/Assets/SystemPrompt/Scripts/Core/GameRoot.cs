@@ -287,6 +287,18 @@ namespace SystemPrompt
         // closes, then the screen it came from is back.
         public async Awaitable RunBattle(string id, BattleOpening opening = BattleOpening.Normal)
         {
+            var def = Battles.Get(id);
+            if (def == null)
+            {
+                Debug.LogError($"<<battle {id}>>：Battles 里没有这场战斗，直接跳过");
+                return;
+            }
+            await RunBattle(def, opening);
+        }
+
+        // A battle put together on the spot (noise bodies that joined up in the maze) or one from Battles.
+        public async Awaitable RunBattle(BattleDef def, BattleOpening opening = BattleOpening.Normal)
+        {
             var run = story;
             var back = screen;
             InBattle = true;
@@ -298,7 +310,7 @@ namespace SystemPrompt
                 {
                     SetScreen(Battle);
                     UpdateMusic();
-                    battle = Battle.Run(id, run, opening); // sets up the field before its first await, so it is ready to reveal
+                    battle = Battle.Run(def, run, opening); // sets up the field before its first await, so it is ready to reveal
                 }
             }
             finally

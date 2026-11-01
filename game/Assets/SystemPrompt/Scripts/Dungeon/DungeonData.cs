@@ -64,6 +64,7 @@ namespace SystemPrompt.Dungeon
         public ZoneDef[] Zones = new ZoneDef[0];
         public bool Meter;        // 维护进度 runs (100% ends the night)
         public float MeterStart;
+        public float ChaseSpeed = 5.1f; // the noise bodies' speed after the player, metres a second (SeaNoise)
         public Color Lighthouse;  // the lamp's colour: cold white while the shadow is there
         public Vector2 LighthouseCell; // may lie outside the map
         // The area's scenery modelled in Blender (assets/scenes/<id>/, Dungeon/SeaScene.cs): Resources path of
@@ -87,6 +88,7 @@ namespace SystemPrompt.Dungeon
         public string StartNode, SpottedNode, FirewallNode, TerminalNode, BeaconNode;
         public string FirstBattleNode, FirstWinNode, GateNode, StuckNode, LightNode;
         public string AmbushHintNode, WarningNode, GoalNode, TimeoutNode;
+        public string SodaHintNode; // DeepSeek on the 冰镇汽水, the first time a patrolling noise body is near after the first battle
         public string[] FragmentNodes = new string[0];
         public string[] FragmentTitles = new string[0];
         public ChestDef[] Chests = new ChestDef[0];
@@ -166,6 +168,7 @@ namespace SystemPrompt.Dungeon
                 TerminalNode = "Prologue_Sea_Terminal",
                 BeaconNode = "Prologue_Sea_Beacon",
                 AmbushHintNode = "Prologue_Sea_Ambushed",
+                SodaHintNode = "Prologue_Sea_Soda",
                 FragmentNodes = new[] { "Prologue_Sea_Fragment_Post", "Prologue_Sea_Fragment_Rice", "Prologue_Sea_Fragment_Draft" },
                 FragmentTitles = new[] { "已删除的帖子", "已撤回的消息", "未发送的草稿" },
                 Chests = new[]
@@ -194,7 +197,9 @@ namespace SystemPrompt.Dungeon
             // room's middle aisle, over the low wall into the white hall, and stops on the white door. The
             // way there goes round: west through the recycle bin (short, a beacon) or east through the
             // long-context corridor (long, but the delay patch is there). In the hall four light plates have
-            // to be turned until the light reaches the exit beside the door; until then it stays dark.
+            // to be turned until the light reaches the exit beside the door; until then it stays dark. Among the
+            // noise bodies here are 冷知识型, which shrug off ice; they run faster than the shallows', and the
+            // meter running out throws the party back to the last beacon (UI/Dungeon/DungeonScreen.cs Bounce).
             ["cache_sea_deep"] = new DungeonDef
             {
                 Id = "cache_sea_deep", Area = "缓存海", Layer = "深层", LayerTag = "DEEP",
@@ -237,6 +242,7 @@ namespace SystemPrompt.Dungeon
                 },
                 Meter = true,
                 MeterStart = 15f,
+                ChaseSpeed = 6.5f,
                 Lighthouse = new Color(0.45f, 0.72f, 1f),
                 LighthouseCell = new Vector2(14f, 29f),
                 Scene = "Scenes/CacheSeaDeep/cache_sea_deep",
@@ -269,9 +275,10 @@ namespace SystemPrompt.Dungeon
                     new EnemySpawn { Mark = '2', Kind = "repost", Route = "h", Battle = "sea_mixed" },
                     new EnemySpawn { Mark = '3', Kind = "clickbait", Route = "i", Battle = "sea_clickbait" },
                     new EnemySpawn { Mark = '4', Kind = "repost", Route = "jk", Battle = "sea_repost" },
-                    new EnemySpawn { Mark = '5', Kind = "clickbait", Route = "l", Battle = "sea_clickbait" },
+                    // In the long-context corridor: the first 冷知识型, beside a 标题党型 telling the same 「弱点：火」.
+                    new EnemySpawn { Mark = '5', Kind = "coldfact", Route = "l", Battle = "sea_coldfact" },
                     // Across the white hall, in front of the exit.
-                    new EnemySpawn { Mark = '6', Kind = "repost", Route = "m", Battle = "sea_mixed" },
+                    new EnemySpawn { Mark = '6', Kind = "repost", Route = "m", Battle = "sea_repost" },
                 },
             },
         };

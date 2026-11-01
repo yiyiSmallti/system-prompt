@@ -44,6 +44,8 @@ namespace SystemPrompt.UI
             bodyBox = Ui.El("sp-enemy__body", Root);
             words = unit.Kind == "repost"
                 ? new[] { Ui.Text("转发保平安", "sp-enemy__word", bodyBox, FontKind.Black) }
+                : unit.Kind == "coldfact"
+                ? new[] { Ui.Text("你知道吗？", "sp-enemy__word", bodyBox, FontKind.Black), Ui.Text("据统计", "sp-enemy__word is-small", bodyBox, FontKind.Black) }
                 : new[] { Ui.Text("震惊！", "sp-enemy__word", bodyBox, FontKind.Black), Ui.Text("点击领取", "sp-enemy__word is-small", bodyBox, FontKind.Black) };
 
             downTag = Ui.Text("DOWN", "sp-enemy__down", Root, FontKind.Black);

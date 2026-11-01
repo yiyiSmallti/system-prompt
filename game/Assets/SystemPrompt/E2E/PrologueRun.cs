@@ -81,6 +81,7 @@ namespace SystemPrompt.E2E
         int shotCount;
         int hold;
         bool finished;
+        bool deepTaught; // the first battle DeepSeek fights in has shown 防御, 白米饭 and the 辣条
 
         float Now => Time.realtimeSinceStartup - started;
 
@@ -414,15 +415,19 @@ namespace SystemPrompt.E2E
             yield return Jump(Noise('1'), "dungeon-first", "从背后接近礁石出口发呆的噪声体（提示「先制攻击！」）");
             if (finished) yield break;
             Check(Maze.Battles == 1 && Maze.Preemptive == 1, $"第一场战斗是先制攻击（{Maze.Battles} 场，先制 {Maze.Preemptive}）");
-            Check(game.State.ItemCount("ice_soda") == 1, "第一场战斗掉落冰镇汽水");
+            Check(game.Battle.Earned == 39, $"先制奖励：EXP 30 → {game.Battle.Earned}");
+            Check(game.State.ItemCount("ice_soda") == 2, $"第一场战斗先制，掉落翻倍：冰镇汽水 ×{game.State.ItemCount("ice_soda")}");
             Check(game.State.party.Count == 1, $"觉醒前主角一个人战斗（队伍 {game.State.party.Count} 人）");
 
             var coralBeacon = BeaconIn("表情包珊瑚林");
             yield return Walk(coralBeacon.Cell, "沿手机南侧往西，进珊瑚林走到信标", 2.2f);
             yield return Lurk(() => Maze.Exploring && coralBeacon.Used, "珊瑚林的信标点亮");
             yield return Fight(Noise('2'), "和珊瑚林的噪声体战斗");
+            Check(Maze.SodaTold, "第一战之后走近巡逻的噪声体，DeepSeek 在右上角说了汽水是冰的");
             yield return Pearl(1, "珊瑚林西南角");
             yield return Fight(Noise('3'), "往北进删帖墓地，和墓地的噪声体战斗", ThrowSoda);
+            var me = game.State.Member(game.State.party[0]);
+            Check(true, $"墓地的战斗后主角 HP {me.hp}/{SystemPrompt.Battle.CombatStats.ForCharacter(me.id, me.level).MaxHp}");
             yield return Pearl(2, "墓地西北角");
 
             var draft = w.Props.Find(p => p.Kind == PropKind.Fragment && w.Def.FragmentTitles[p.Index] == "未发送的草稿");
@@ -505,7 +510,32 @@ namespace SystemPrompt.E2E
             yield return Jump(Noise('1'), "dungeon-sneak", "背后接近发呆的噪声体（提示「先制攻击！」）");
             if (finished) yield break;
             Check(Maze.Preemptive == 1, "先制攻击");
+            Check(game.Battle.Earned == 52, $"先制奖励：EXP 40 → {game.Battle.Earned}");
+            Check(game.Battle.LiesDoubted >= 1, "辣条打在标题党型的耐性上，假弱点名牌变成「？？？」");
 
+            // The server room's two patrols walk the rows either side of the aisle. Standing on the lower one's lane,
+            // it finds the party and calls the other over, and the two are fought as one battle.
+            if (Noise('2').Active && Noise('3').Active)
+            {
+                yield return Walk(new Vector2Int(14, 13), "站到机房过道上，等巡逻的噪声体发现", 0.6f);
+                if (finished) yield break;
+                if (Noise('2').Active && Noise('3').Active)
+                {
+                    yield return Lurk(() => !Maze.Exploring || Noise('3').Alerted || Noise('2').Alerted, "巡逻的噪声体发现了主角");
+                    if (finished) yield break;
+                    var spotter = Noise('2').Alerted && !Noise('3').Alerted ? Noise('2') : Noise('3');
+                    var other = spotter == Noise('3') ? Noise('2') : Noise('3');
+                    Check(other.Alerted, "被发现的噪声体叫来了另一只");
+                    yield return Fight(spotter, "迎击两只一起追来的噪声体", () => ShotInBattle("battle-joined", "两只噪声体合成一场战斗"));
+                    if (finished) yield break;
+                    Check(game.Battle.FoeKinds.Count >= 3, $"两只噪声体合成一场战斗（{game.Battle.FoeKinds.Count} 只）");
+                    Check(!spotter.Active && !other.Active, "两只噪声体都从迷宫里消失");
+                }
+            }
+            var exposed = game.Battle.Exposures;
+
+            // The 冷知识型 patrolling the corridor (beside a 标题党型 telling the same 「弱点：火」) is met on the way to the
+            // fragment and the chest; the battle-coldfact watcher pictures it when its battle's menu is up.
             var help = w.Props.Find(p => p.Kind == PropKind.Fragment && w.Def.FragmentTitles[p.Index] == "从上面漂下来的话");
             yield return Walk(help.Cell, "往东进长上下文回廊，走到碎片「从上面漂下来的话」", 2f);
             yield return Pump(() => Maze.Exploring && w.EnemyInReach(2.6f) == null, "碎片旁没有噪声体");
@@ -522,6 +552,11 @@ namespace SystemPrompt.E2E
             yield return Wait(0.3f);
             yield return Snap("dungeon-chest", "打开宝箱（延时补丁）");
             Check(Maze.ChestsOpened == 1 && Maze.Meter < before, $"延时补丁让维护进度下降（{before:0.0}% → {Maze.Meter:0.0}%）");
+            if (!Noise('5').Active)
+            {
+                Check(game.Battle.FoeKinds.Contains("coldfact"), "回廊的战斗里有冷知识型");
+                Check(game.Battle.Exposures == exposed, "标题党型的假弱点没有在第二回合自动碎掉");
+            }
 
             yield return Walk(new Vector2Int(19, 4), "从东边进白门大厅", 1.2f);
             if (Noise('6').Active) yield return Fight(Noise('6'), "和大厅里巡逻的噪声体战斗");
@@ -546,6 +581,7 @@ namespace SystemPrompt.E2E
             yield return Walk(w.Map.Find('G')[0], "走进出口的光柱（白门在旁边）", 0f, () => !game.InDungeon);
             Check(Seen("dungeon-gate"), "在维护结束前走到出口（白门在旁边）");
             Check(Seen("dungeon-mirror"), "白门照出战斗形态的主角");
+            Check(true, $"到出口时维护进度 {Maze.Meter:0}%，80% 警告{(Maze.Warned ? "已" : "未")}触发，弹回 {Maze.Bounces} 次");
             Check(Maze.Battles >= 2, $"深层战斗 {Maze.Battles} 场");
             Check(Maze.ZonesVisited >= 4, $"深层走过 {Maze.ZonesVisited} 个区域");
         }
@@ -611,12 +647,77 @@ namespace SystemPrompt.E2E
             Check(ate, "先制战斗里 DeepSeek 吃了白米饭");
         }
 
+        // Moves whatever is on screen along: a talk or a results screen with Enter; a battle's command menu with the
+        // party's one tactic once DeepSeek fights, after Advance picks it. Before her the shallows are the screenshot alone.
+        IEnumerator Advance()
+        {
+            if (game.InBattle && Visible(ui.Q(className: "sp-battle__menu"))) yield return SmartCommand();
+            else yield return Press(Key.Enter);
+        }
+
+        // 白米饭 for whoever is under 40% HP, 深海潜流 from DeepSeek while two or more noise bodies stand, else the attack.
+        IEnumerator SmartCommand()
+        {
+            var turn = ui.Q<Label>(className: "sp-battle__banner-text").text;
+            var mine = turn == "我的回合";
+            var hers = turn == "DeepSeek 的回合";
+            var id = mine ? game.State.party[0] : "DeepSeek";
+            var v = game.Battle.Vital(id);
+            if ((mine || hers) && v.MaxHp > 0 && v.Hp * 100 < v.MaxHp * 40 && game.State.ItemCount("white_rice") > 0)
+            {
+                for (var i = 0; i < 6 && !CommandSelected("道具"); i++) yield return Press(Key.DownArrow);
+                if (CommandSelected("道具"))
+                {
+                    yield return Press(Key.Enter);
+                    yield return Wait(0.3f);
+                    for (var i = 0; i < 6 && !ItemSelected("白米饭"); i++) yield return Press(Key.DownArrow);
+                    yield return Press(Key.Enter);
+                    yield return Wait(0.3f);
+                    if (hers) yield return Press(Key.DownArrow); // the party list starts at the player
+                    yield return Press(Key.Enter);
+                    yield return Wait(0.4f);
+                    yield break;
+                }
+            }
+            if (hers && game.Battle.FoesStanding >= 2 && v.Sp >= 8)
+            {
+                for (var i = 0; i < 6 && !CommandSelected("技能"); i++) yield return Press(Key.DownArrow);
+                if (CommandSelected("技能"))
+                {
+                    yield return Press(Key.Enter);
+                    yield return Wait(0.3f);
+                    for (var i = 0; i < 6 && !SkillSelected("深海潜流"); i++) yield return Press(Key.DownArrow);
+                    yield return Press(Key.Enter);
+                    yield return Wait(0.3f);
+                    yield return Press(Key.Enter);
+                    yield return Wait(0.4f);
+                    yield break;
+                }
+            }
+            for (var i = 0; i < 6 && !CommandSelected("攻击") && !CommandSelected("攻击（截图）"); i++) yield return Press(Key.UpArrow);
+            yield return Press(Key.Enter);
+            yield return Wait(0.3f);
+        }
+
+        bool SkillSelected(string name) =>
+            ui.Q(className: "sp-battle__skills").Query(className: "sp-skillrow").ToList().Any(r => r.ClassListContains("is-selected") && r.Q<Label>(className: "sp-skillrow__name")?.text == name);
+
         bool ItemSelected(string name) =>
             ui.Q(className: "sp-battle__items").Query(className: "sp-skillrow").ToList().Any(r => r.ClassListContains("is-selected") && r.Q<Label>(className: "sp-skillrow__name")?.text == name);
 
         // The player's first turn in the graveyard's battle: the 冰镇汽水 the first battle dropped, thrown at a
         // 标题党型. The cursor's forecast stays blank over its fake 「弱点：火」, the hit is on its true weakness,
         // and that gives the fake tag away on every plate.
+        // A picture of the field once the first command menu is up; the fight then goes on with the first command.
+        IEnumerator ShotInBattle(string shot, string title)
+        {
+            var t0 = Now;
+            while (!finished && game.InBattle && !Visible(ui.Q(className: "sp-battle__menu")) && Now - t0 < StepTimeout) yield return null;
+            if (!game.InBattle) yield break;
+            yield return Wait(0.4f);
+            yield return Snap(shot, title);
+        }
+
         IEnumerator ThrowSoda()
         {
             var t0 = Now;
@@ -648,10 +749,11 @@ namespace SystemPrompt.E2E
                 var forecast = ui.Query<Label>(className: "sp-enemy__forecast").ToList().Where(Visible).Select(l => l.text).FirstOrDefault();
                 Check(forecast == null, $"假弱点还没识破时，瞄准标题党型不显示 WEAK（{forecast ?? "空"}）");
                 yield return Snap("battle-aim-item", "用冰镇汽水瞄准标题党型");
+                var sodasBefore = game.State.ItemCount("ice_soda");
                 yield return Press(Key.Enter);
                 var thrown = Now;
-                while (!finished && game.InBattle && game.State.ItemCount("ice_soda") > 0 && Now - thrown < 10f) yield return null;
-                Check(game.State.ItemCount("ice_soda") == 0, "扔出了冰镇汽水");
+                while (!finished && game.InBattle && game.State.ItemCount("ice_soda") == sodasBefore && Now - thrown < 10f) yield return null;
+                Check(game.State.ItemCount("ice_soda") == sodasBefore - 1, $"扔出了冰镇汽水（{sodasBefore} → {game.State.ItemCount("ice_soda")}）");
                 var exposed = Now;
                 while (!finished && game.InBattle && Now - exposed < 15f && !ui.Query<Label>(className: "sp-enemy__weak-text").ToList().Any(l => Visible(l) && l.text.StartsWith("弱点：冰"))) yield return null;
                 // A miss (5%) leaves it to the second turn, which gives it away too.
@@ -727,7 +829,7 @@ namespace SystemPrompt.E2E
                 if (!Maze.Exploring)
                 {
                     Release();
-                    yield return Press(Key.Enter);
+                    yield return Advance();
                     continue;
                 }
                 var path = w.Map.Path(w.PlayerCell, w.Map.CellAt(dozing.Position));
@@ -750,8 +852,9 @@ namespace SystemPrompt.E2E
             yield return Press(Key.Enter);
             yield return Pump(() => game.InBattle, "先制攻击进入战斗");
             // Both, once DeepSeek fights, and then the 辣条 the shallows' pair dropped.
-            if (game.State.party.Count > 1 && !Seen("battle-pose-item"))
+            if (game.State.party.Count > 1 && !deepTaught)
             {
+                deepTaught = true;
                 yield return GuardAndEat();
                 yield return ThrowStrip();
             }
@@ -795,7 +898,7 @@ namespace SystemPrompt.E2E
                         yield return step();
                         continue;
                     }
-                    if (hold == 0) yield return Press(Key.Enter);
+                    if (hold == 0) yield return Advance();
                     else yield return null;
                     continue;
                 }
@@ -957,7 +1060,7 @@ namespace SystemPrompt.E2E
                 if (!Maze.Exploring)
                 {
                     Release();
-                    if (hold == 0) yield return Press(Key.Enter);
+                    if (hold == 0) yield return Advance();
                     else yield return null;
                     continue;
                 }
@@ -1093,6 +1196,9 @@ namespace SystemPrompt.E2E
             Watch("battle-impact", "打中弱点：放射光线和冲击环", () => OnStage("Impact"), 0.05f, false);
             Film("battle-popups", "标题党型「震惊！」：弹窗广告砸向队员", () => OnStage("Popup"), 8, 0.08f);
             Film("battle-forward", "转发型「转发保平安」：分叉箭头升空分裂、落向全队", () => OnStage("Forward"), 10, 0.08f);
+            Film("battle-cards", "冷知识型「你知道吗？」：卡片旋转着甩向队员", () => OnStage("Card"), 8, 0.08f);
+            Watch("battle-coldfact", "冷知识型：一叠洗牌的卡片，名牌上的「弱点：火」是真的，旁边的标题党型也这么写",
+                () => game.InBattle && game.Battle.FoeKinds.Contains("coldfact") && Visible(ui.Q(className: "sp-battle__menu")), 0.4f);
             Film("battle-toss", "道具：冰镇汽水翻滚着飞过去、炸开泡沫和冰霜", () => OnStage("Can"), 10, 0.08f);
             Film("battle-blaze", "道具：辣条着火飞过去、炸成火球", () => OnStage("Strip"), 10, 0.08f);
             Watch("battle-skill", "技能列表在左栏，当前队员露在它右边", () => Visible(ui.Q(className: "sp-battle__skills")), 0.2f);
@@ -1205,7 +1311,7 @@ namespace SystemPrompt.E2E
                     Finish();
                     yield break;
                 }
-                if (hold == 0) yield return Press(Key.Enter);
+                if (hold == 0) yield return Advance();
                 else yield return null;
                 yield return Wait(0.06f);
             }
@@ -1226,7 +1332,7 @@ namespace SystemPrompt.E2E
                     Finish();
                     yield break;
                 }
-                if (!Maze.Exploring && hold == 0) yield return Press(Key.Enter);
+                if (!Maze.Exploring && hold == 0) yield return Advance();
                 else yield return null;
             }
             if (!finished) passes.Add($"{Now:0.0}s　{what}");

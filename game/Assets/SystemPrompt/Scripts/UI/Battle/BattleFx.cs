@@ -210,13 +210,14 @@ namespace SystemPrompt.UI
         }
 
         // The noise body's attack on the field: 转发保平安's arrows down on the whole party, 震惊！'s pop-up windows
-        // at the one member it picked.
+        // at the one member it picked, 你知道吗？'s fact cards at theirs.
         async Awaitable StrikeFx(EnemyView view, SkillDef skill, List<PartyCard> victims)
         {
             game.Audio.Sfx("glitch", 0.5f);
             if (stage == null || victims.Count == 0) return;
             var foe = enemies.IndexOf(view);
             if (skill.AllTargets) await stage.Forward(foe, victims.Select(c => party.IndexOf(c)).ToList());
+            else if (skill == Skills.ColdFact) await stage.Lecture(foe, party.IndexOf(victims[0]));
             else await stage.Bait(foe, party.IndexOf(victims[0]));
         }
 
@@ -396,6 +397,7 @@ namespace SystemPrompt.UI
             exp.Add(burst);
             Ui.Text("EXP", "sp-results__exp-label", exp, FontKind.MonoBold);
             var expNumber = Ui.Text("+0", "sp-results__exp-number", exp, FontKind.Black);
+            if (Preemptive) Ui.Text($"先制 ×{Battles.PreemptiveExp:0.0}　掉落 ×{Battles.PreemptiveDrops}", "sp-results__exp-bonus", exp, FontKind.MonoBold);
 
             var rows = new List<VisualElement>();
             var fills = new List<VisualElement>();
@@ -434,14 +436,14 @@ namespace SystemPrompt.UI
 
             var drops = new List<VisualElement>();
             VisualElement shelfTag = null;
-            if (def.Drops != null && def.Drops.Length > 0)
+            if (dropped != null && dropped.Length > 0)
             {
                 var shelf = Ui.El("sp-results__drops", layer);
                 var get = shelfTag = Ui.El("sp-results__get", shelf);
                 Shape.Backdrop(get, Shape.Slant(12), Palette.Red);
                 Ui.Text("GET!", "sp-results__get-text", get, FontKind.Black);
                 var seed = 0;
-                foreach (var d in def.Drops)
+                foreach (var d in dropped)
                 {
                     var card = Ui.El("sp-results__drop", shelf);
                     Shape.Backdrop(card, Shape.Jag(++seed * 11, 9f), Palette.Paper).Shadow(new Vector2(8, 8), Palette.Green);

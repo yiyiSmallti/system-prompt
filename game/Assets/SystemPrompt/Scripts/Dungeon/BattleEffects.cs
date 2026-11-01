@@ -22,8 +22,8 @@ namespace SystemPrompt.Dungeon
         readonly Material spark, trail, glare, wave, flame, smoke; // the HDR ones; glare, wave, smoke copied for each use
         readonly Mesh quad; // the rings' and flashes'
         // Made the first time they are wanted.
-        Mesh lance, ice, shard, frame, arrow, can, rim, strip, adChrome, adPage, adBar;
-        Material canLook, rimLook, stripLook, chrome, page, bar;
+        Mesh lance, ice, shard, frame, arrow, can, rim, strip, adChrome, adPage, adBar, cardFace, cardStripe;
+        Material canLook, rimLook, stripLook, chrome, page, bar, cardLook, cardInk;
         GameObject whale;
 
         public BattleEffects(Transform parent, Camera camera)
@@ -51,7 +51,8 @@ namespace SystemPrompt.Dungeon
         public void Dispose()
         {
             foreach (var o in new Object[] { white, ring, beam, bubble, glint, spark, trail, glare, wave, flame, smoke, quad, lance, ice, shard,
-                         frame, arrow, can, rim, strip, adChrome, adPage, adBar, canLook, rimLook, stripLook, chrome, page, bar })
+                         frame, arrow, can, rim, strip, adChrome, adPage, adBar, cardFace, cardStripe, canLook, rimLook, stripLook, chrome, page, bar,
+                         cardLook, cardInk })
                 if (o != null) Object.Destroy(o);
             glims.Clear();
             Shader.SetGlobalColor("_SeaFlashColor", Color.clear);
@@ -1313,6 +1314,53 @@ namespace SystemPrompt.Dungeon
             Parts.Shape("Page", holder, adPage, page, new Vector3(0f, -0.05f, -0.012f));
             Parts.Shape("Bar", holder, adBar, bar, new Vector3(0f, 0.195f, -0.006f));
             SeaArt.Text("Words", holder, words, 0.13f, Palette.Hex("#FFE14A"), new Vector3(0f, -0.05f, -0.03f));
+        }
+
+        static readonly string[] Facts = { "99.7%", "据统计", "你知道吗", "第 3 条" };
+
+        // 冷知识型's 你知道吗？: fact cards dealt from `from` at `to` one after another, spinning flat as they come,
+        // each bursting into the noise body's pixels (colours a and b) where it hits. Done as the last hits.
+        public async Awaitable Cards(Vector3 from, Vector3 to, int count, Color a, Color b)
+        {
+            var flights = new List<Awaitable>();
+            for (var i = 0; i < count; i++) flights.Add(CardFlight(from, to + Random.insideUnitSphere * 0.3f, i * 0.12f, Facts[i % Facts.Length], a, b));
+            foreach (var flight in flights) await flight;
+        }
+
+        async Awaitable CardFlight(Vector3 from, Vector3 to, float delay, string words, Color a, Color b)
+        {
+            await Anim.Wait(delay);
+            if (parent == null) return;
+            var card = Parts.Node("Card", parent);
+            card.position = from;
+            Card(card, words);
+            var spin = Random.Range(400f, 720f) * (Random.value < 0.5f ? -1f : 1f);
+            var lift = Random.Range(0.3f, 0.8f);
+            await Anim.Tween(0.3f, t =>
+            {
+                if (card == null) return;
+                card.SetPositionAndRotation(Vector3.Lerp(from, to, t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * lift),
+                    camera.transform.rotation * Quaternion.Euler(0f, 0f, spin * t));
+                card.localScale = Vector3.one * Mathf.Lerp(0.6f, 1.4f, t);
+            }, Ease.InCubic, () => card == null);
+            if (card == null) return;
+            Object.Destroy(card.gameObject);
+            Pixels(to, a, b, 18, 4f);
+            Flash(to, b, 1.6f, 0.2f);
+            Ring(to, (camera.transform.position - to).normalized, b, 0.9f, 0.3f);
+            Light(to, b * 1.6f, 4f, 0.3f);
+        }
+
+        // An index card like those round a 冷知识型 (NoiseLook): pale, a cold stripe along the top, the fact in ink.
+        void Card(Transform holder, string words)
+        {
+            cardFace ??= SeaArt.Box(new Vector3(0.66f, 0.42f, 0.02f), 0.03f);
+            cardStripe ??= SeaArt.Box(new Vector3(0.66f, 0.07f, 0.025f));
+            cardLook ??= SeaArt.Toon(Palette.Hex("#F4F8FF"), Palette.Hex("#C3D3E8"), new Color(1f, 1f, 1f, 0.3f), Palette.Hex("#3A4A66"), 0.008f);
+            cardInk ??= SeaArt.Toon(Palette.Sea, Palette.Sea, default, Palette.Sea * 0.6f, 0f);
+            Parts.Shape("Face", holder, cardFace, cardLook);
+            Parts.Shape("Stripe", holder, cardStripe, cardInk, new Vector3(0f, 0.165f, -0.004f));
+            SeaArt.Text("Words", holder, words, 0.13f, Palette.Hex("#1E2A44"), new Vector3(0f, -0.04f, -0.03f));
         }
 
         // 转发型's 转发保平安: forked arrows shot up out of `from` that each split in three at the top of their

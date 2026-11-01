@@ -9,6 +9,7 @@
 | [stats.md](stats.md) | 等级与数值：能力值、经验曲线、角色成长、伤害公式、相性、状态异常、噪声体数值 |
 | [skills.md](skills.md) | 技能：分类与消耗、威力等级、全部技能、专属和终极技能、各角色习得表 |
 | [items.md](items.md) | 道具与装备：货币与商店、回复和攻击道具、礼物、武器、外装、插件 |
+| [prologue-playtest.md](prologue-playtest.md) | 序章纸面评测：按数值和 E2E 时间线核算战斗风险、决策密度、潜行与计时器，附改法清单 |
 | [characters/](characters/README.md) | 角色设定集：主角和三位 AI 角色的资料、性格、外观、服装和 3D 制作要点 |
 
 数值都是按 P5R 的节奏估算的初稿，等战斗原型做出来再调。

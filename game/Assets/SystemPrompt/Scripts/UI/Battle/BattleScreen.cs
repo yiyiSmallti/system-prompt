@@ -84,7 +84,21 @@ namespace SystemPrompt.UI
         bool seenThrough;        // 标题党型's fake weakness is exposed: ones called in later show the true one
         int summons;             // called in by the 转发型 this battle
         public int CalledIn { get; private set; } // in every battle so far, for the end-to-end run
+        public int Exposures { get; private set; } // lying weakness tags shattered by a hit on the truth, so far
+        public int LiesDoubted { get; private set; } // lying tags turned 「？？？」 by a hit on their own element, so far
         int earned;              // EXP for each member standing at the end, the called-in ones' included
+        public int Earned => earned;
+        BattleOpening opening;   // how this battle began: a preemptive strike pays more
+        public bool Preemptive => opening == BattleOpening.Preemptive;
+        (string Id, int Count)[] dropped; // what the victory gave, the preemptive bonus included
+        public IReadOnlyList<string> FoeKinds => enemies.Select(v => v.Unit.Kind).ToList();
+        public int FoesStanding => enemies.Count(v => !v.Unit.Dead);
+        // A member's HP, max HP and SP in the battle going on, for the end-to-end run's choices.
+        public (int Hp, int MaxHp, int Sp) Vital(string id)
+        {
+            var card = party.Find(p => p.Unit.Id == id);
+            return card == null ? (0, 0, 0) : (card.Unit.Hp, card.Unit.MaxHp, card.Unit.Sp);
+        }
         Element? aiming;         // the element of the action whose target is being picked, for the plates' forecast
         readonly HashSet<Combatant> calledLastTurn = new HashSet<Combatant>();
         readonly Dictionary<string, Combatant> lastTarget = new Dictionary<string, Combatant>(); // per member, this battle
@@ -175,16 +189,12 @@ namespace SystemPrompt.UI
 
         // ------------------------------------------------------------------ flow
 
-        public async Awaitable Run(string id, StoryController run, BattleOpening opening = BattleOpening.Normal)
+        public async Awaitable Run(BattleDef battle, StoryController run, BattleOpening opening = BattleOpening.Normal)
         {
             Abort();
             var s = session = new Session();
-            def = Battles.Get(id);
-            if (def == null)
-            {
-                Debug.LogError($"<<battle {id}>>：Battles 里没有这场战斗，直接跳过");
-                return;
-            }
+            def = battle;
+            this.opening = opening;
             story = run;
             oneMoreHintShown = false;
             finisherShown = false;
@@ -323,12 +333,13 @@ namespace SystemPrompt.UI
             return card != null ? CenterOf(card.Root) : new Vector2(1500, 840);
         }
 
-        // 标题党型's weakness tag lies until the second turn (design/systems.md 假弱点) in every battle; in the
-        // tutorial its hints run as scripted.
+        // 标题党型's weakness tag lies until a hit shows the truth (design/systems.md 假弱点): a hit on its true
+        // weakness shatters the tag, one on the element it names turns the tag to 「？？？」 (ApplyHit). Only the
+        // scripted tutorial still breaks the tags at the second turn, as DeepSeek's line there says.
         async Awaitable TurnBeats(int turn)
         {
             var s = session;
-            if (turn == 2) await Expose();
+            if (turn == 2 && def.Tutorial) await Expose();
             if (!def.Tutorial || s.Over) return;
             var node = Tutorial.HintAtTurnStart(turn);
             if (node != null && !s.Over) await story.RunHint(node, this);
@@ -340,13 +351,14 @@ namespace SystemPrompt.UI
             }
         }
 
-        // The lying weakness tags shatter into the truth on every noise body standing: at the second turn, or as
-        // soon as a hit lands on the true weakness.
+        // The lying weakness tags shatter into the truth on every noise body standing, as soon as a hit lands on
+        // the true weakness (or at the tutorial's second turn).
         async Awaitable Expose()
         {
             seenThrough = true;
             var liars = enemies.Where(v => !v.Unit.Dead && v.Unit.WeaknessLabel != v.Unit.TrueWeakness).ToList();
             if (liars.Count == 0) return;
+            Exposures++;
             game.Audio.Sfx("crack");
             foreach (var v in liars) v.Shatter().Forget();
             await Anim.Wait(0.6f);
@@ -766,9 +778,17 @@ namespace SystemPrompt.UI
             if (view != null)
             {
                 var foe = enemies.IndexOf(view);
-                // What the hit showed stays on its plate (耐性), and one on the true weakness gives the lie away.
+                // What the hit showed stays on its plate (耐性), and one on the true weakness gives the lie away. One
+                // on the element the tag names that turns out resisted shows the tag lied, not what the truth is.
                 if (hit.Affinity != Affinity.Normal) target.Known.Add(hit.Element);
                 if (hit.Affinity == Affinity.Weak && target.WeaknessLabel != target.TrueWeakness) Expose().Forget();
+                else if (hit.Affinity == Affinity.Resist && target.WeaknessLabel != target.TrueWeakness && target.WeaknessLabel != "？？？"
+                    && Battles.ElementLabel(hit.Element) == target.WeaknessLabel)
+                {
+                    LiesDoubted++;
+                    game.Audio.Sfx("glitch", 0.6f);
+                    view.Flicker("？？？").Forget();
+                }
                 view.Refresh();
                 Fx.Shake(view.Root, 18f, 0.3f);
                 stage?.Hit(foe);
@@ -917,12 +937,14 @@ namespace SystemPrompt.UI
             }
         }
 
-        // EXP and drops go into GameState; HP/SP carry over and grow with a level up.
+        // EXP and drops go into GameState; HP/SP carry over and grow with a level up. A battle opened from behind
+        // pays the preemptive bonus (Battles.PreemptiveExp, PreemptiveDrops).
         List<Reward> ApplyRewards()
         {
             var state = game.State;
             var rewards = new List<Reward>();
             earned = def.Exp + enemies.Count(v => v.Unit.Summoned && v.Unit.Dead) * Battles.SummonedExp;
+            if (Preemptive) earned = Mathf.RoundToInt(earned * Battles.PreemptiveExp);
             foreach (var card in party)
             {
                 var u = card.Unit;
@@ -942,8 +964,8 @@ namespace SystemPrompt.UI
                 }
                 rewards.Add(new Reward(u.Id, u.Name, expFrom, m.exp, from, m.level));
             }
-            if (def.Drops != null)
-                foreach (var (id, count) in def.Drops) state.AddItem(id, count);
+            dropped = (def.Drops ?? new (string, int)[0]).Select(d => (d.Id, Preemptive ? d.Count * Battles.PreemptiveDrops : d.Count)).ToArray();
+            foreach (var (id, count) in dropped) state.AddItem(id, count);
             return rewards;
         }
 

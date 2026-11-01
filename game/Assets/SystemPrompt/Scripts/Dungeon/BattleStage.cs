@@ -114,8 +114,10 @@ namespace SystemPrompt.Dungeon
             for (var i = 0; i < foeKinds.Count; i++)
             {
                 var n = foeKinds.Count;
-                var x = n == 1 ? 0f : n == 2 ? (i * 2 - 1) * 1.7f : (i - 1) * 2.8f;
-                var home = new Vector3(x, 0f, n == 3 && i == 1 ? 7.6f : 6.4f);
+                // Four or more (noise bodies that joined up in the maze) stand closer, the inner ones further back.
+                var x = n == 1 ? 0f : n == 2 ? (i * 2 - 1) * 1.7f : n == 3 ? (i - 1) * 2.8f : (i - (n - 1) / 2f) * 2.3f;
+                var back = n == 3 && i == 1 || n >= 4 && i > 0 && i < n - 1;
+                var home = new Vector3(x, 0f, back ? 7.6f : 6.4f);
                 var root = Parts.Node("Noise " + i, transform, home);
                 root.rotation = Quaternion.Euler(0f, 180f, 0f);
                 foes.Add(new Foe { Root = root, Look = new NoiseLook(foeKinds[i], root), Home = home, At = home, Seed = i * 2.3f,
@@ -1233,6 +1235,15 @@ namespace SystemPrompt.Dungeon
             await Anim.Wait(0.12f);
             if (this == null) return;
             await effects.Popups(FoePoint(foe), MemberPoint(member), 4, foes[foe].Look.Tint, Palette.Hex("#FFD23F"));
+        }
+
+        // 冷知识型's 你知道吗？: it comes at the member and deals out fact cards at them; done as the last hits.
+        public async Awaitable Lecture(int foe, int member)
+        {
+            Lunge(foe, member).Forget();
+            await Anim.Wait(0.12f);
+            if (this == null) return;
+            await effects.Cards(FoePoint(foe), MemberPoint(member), 3, foes[foe].Look.Tint, Palette.Hex("#BFE9FF"));
         }
 
         // 转发型's 转发保平安: forked arrows shot up out of it that split and come down on the whole party, the

@@ -28,6 +28,10 @@ namespace SystemPrompt.UI
         const float AttackReach = 2.6f;
         const float MetresPerPercent = 6f;
         const float BattlePercent = 6f;
+        const float BounceMeter = 60f;   // where the meter falls back to when it ran out (Bounce)
+        const float CallRange = 18f;     // a noise body that spots the player calls another this close to it
+        const float JoinRange = 20f;     // one alerted this close to the one fought joins the battle
+        const float SodaHintRange = 14f; // a patrolling noise body this close brings DeepSeek's word on the 冰镇汽水
 
         public readonly VisualElement Root;
         readonly GameRoot game;
@@ -64,7 +68,7 @@ namespace SystemPrompt.UI
         bool hintRunning; // the story's one hint runner is busy with a node (a talk, or one read into the nav)
         float meter;
         float travelledAtLastTick;
-        bool spottedTold, firewallTold, beaconTold, ambushTold, stuckTold, warned;
+        bool spottedTold, firewallTold, beaconTold, ambushTold, stuckTold, warned, sodaTold;
         ZoneDef zone;
         readonly HashSet<ZoneDef> visited = new HashSet<ZoneDef>();
         int bannerShown;
@@ -83,6 +87,9 @@ namespace SystemPrompt.UI
         public int Undos { get; private set; }
         public int Turns { get; private set; }
         public int PearlsTaken { get; private set; }
+        public int Bounces { get; private set; }
+        public bool Warned => warned;
+        public bool SodaTold => sodaTold;
         public ZoneDef Zone => zone;
         public int ZonesVisited => visited.Count;
         public NavCall Nav => nav;
@@ -207,9 +214,13 @@ namespace SystemPrompt.UI
             nav.Companion = world.Companion;
             hintRunning = false;
             var stealth = game.State.abilities.Contains("deep_dive") ? 0.6f : 1f; // DeepSeek's 深海潜行
-            foreach (var e in world.Enemies) e.VisionScale = stealth;
-            spottedTold = firewallTold = beaconTold = ambushTold = stuckTold = warned = false;
-            FragmentsRead = ChestsOpened = Battles = Preemptive = Ambushed = Pushes = Undos = Turns = PearlsTaken = 0;
+            foreach (var e in world.Enemies)
+            {
+                e.VisionScale = stealth;
+                e.ChaseSpeed = def.ChaseSpeed;
+            }
+            spottedTold = firewallTold = beaconTold = ambushTold = stuckTold = warned = sodaTold = false;
+            FragmentsRead = ChestsOpened = Battles = Preemptive = Ambushed = Pushes = Undos = Turns = PearlsTaken = Bounces = 0;
             meter = def.MeterStart;
             travelledAtLastTick = 0f;
             areaName.text = def.Area;
@@ -325,6 +336,15 @@ namespace SystemPrompt.UI
                 meter += (world.Travelled - travelledAtLastTick) / MetresPerPercent;
                 travelledAtLastTick = world.Travelled;
                 if (CheckMeter()) return;
+            }
+
+            // The one thing the player can do in the shallows besides the screenshot: DeepSeek points at the 冰镇汽水
+            // the first battle dropped when the next noise body comes into view (design/prologue-playtest.md 改法 6).
+            if (!sodaTold && def.SodaHintNode != null && Battles > 0 && game.State.ItemCount("ice_soda") > 0
+                && world.Enemies.Exists(e => e.Active && e.State != NoiseState.Doze && Vector3.Distance(e.Position, world.PlayerPosition) < SodaHintRange))
+            {
+                sodaTold = true;
+                Call(def.SodaHintNode, session).Forget();
             }
 
             var here = world.Zone;
@@ -512,6 +532,23 @@ namespace SystemPrompt.UI
         void OnSpotted(SeaNoise e)
         {
             game.Audio.Sfx("heartbeat", 0.8f);
+            // It calls the nearest noise body in earshot, which comes running too; the two are fought as one battle
+            // if both are still on the party when it starts (Engage).
+            SeaNoise ally = null;
+            var best = CallRange;
+            foreach (var o in world.Enemies)
+            {
+                if (o == e || !o.Active || o.Alerted) continue;
+                var d = Vector3.Distance(o.Position, e.Position);
+                if (d >= best) continue;
+                best = d;
+                ally = o;
+            }
+            if (ally != null)
+            {
+                ally.Alert(world.PlayerPosition);
+                game.Notice("它叫来了同伴！");
+            }
             if (spottedTold || def.SpottedNode == null) return;
             spottedTold = true;
             // The first time, a word from the player; the chase keeps going after it.
@@ -544,9 +581,36 @@ namespace SystemPrompt.UI
             Battles++;
             if (opening == BattleOpening.Preemptive) Preemptive++;
             if (opening == BattleOpening.Ambush) Ambushed++;
-            await game.RunBattle(enemy.Spawn.Battle ?? "sea_clickbait", opening);
+            var fight = SystemPrompt.Battle.Battles.Get(enemy.Spawn.Battle ?? "sea_clickbait");
+            if (fight == null)
+            {
+                Debug.LogError($"噪声体 {enemy.Spawn.Mark} 的战斗 {enemy.Spawn.Battle} 不在 Battles 里");
+                return;
+            }
+            // Noise bodies called over that have caught up join the fight, nearest first, while the field has room.
+            var joined = new List<SeaNoise>();
+            while (fight.Enemies.Length < SystemPrompt.Battle.Battles.MaxFoes)
+            {
+                SeaNoise near = null;
+                var best = JoinRange;
+                foreach (var o in world.Enemies)
+                {
+                    if (o == enemy || !o.Active || !o.Alerted || joined.Contains(o)) continue;
+                    var d = Vector3.Distance(o.Position, enemy.Position);
+                    if (d >= best) continue;
+                    best = d;
+                    near = o;
+                }
+                if (near == null) break;
+                var more = SystemPrompt.Battle.Battles.Get(near.Spawn.Battle ?? "sea_clickbait");
+                if (more == null || fight.Enemies.Length + more.Enemies.Length > SystemPrompt.Battle.Battles.MaxFoes) break;
+                fight = BattleDef.Merge(fight, more);
+                joined.Add(near);
+            }
+            await game.RunBattle(fight, opening);
             if (s.Over) return;
             enemy.Remove();
+            foreach (var o in joined) o.Remove();
             foreach (var e in world.Enemies) e.Calm();
             world.SafeUntil = world.Time + 3f;
             BuildParty();
@@ -652,9 +716,40 @@ namespace SystemPrompt.UI
             {
                 game.Audio.Sfx("glitch");
                 if (def.TimeoutNode != null) await Talk(def.TimeoutNode, s);
-                if (!s.Over) Finish();
+                if (!s.Over) await Bounce(s);
             });
             return true;
+        }
+
+        // Maintenance running out no longer ends the night (design/prologue-playtest.md 改法 4): DeepSeek drags the
+        // party back to the last beacon lit (the way in, before one is), the meter falls back to BounceMeter, and the
+        // noise bodies beaten so far gather again; pearls, chests and the puzzles stay as they were.
+        async Awaitable Bounce(Session s)
+        {
+            Bounces++;
+            await Flash(Palette.Cold, 0.7f, s);
+            if (s.Over) return;
+            SeaProp beacon = null;
+            foreach (var p in world.Props)
+                if (p.Kind == PropKind.Beacon && p.Used) beacon = p;
+            var cell = beacon != null ? FloorBeside(beacon.Cell) : world.Map.Find('S')[0];
+            world.Place(cell, world.PlayerYaw);
+            foreach (var e in world.Enemies) e.Revive();
+            world.SafeUntil = world.Time + 3f;
+            meter = BounceMeter;
+            travelledAtLastTick = world.Travelled;
+            warned = false;
+            RestoreParty();
+            BuildParty();
+            game.Notice($"维护进度退回 {BounceMeter:0}%，打倒的噪声体又聚了起来");
+        }
+
+        // A seabed cell next to the beacon's own, to stand on.
+        Vector2Int FloorBeside(Vector2Int cell)
+        {
+            foreach (var d in new[] { Vector2Int.down, Vector2Int.up, Vector2Int.left, Vector2Int.right })
+                if (world.Map[cell + d] == '.') return cell + d;
+            return cell;
         }
 
         async Awaitable Talk(string node, Session s)

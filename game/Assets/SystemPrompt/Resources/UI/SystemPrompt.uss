@@ -3402,6 +3402,13 @@
     color: var(--ink);
 }
 
+.sp-results__exp-bonus {
+    font-size: 22px;
+    color: var(--ink);
+    letter-spacing: 2px;
+    margin-top: -12px;
+}
+
 .sp-results__party {
     position: absolute;
     left: 560px;

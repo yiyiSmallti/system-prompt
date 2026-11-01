@@ -182,12 +182,14 @@ namespace SystemPrompt.Dungeon
         const float HalfAngle = 55f;
         const float DozeRange = 0.5f;   // of Range, while dozing
         const float DozeHalfAngle = 35f;
-        const float PatrolSpeed = 2.3f, ChaseSpeed = 5.1f, ReturnSpeed = 3f;
+        const float PatrolSpeed = 2.3f, ReturnSpeed = 3f;
+        public float ChaseSpeed = 5.1f; // metres a second after the player; the deep layer's run faster (DungeonDef.ChaseSpeed)
         const float GiveUpSeconds = 3f;
         public const float TouchDistance = 1.3f;
 
         static readonly string[] ClickbaitPhrases = { "震惊！", "点击领取", "99% 的人不知道" };
         static readonly string[] RepostPhrases = { "转发保平安", "速转！", "求扩散" };
+        static readonly string[] ColdFactPhrases = { "每天一个冷知识", "你知道吗", "据统计" };
 
         public readonly EnemySpawn Spawn;
         public readonly Transform Root;
@@ -233,7 +235,7 @@ namespace SystemPrompt.Dungeon
             var facing = spawn.Dozing ? DungeonMap.Direction(spawn.Facing)
                 : route.Count > 1 ? map.World(route[1]) - Position : Vector3.forward;
             Yaw = Mathf.Atan2(facing.x, facing.z) * Mathf.Rad2Deg;
-            var phrases = spawn.Kind == "repost" ? RepostPhrases : ClickbaitPhrases;
+            var phrases = spawn.Kind == "repost" ? RepostPhrases : spawn.Kind == "coldfact" ? ColdFactPhrases : ClickbaitPhrases;
             Phrase = phrases[Mathf.Abs(spawn.Mark) % phrases.Length];
 
             Root = Parts.Node("Noise " + spawn.Mark, parent);
@@ -346,6 +348,36 @@ namespace SystemPrompt.Dungeon
             if (State == NoiseState.Gone || State == NoiseState.Patrol || State == NoiseState.Doze) return;
             Suspicion = 0f;
             BackToRoute();
+        }
+
+        // Called by a neighbour that has seen the player: straight into the chase, towards where they are.
+        public void Alert(Vector3 player)
+        {
+            if (State == NoiseState.Gone || State == NoiseState.Chase) return;
+            lastSeen = player;
+            Suspicion = 1f;
+            lostFor = 0f;
+            State = NoiseState.Chase;
+        }
+
+        // Back on its route from the start, beaten or not: the maintenance meter ran out and the cache gave it back.
+        public void Revive()
+        {
+            if (State != NoiseState.Gone)
+            {
+                Reset();
+                return;
+            }
+            Root.gameObject.SetActive(true);
+            Position = map.World(route[0]);
+            routeIndex = 0;
+            routeStep = 1;
+            path.Clear();
+            Suspicion = 0f;
+            State = rest;
+            var facing = Spawn.Dozing ? DungeonMap.Direction(Spawn.Facing) : route.Count > 1 ? map.World(route[1]) - Position : Vector3.forward;
+            Yaw = Mathf.Atan2(facing.x, facing.z) * Mathf.Rad2Deg;
+            Place();
         }
 
         public void Remove()
@@ -474,7 +506,8 @@ namespace SystemPrompt.Dungeon
     // A noise body's shape (design/systems.md 噪声体图鉴), in the maze and on the battle field. 标题党型: a
     // lumpy block of glitching red-and-yellow voxels, one now and then jumping out of it, pixels dripping off
     // underneath and pop-up ads (「震惊！」「点击领取」) springing open around it. 转发型: a sphere bristling with
-    // forked arrows, copies of itself drifting off it and fading. It floats a little over the seabed, with two
+    // forked arrows, copies of itself drifting off it and fading. 冷知识型: a stack of pale blue index cards
+    // that keeps shuffling itself, made-up figures (「99.7%」「据统计」) floating up off it. It floats a little over the seabed, with two
     // flat eyes on the front (+z) that show what it is up to: shut while dozing, wide while it looks, slanted
     // and red in a chase.
     public sealed class NoiseLook
@@ -484,6 +517,8 @@ namespace SystemPrompt.Dungeon
         const float Voxel = 0.3f;
         const float AdSeconds = 2.8f, GhostSeconds = 1.9f;
         static readonly string[] Ads = { "震惊！", "点击领取", "99%", "恭喜中奖", "限时免费" };
+        static readonly string[] Facts = { "99.7%", "据统计", "你知道吗", "每天一个", "第 3 条", "其实" };
+        const float FactSeconds = 2.4f;
         // Where the 转发型's arrows point, none in front of its eyes.
         static readonly Vector3[] ArrowDirs =
         {
@@ -505,6 +540,9 @@ namespace SystemPrompt.Dungeon
         readonly Material[] ghostLooks = new Material[0];
         readonly TextMesh[] adWords = new TextMesh[0];
         readonly int[] adCycle = new int[0];
+        readonly Transform[] cards = new Transform[0];
+        readonly TextMesh[] facts = new TextMesh[0];
+        readonly int[] factCycle = new int[0];
         readonly TextMesh snore;
 
         public NoiseLook(string kind, Transform parent)
@@ -542,6 +580,29 @@ namespace SystemPrompt.Dungeon
                 }
                 eyeAt = new Vector3(0.17f, 0.12f, 0.53f);
                 eyeSize = new Vector3(0.16f, 0.07f, 0.04f);
+            }
+            else if (kind == "coldfact")
+            {
+                skin = SeaArt.Glitch(Palette.Hex("#8FC8FF"), Palette.Cold, 0.12f);
+                // A stack of index cards fanned a little, the front one (+z) carrying the eyes.
+                var card = SeaArt.Box(new Vector3(1.2f, 0.8f, 0.08f), 0.03f);
+                cards = new Transform[4];
+                for (var i = 0; i < cards.Length; i++)
+                {
+                    cards[i] = Parts.Node("Card", Body, new Vector3(0f, 0f, -0.12f * i));
+                    Parts.Shape("Face", cards[i], card, skin);
+                }
+                // The figures it keeps quoting, rising off the stack and fading.
+                facts = new TextMesh[3];
+                factCycle = new int[facts.Length];
+                for (var i = 0; i < facts.Length; i++)
+                {
+                    facts[i] = SeaArt.Text("Fact", Body, Facts[i], 0.16f, new Color(0.75f, 0.91f, 1f, 0f));
+                    facts[i].gameObject.AddComponent<Billboard>();
+                    factCycle[i] = int.MinValue;
+                }
+                eyeAt = new Vector3(0.24f, 0.12f, 0.07f);
+                eyeSize = new Vector3(0.2f, 0.08f, 0.04f);
             }
             else
             {
@@ -654,7 +715,40 @@ namespace SystemPrompt.Dungeon
             snore.color = new Color(0.7f, 0.9f, 1f, dozing ? Mathf.Sin(z * Mathf.PI) * 0.9f : 0f);
 
             if (kind == "repost") AnimateArrows(time, seed, alert);
+            else if (kind == "coldfact") AnimateCards(time, seed, alert);
             else AnimateBlock(time, seed, alert);
+        }
+
+        // The cards swaying in the stack, one now and then dealt out to the side and slid back, and the figures
+        // floating up off the stack one after another (faster when alerted), each a new one.
+        void AnimateCards(float time, float seed, float alert)
+        {
+            var pace = 1f + alert;
+            for (var i = 0; i < cards.Length; i++)
+            {
+                var beat = Mathf.Repeat(time * 0.45f * pace + i * 0.27f + seed * 0.1f, 1f);
+                var deal = beat < 0.22f ? Mathf.Sin(beat / 0.22f * Mathf.PI) : 0f;
+                var side = i % 2 == 0 ? 1f : -1f;
+                cards[i].localPosition = new Vector3(deal * 0.7f * side + Mathf.Sin(time * 1.3f + i) * 0.03f, (i - 1.5f) * 0.04f + deal * 0.18f, -0.12f * i);
+                cards[i].localRotation = Quaternion.Euler(0f, deal * -25f * side, Mathf.Sin(time * 0.8f + i * 1.7f + seed) * (4f + alert * 8f) + deal * 12f * side);
+            }
+            for (var i = 0; i < facts.Length; i++)
+            {
+                var clock = time / FactSeconds * pace + (float)i / facts.Length + seed * 0.13f;
+                var t = Mathf.Repeat(clock, 1f);
+                var round = Mathf.FloorToInt(clock);
+                if (round != factCycle[i])
+                {
+                    factCycle[i] = round;
+                    facts[i].text = Facts[(int)(DungeonWorld.Hash(round, i + 17) * Facts.Length) % Facts.Length];
+                }
+                // Up one side or the other, clear of the face.
+                var a = (50f + 260f * DungeonWorld.Hash(round, i * 7 + 5)) * Mathf.Deg2Rad;
+                facts[i].transform.localPosition = new Vector3(Mathf.Sin(a) * 0.75f, -0.1f + t * 1.1f, Mathf.Cos(a) * 0.45f);
+                var c = facts[i].color;
+                c.a = Mathf.Sin(t * Mathf.PI) * 0.95f;
+                facts[i].color = c;
+            }
         }
 
         void Eyes(float time, float seed, float alert, bool dozing)

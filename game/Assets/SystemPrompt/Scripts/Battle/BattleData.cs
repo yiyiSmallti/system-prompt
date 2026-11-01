@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace SystemPrompt.Battle
@@ -32,6 +33,8 @@ namespace SystemPrompt.Battle
         public static readonly SkillDef DeepThink = new SkillDef { Id = "deep_think", Name = "深度思考", Kind = SkillKind.Charge, Description = "本回合不行动，下一次技能伤害 ×2.5。" };
         public static readonly SkillDef NoiseStrike = new SkillDef { Id = "noise_strike", Name = "震惊！", Element = Element.Physical, Power = 17, Kind = SkillKind.Attack };
         public static readonly SkillDef Repost = new SkillDef { Id = "repost", Name = "转发保平安", Element = Element.Physical, Power = 12, AllTargets = true, Kind = SkillKind.Attack };
+        // 冷知识型's lecture: one member, hit harder than 震惊！ (design/systems.md 噪声体图鉴).
+        public static readonly SkillDef ColdFact = new SkillDef { Id = "cold_fact", Name = "你知道吗？", Element = Element.Physical, Power = 20, Kind = SkillKind.Attack };
 
         public static SkillDef NormalAttack(string id) => id == GameState.PlayerId ? Screenshot : Spoon;
 
@@ -108,10 +111,28 @@ namespace SystemPrompt.Battle
         public (string Id, int Count)[] Drops;
         public bool Tutorial;
         public float EnemyDamageScale = 1f;
+
+        // Two battles fought as one when a noise body called a neighbour in (UI/Dungeon/DungeonScreen.cs): every
+        // enemy of both, the rewards added up, the harder hitters' scale.
+        public static BattleDef Merge(BattleDef a, BattleDef b) => new BattleDef
+        {
+            Id = a.Id + "+" + b.Id,
+            Enemies = a.Enemies.Concat(b.Enemies).ToArray(),
+            Exp = a.Exp + b.Exp,
+            Drops = (a.Drops ?? new (string, int)[0]).Concat(b.Drops ?? new (string, int)[0]).ToArray(),
+            Tutorial = false,
+            EnemyDamageScale = Mathf.Max(a.EnemyDamageScale, b.EnemyDamageScale),
+        };
     }
 
     public static class Battles
     {
+        // A free round won from behind is worth more (design/stats.md 行动顺序): EXP ×1.3 and the drops doubled.
+        public const float PreemptiveExp = 1.3f;
+        public const int PreemptiveDrops = 2;
+        // The most noise bodies on the field at once, called in or joined from the maze.
+        public const int MaxFoes = 4;
+
         static readonly Dictionary<string, BattleDef> All = new Dictionary<string, BattleDef>
         {
             // story/00-prologue.md 场景5. Tutorial numbers are set apart so enemies fall in the scripted order.
@@ -129,8 +150,9 @@ namespace SystemPrompt.Battle
                 Tutorial = true,
                 EnemyDamageScale = 0.35f,
             },
-            // The shallows of the cache sea, before the awakening: the player alone with the phone, so
-            // small groups that hit softly (Dungeon/DungeonData.cs).
+            // The shallows of the cache sea, before the awakening: the player alone with the phone, so small
+            // groups (Dungeon/DungeonData.cs). They hit hard enough that a round given away costs a sixth of
+            // the player's HP or more (design/prologue-playtest.md 改法 1): a beacon is worth the detour.
             ["shallow_clickbait"] = new BattleDef
             {
                 Id = "shallow_clickbait",
@@ -140,7 +162,7 @@ namespace SystemPrompt.Battle
                 },
                 Exp = 30,
                 Drops = new[] { ("ice_soda", 1) },
-                EnemyDamageScale = 0.4f,
+                EnemyDamageScale = 0.7f,
             },
             ["shallow_repost"] = new BattleDef
             {
@@ -151,32 +173,36 @@ namespace SystemPrompt.Battle
                 },
                 Exp = 35,
                 Drops = new[] { ("white_rice", 1) },
-                EnemyDamageScale = 0.4f,
+                EnemyDamageScale = 0.7f,
             },
+            // By the graveyard the player is level 2 and a screenshot does about 23: these take two each, so the
+            // pair gets a round or two in unless the 冰镇汽水 drops one at once.
             ["shallow_pair"] = new BattleDef
             {
                 Id = "shallow_pair",
                 Enemies = new[]
                 {
-                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 22, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
-                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 22, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 28, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 28, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
                 },
                 Exp = 50,
                 Drops = new[] { ("spicy_strip", 1) },
-                EnemyDamageScale = 0.28f,
+                EnemyDamageScale = 0.6f,
             },
             ["shallow_mixed"] = new BattleDef
             {
                 Id = "shallow_mixed",
                 Enemies = new[]
                 {
-                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 22, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
-                    new EnemyDef { Kind = "repost", Name = "转发型", Hp = 30, Weak = Element.Ice, Resist = Element.Wind },
+                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 28, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                    new EnemyDef { Kind = "repost", Name = "转发型", Hp = 34, Weak = Element.Ice, Resist = Element.Wind },
                 },
                 Exp = 55,
-                EnemyDamageScale = 0.28f,
+                EnemyDamageScale = 0.6f,
             },
-            // The noise bodies roaming the deep layer of the cache sea, the party fighting together.
+            // The noise bodies roaming the deep layer of the cache sea, the party fighting together. 冷知识型
+            // shrugs off ice, so DeepSeek's 深海潜流 alone no longer ends a battle: its 「弱点：火」 is true while
+            // the 标题党型 beside it says the same and lies (design/prologue-playtest.md 改法 2、3).
             ["sea_clickbait"] = new BattleDef
             {
                 Id = "sea_clickbait",
@@ -201,6 +227,18 @@ namespace SystemPrompt.Battle
                 Drops = new[] { ("white_rice", 1) },
                 EnemyDamageScale = 0.4f,
             },
+            ["sea_coldfact"] = new BattleDef
+            {
+                Id = "sea_coldfact",
+                Enemies = new[]
+                {
+                    new EnemyDef { Kind = "coldfact", Name = "冷知识型", Hp = 44, Weak = Element.Fire, Resist = Element.Ice },
+                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 26, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                },
+                Exp = 60,
+                Drops = new[] { ("spicy_strip", 1) },
+                EnemyDamageScale = 0.4f,
+            },
             ["sea_repost"] = new BattleDef
             {
                 Id = "sea_repost",
@@ -208,9 +246,9 @@ namespace SystemPrompt.Battle
                 {
                     new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 26, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
                     new EnemyDef { Kind = "repost", Name = "转发型", Hp = 38, Weak = Element.Ice, Resist = Element.Wind },
-                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 26, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                    new EnemyDef { Kind = "coldfact", Name = "冷知识型", Hp = 44, Weak = Element.Fire, Resist = Element.Ice },
                 },
-                Exp = 75,
+                Exp = 80,
                 EnemyDamageScale = 0.4f,
             },
         };
