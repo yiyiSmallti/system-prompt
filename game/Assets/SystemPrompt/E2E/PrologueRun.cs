@@ -801,12 +801,14 @@ namespace SystemPrompt.E2E
                 yield return Wait(0.3f);
                 for (var i = 0; i < 6 && !ItemSelected("辣条"); i++) yield return Press(Key.DownArrow);
                 Check(ItemSelected("辣条"), "道具列表里选中辣条");
+                // Relative: there are two when every shallows battle was preemptive and doubled the drop.
+                var stripsBefore = game.State.ItemCount("spicy_strip");
                 yield return Press(Key.Enter);
                 yield return Wait(0.5f);
                 yield return Press(Key.Enter);
                 var thrown = Now;
-                while (!finished && game.InBattle && game.State.ItemCount("spicy_strip") > 0 && Now - thrown < 10f) yield return null;
-                Check(game.State.ItemCount("spicy_strip") == 0, "扔出了辣条");
+                while (!finished && game.InBattle && game.State.ItemCount("spicy_strip") == stripsBefore && Now - thrown < 10f) yield return null;
+                Check(game.State.ItemCount("spicy_strip") == stripsBefore - 1, $"扔出了辣条（{stripsBefore} → {game.State.ItemCount("spicy_strip")}）");
                 yield break;
             }
             Check(false, "先制战斗结束前轮到主角扔辣条");

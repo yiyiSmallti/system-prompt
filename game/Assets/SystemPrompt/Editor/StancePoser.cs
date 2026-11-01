@@ -10,13 +10,13 @@ using UnityEngine;
 namespace SystemPrompt.EditorTools
 {
     // The battle's fighting stances (Resources/Models/Motions/Stance*.anim) and the poses struck from them in
-    // place of a step for 防御, 道具 and 深度思考 (Guard*, Item*, Think*.anim, SeaFigure.Act). Each was drawn
-    // first as a pose sheet (assets/characters/stances) and is posed here after it by hand, in the humanoid's
-    // muscles, so one pose plays on every model of that kind, stood flat on the floor by Solve: a stance as
-    // two keys a breath apart, looped; an action from the stance's first frame into its pose, held a breath and
-    // back, once. The girl player's stance is the exception, a library motion fitted to her (MakePlayerFemale);
-    // her actions are the boy's poses on her model. The clips carry no foot goals, so SeaFigure plays every
-    // motion without foot IK. From the menu, or in batchmode with -executeMethod
+    // place of a step for 防御, 道具 and 深度思考 (Guard*, Item*, Think*.anim, SeaFigure.Act). The stances are
+    // library idles fitted to each model (Library, MakeStance); the actions were drawn first as pose sheets
+    // (assets/characters/stances) and are posed here after them by hand, in the humanoid's muscles, so one
+    // pose plays on every model of that kind, stood flat on the floor by Solve: from the stance's first frame
+    // into the pose, held a breath and back, once. The girl player's actions are the boy's poses on her model.
+    // The clips carry no foot goals, so SeaFigure plays every motion without foot IK. From the menu, or in
+    // batchmode with -executeMethod
     // SystemPrompt.EditorTools.StancePoser.Run; -stancePreview <dir> also draws each model in its stance and
     // holding each action's pose from the front, its right and behind, to set beside the sheets, and each
     // action from start to end in frames; -stanceProbe logs which way each muscle used here turns its bone.
@@ -55,124 +55,26 @@ namespace SystemPrompt.EditorTools
             return pose;
         }
 
-        // The player in the lounge clothes, the phone their weapon: an ordinary student squaring up, feet wide
-        // and knees soft, the body turned so the left shoulder leads and the head back round to the noise
-        // bodies, the left hand up by the chin, the phone low in the right hand. Muscle values from the probe:
-        // a thigh hangs straight at Front-Back 0.56 and goes forward 90° a unit below 0, back 50° a unit
-        // above; a knee or elbow bends 80° for each unit its Stretch is under 1; a foot pitches 50° a unit
-        // (flat on the floor near -0.2 under a straight shin); an arm comes forward as its Front-Back goes
-        // below 0 and up as its Down-Up goes above.
-        static readonly Stance Player = new Stance
-        {
-            Name = "StancePlayer",
-            Seconds = 2.6f,
-            Turn = 15f,
-            Back = "Right",
-            Out = With(new Dictionary<string, float>
-            {
-                ["Spine Front-Back"] = -0.6f,
-                ["Chest Front-Back"] = -0.3f,
-                ["Chest Twist Left-Right"] = -0.5f,
-                ["Neck Nod Down-Up"] = -0.15f,
-                ["Head Nod Down-Up"] = -0.1f,
-                ["Neck Turn Left-Right"] = -0.2f,
-                ["Head Turn Left-Right"] = -0.2f,
-                // Feet wide, the left forward with the knee bent, the right back, straighter and turned out
-                // (the feet are set flat and the back knee straightened by Solve).
-                ["Left Upper Leg Front-Back"] = 0.1f,
-                ["Left Upper Leg In-Out"] = 0.45f,
-                ["Left Upper Leg Twist In-Out"] = 0.15f,
-                ["Left Lower Leg Stretch"] = 0.42f,
-                ["Left Foot Twist In-Out"] = 0.3f,
-                ["Right Upper Leg Front-Back"] = 1f,
-                ["Right Upper Leg In-Out"] = 0.7f,
-                ["Right Upper Leg Twist In-Out"] = 0.3f,
-                ["Right Lower Leg Stretch"] = 0.62f,
-                ["Right Foot Twist In-Out"] = 0.5f,
-                // The guard: the elbow down by the ribs, the forearm up in front, the hand at the chin.
-                ["Left Arm Down-Up"] = -0.9f,
-                ["Left Arm Front-Back"] = -0.3f,
-                ["Left Forearm Stretch"] = -0.3f,
-                ["Left Hand Down-Up"] = 0.2f,
-                // The phone hand down by the hip, the elbow a little bent.
-                ["Right Arm Down-Up"] = -0.5f,
-                ["Right Arm Front-Back"] = 0.05f,
-                ["Right Forearm Stretch"] = 0.7f,
-                ["Right Hand Down-Up"] = -0.2f,
-            }, p =>
-            {
-                Fingers(p, "Right", -0.6f, 0f);
-                Fingers(p, "Left", 0.2f, 0.3f);
-            }),
-            In = new Dictionary<string, float>
-            {
-                ["Spine Front-Back"] = -0.5f,
-                ["Chest Front-Back"] = -0.15f,
-                ["Left Shoulder Down-Up"] = 0.08f,
-                ["Right Shoulder Down-Up"] = 0.08f,
-                ["Left Forearm Stretch"] = -0.26f,
-                ["Head Nod Down-Up"] = -0.05f,
-            },
-        };
+        // ------------------------------------------------------------------ the stances
 
-        // DeepSeek in her battle dress, the ice caster: the body turned so the right shoulder leads, the right
-        // hand held out open at the noise bodies at chest height, the left loose in front of her chest, feet
-        // apart with the right one forward, a little crouched, the head tipped.
-        static readonly Stance DeepSeek = new Stance
+        // The stances are not posed but taken from Quaternius' Universal Animation Library (CC0, the Standard
+        // pack), which breathes and shifts its weight where two posed keys stood stiff (Editor/Motions holds the
+        // clips as imported). The player, the phone their weapon, takes Pistol_Idle_Loop: the phone held out in
+        // both hands at the noise bodies like a camera about to shoot, the right hand gripping it (its fingers
+        // curled round the phone, the clip's hanging open), the left under it. The girl keeps the caster's idle
+        // she had, Spell_Simple_Idle_Loop, the left hand up and open at the noise bodies, the right low by the
+        // hip with the phone. DeepSeek, the ice caster, takes the same idle mirrored, so the hand held out is
+        // her right, the one her spells leave and the rice paddle appears in (BattleStage.Hand, SeaFigure.Wield),
+        // and her right foot leads as in her posed actions. The library's stances are a man's: on the VRoid
+        // models the feet stand too far apart, so both thighs close in by each model's legsIn (a muscle's In-Out
+        // goes out above 0; the girl's 0.12 stood twice a shoulder apart, the boy's wider hips need half).
+        const string MotionSources = "Assets/SystemPrompt/Editor/Motions/";
+        static readonly (string name, string source, float legsIn, bool phoneFist, bool mirror)[] Library =
         {
-            Name = "StanceDeepSeek",
-            Seconds = 3.2f,
-            Turn = -15f,
-            Back = "Left",
-            Out = With(new Dictionary<string, float>
-            {
-                ["Spine Front-Back"] = -0.4f,
-                ["Chest Front-Back"] = -0.2f,
-                ["Chest Twist Left-Right"] = 0.3f,
-                ["Neck Nod Down-Up"] = -0.05f,
-                ["Neck Turn Left-Right"] = 0.2f,
-                ["Head Turn Left-Right"] = 0.2f,
-                ["Head Tilt Left-Right"] = 0.15f,
-                ["Right Upper Leg Front-Back"] = 0.16f,
-                ["Right Upper Leg In-Out"] = 0.45f,
-                ["Right Lower Leg Stretch"] = 0.5f,
-                ["Left Upper Leg Front-Back"] = 0.66f,
-                ["Left Upper Leg In-Out"] = 0.45f,
-                ["Left Upper Leg Twist In-Out"] = 0.4f,
-                ["Left Lower Leg Stretch"] = 0.7f,
-                ["Left Foot Twist In-Out"] = 0.2f,
-                // The casting hand out level at the noise bodies, the palm to them.
-                ["Right Arm Down-Up"] = 0.4f,
-                ["Right Arm Front-Back"] = -0.25f,
-                ["Right Forearm Stretch"] = 0.85f,
-                ["Right Hand Down-Up"] = 0.6f,
-                ["Left Arm Down-Up"] = -0.6f,
-                ["Left Arm Front-Back"] = -0.45f,
-                ["Left Forearm Stretch"] = -0.2f,
-            }, p =>
-            {
-                Fingers(p, "Right", 0.3f, 0.6f);
-                Fingers(p, "Left", -0.5f, 0f);
-            }),
-            In = new Dictionary<string, float>
-            {
-                ["Chest Front-Back"] = -0.05f,
-                ["Left Shoulder Down-Up"] = 0.08f,
-                ["Right Shoulder Down-Up"] = 0.08f,
-                ["Right Arm Down-Up"] = 0.43f,
-                ["Head Tilt Left-Right"] = 0.2f,
-            },
+            ("StancePlayer", "Pistol_Idle_Loop", -0.06f, true, false),
+            ("StancePlayerFemale", "Spell_Simple_Idle_Loop", -0.12f, true, false),
+            ("StanceDeepSeek", "Spell_Simple_Idle_Loop", -0.12f, false, true),
         };
-
-        // The player when she is the girl, not posed but taken from Quaternius' Universal Animation Library
-        // (CC0, the Standard pack): Spell_Simple_Idle_Loop, the left hand up and open at the noise bodies, the
-        // right low by the hip, breathing and shifting her weight, which reads less stiff than two posed keys.
-        // The library's stances are a man's: on her the feet stood twice a shoulder apart, so both thighs close
-        // in by LegsIn (a muscle's In-Out goes out above 0). The right hand hangs open in the clip, so its
-        // fingers are curled round the phone as in the posed stance.
-        const string PlayerFemaleSource = "Assets/SystemPrompt/Editor/Motions/Spell_Simple_Idle_Loop.anim";
-        const string PlayerFemaleName = "StancePlayerFemale";
-        const float LegsIn = -0.12f;
 
         // The boy in his lounge clothes (PlayerMaleLounge, made in VRoid) has no idle of his own and took the one
         // in the Tripo daily model's file, whose feet stand almost together: there his wide trouser legs went
@@ -444,9 +346,7 @@ namespace SystemPrompt.EditorTools
                 return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
             }
             if (args.Contains("-stanceProbe")) Probe();
-            Make(Player, "PlayerMale");
-            Make(DeepSeek, "DeepSeek");
-            MakePlayerFemale();
+            foreach (var (name, source, legsIn, phoneFist, mirror) in Library) MakeStance(name, source, legsIn, phoneFist, mirror);
             // After the stances, which they start and end on.
             MakeAction(GuardPlayer, "PlayerMale", "Player");
             MakeAction(GuardPlayer, "PlayerFemale", "PlayerFemale");
@@ -488,25 +388,6 @@ namespace SystemPrompt.EditorTools
         }
 
         // ------------------------------------------------------------------ the clips
-
-        static void Make(Stance stance, string model)
-        {
-            var (outPose, inPose, ground) = Poses(stance, model);
-            var t = stance.Seconds;
-            var clip = Keyed(stance.Name, (0f, outPose), (t / 2f, inPose), (t, outPose));
-            var settings = AnimationUtility.GetAnimationClipSettings(clip);
-            settings.loopTime = true;
-            settings.loopBlend = true;
-            settings.loopBlendOrientation = true;
-            settings.loopBlendPositionY = true;
-            settings.loopBlendPositionXZ = true;
-            settings.keepOriginalOrientation = true;
-            settings.keepOriginalPositionY = true;
-            settings.keepOriginalPositionXZ = true;
-            AnimationUtility.SetAnimationClipSettings(clip, settings);
-            Save(clip);
-            Debug.Log($"{stance.Name}：{stance.Seconds} 秒一呼吸，身体高 {outPose.bodyPosition.y:F3}（站直 {ground.Body:F3}）");
-        }
 
         // An action on one kind of figure (<Name><kind>.anim): from the first frame of the kind's stance into
         // the pose, held a breath (breathing in halfway), and back to that frame, for SeaFigure.Act to play once
@@ -614,32 +495,137 @@ namespace SystemPrompt.EditorTools
             else AssetDatabase.CreateAsset(clip, path);
         }
 
-        static void MakePlayerFemale()
+        static void MakeStance(string name, string sourceName, float legsIn, bool phoneFist, bool mirror)
         {
-            var source = AssetDatabase.LoadAssetAtPath<AnimationClip>(PlayerFemaleSource);
-            if (source == null) throw new InvalidOperationException($"找不到女主角战斗待机的来源动作 {PlayerFemaleSource}");
+            var path = MotionSources + sourceName + ".anim";
+            var source = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+            if (source == null) throw new InvalidOperationException($"找不到 {name} 的来源动作 {path}");
+            Save(Fitted(source, name, legsIn, phoneFist, mirror));
+            Debug.Log($"{name}：来自 {source.name}{(mirror ? "（镜像）" : "")}，{source.length:F2} 秒一循环，双腿内收 {-legsIn}{(phoneFist ? "，右手握拳" : "")}");
+        }
+
+        // A library loop as a stance: mirrored if asked (each side's curves swapped, the body's left-right
+        // muscles, its x and its yaw and roll negated), both thighs closed in by legsIn, looping whatever its
+        // own flag says (Sword_Idle is an idle without _Loop in its name), and with the phone hand's fingers
+        // curled round it.
+        static AnimationClip Fitted(AnimationClip source, string name, float legsIn, bool phoneFist, bool mirror = false)
+        {
             var clip = UnityEngine.Object.Instantiate(source);
-            clip.name = PlayerFemaleName;
+            clip.name = name;
             AnimationCurve Get(string property) =>
                 AnimationUtility.GetEditorCurve(clip, EditorCurveBinding.FloatCurve("", typeof(Animator), property))
-                ?? throw new InvalidOperationException($"{PlayerFemaleSource} 里没有曲线 {property}");
+                ?? throw new InvalidOperationException($"{source.name} 里没有曲线 {property}");
             void Set(string property, AnimationCurve curve) =>
                 AnimationUtility.SetEditorCurve(clip, EditorCurveBinding.FloatCurve("", typeof(Animator), property), curve);
 
+            if (mirror)
+            {
+                var bindings = AnimationUtility.GetCurveBindings(clip);
+                var curves = bindings.Select(b => (b, AnimationUtility.GetEditorCurve(clip, b))).ToArray();
+                foreach (var b in bindings) AnimationUtility.SetEditorCurve(clip, b, null);
+                foreach (var (b, curve) in curves)
+                {
+                    var property = b.propertyName;
+                    var mirrored = curve;
+                    if (property.StartsWith("Left")) property = "Right" + property.Substring(4);
+                    else if (property.StartsWith("Right")) property = "Left" + property.Substring(5);
+                    else if (property.EndsWith("Left-Right") || property == "RootT.x" || property == "RootQ.y" || property == "RootQ.z")
+                    {
+                        var keys = curve.keys;
+                        for (var i = 0; i < keys.Length; i++)
+                        {
+                            keys[i].value = -keys[i].value;
+                            keys[i].inTangent = -keys[i].inTangent;
+                            keys[i].outTangent = -keys[i].outTangent;
+                        }
+                        mirrored = new AnimationCurve(keys) { preWrapMode = curve.preWrapMode, postWrapMode = curve.postWrapMode };
+                    }
+                    AnimationUtility.SetEditorCurve(clip, EditorCurveBinding.FloatCurve(b.path, b.type, property), mirrored);
+                }
+            }
             foreach (var side in new[] { "Left", "Right" })
             {
                 var property = $"{side} Upper Leg In-Out";
                 var curve = Get(property);
                 var keys = curve.keys;
-                for (var i = 0; i < keys.Length; i++) keys[i].value += LegsIn;
+                for (var i = 0; i < keys.Length; i++) keys[i].value += legsIn;
                 curve.keys = keys;
                 Set(property, curve);
             }
-            var fist = new Dictionary<string, float>();
-            Fingers(fist, "Right", -0.6f, 0f);
-            foreach (var kv in fist) Set(CurveName(kv.Key), AnimationCurve.Constant(0f, clip.length, kv.Value));
-            Save(clip);
-            Debug.Log($"{PlayerFemaleName}：来自 {source.name}，{clip.length:F2} 秒一循环，双腿内收 {LegsIn}，右手握拳");
+            if (phoneFist)
+            {
+                var fist = new Dictionary<string, float>();
+                Fingers(fist, "Right", -0.6f, 0f);
+                foreach (var kv in fist) Set(CurveName(kv.Key), AnimationCurve.Constant(0f, clip.length, kv.Value));
+            }
+            var settings = AnimationUtility.GetAnimationClipSettings(clip);
+            settings.loopTime = true;
+            settings.loopBlend = true;
+            AnimationUtility.SetAnimationClipSettings(clip, settings);
+            return clip;
+        }
+
+        // Not part of Run: -executeMethod SystemPrompt.EditorTools.StancePoser.Survey -stanceSurvey <dir> fits every
+        // library loop in Editor/Motions to the boy player (lounge clothes) and DeepSeek (battle dress) as a stance
+        // and draws each: from the front, its right and behind at the start of the loop, then four frames over the
+        // loop from behind its right shoulder, about where the battle camera sits while a command is chosen. The
+        // fitted clips are written under Motions as Survey* while the figures need them and deleted after.
+        public static void Survey()
+        {
+            var args = Environment.GetCommandLineArgs();
+            var dir = args[Array.IndexOf(args, "-stanceSurvey") + 1];
+            Directory.CreateDirectory(dir);
+            var holder = new GameObject("Stance Survey");
+            var made = new List<string>();
+            try
+            {
+                foreach (var file in Directory.GetFiles(MotionSources, "*.anim").OrderBy(f => f))
+                {
+                    var source = AssetDatabase.LoadAssetAtPath<AnimationClip>(file);
+                    var tag = Path.GetFileNameWithoutExtension(file).Replace("_", "");
+                    foreach (var (model, who, legsIn, fist) in new[] { ("PlayerMale", "male", Library[0].legsIn, true), ("DeepSeek", "deepseek", Library[2].legsIn, false) })
+                    {
+                        var name = "Survey" + tag + model;
+                        Save(Fitted(source, name, legsIn, fist));
+                        made.Add(MotionRoot + name + ".anim");
+                        AssetDatabase.SaveAssets();
+                        AssetDatabase.Refresh();
+                        Func<SeaFigure> make = model == "PlayerMale"
+                            ? () => new SeaFigure("PlayerMaleLounge", holder.transform, 0f, name, true, 0.05f)
+                            : () => new SeaFigure("DeepSeek", holder.transform, 1.58f, name, false, 0.075f);
+                        Loop(make, Path.Combine(dir, $"{tag}-{who}.png"), source.length);
+                    }
+                }
+            }
+            finally
+            {
+                foreach (var path in made) AssetDatabase.DeleteAsset(path);
+                AssetDatabase.SaveAssets();
+                UnityEngine.Object.DestroyImmediate(holder);
+            }
+        }
+
+        // A stance over its loop: three views at its start, then four frames of it from behind the right
+        // shoulder; a new figure for each shot, as Strip does.
+        static void Loop(Func<SeaFigure> make, string file, float length)
+        {
+            const int Frames = 4;
+            DungeonWorld.ApplySea(0f, Vector3.zero, 9f);
+            var shoulder = new Vector3(0.8f, 0.45f, -1f);
+            using (var sheet = new Sheet(512, 768, 3 + Frames))
+            {
+                for (var i = 0; i < 3 + Frames; i++)
+                {
+                    var figure = make();
+                    figure.Stance();
+                    figure.Animate(i < 3 ? 0f : length * (i - 3) / Frames, 0f);
+                    sheet.Shoot(i < 3 ? new[] { Vector3.forward, Vector3.right, Vector3.back }[i] : shoulder);
+                    figure.Dispose();
+                    UnityEngine.Object.DestroyImmediate(figure.Root.gameObject);
+                }
+                sheet.Save(file);
+            }
+            Debug.Log($"待机调查：{file}");
         }
 
         // Not part of Run (which would also rewrite the stances): from the menu, or in batchmode with
