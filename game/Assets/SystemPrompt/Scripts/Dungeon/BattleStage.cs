@@ -584,7 +584,7 @@ namespace SystemPrompt.Dungeon
             switch (strike)
             {
                 case Strike.Sweep:
-                    Move(Charge(member, foe, -1f), 0.25f);
+                    Cut(Charge(member, foe, -1f));
                     await RunIn(m, stop);
                     length = m.Figure.Play("Sweep", SweepPace);
                     await Anim.Wait(lands = SweepLands);
@@ -626,7 +626,7 @@ namespace SystemPrompt.Dungeon
                     break;
                 }
                 default:
-                    Move(Charge(member, foe), 0.25f);
+                    Cut(Charge(member, foe));
                     await RunIn(m, stop);
                     length = m.Figure.Play("Slash", SlashPace);
                     await Anim.Wait(lands = SlashLands);
@@ -858,8 +858,8 @@ namespace SystemPrompt.Dungeon
                     var off = f.Home - centre;
                     off.y = 0f;
                     f.At = centre + Quaternion.Euler(0f, 50f * k, 0f) * off * (1f - 0.15f * k);
-                    f.Spin = 720f * k * k;
-                    f.Lift = 0.7f * Mathf.Sin(Mathf.Min(1f, t * 1.3f) * Mathf.PI * 0.5f);
+                    f.Spin = 900f * k * k;
+                    f.Lift = 1.3f * Mathf.Sin(Mathf.Min(1f, t * 1.3f) * Mathf.PI * 0.5f);
                     f.Heat = 1f;
                 }
             });

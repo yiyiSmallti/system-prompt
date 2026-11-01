@@ -18,7 +18,7 @@ namespace SystemPrompt.Dungeon
     {
         readonly Transform parent;
         readonly Camera camera;
-        readonly Material white, ring, beam, bubble, glint; // shared; arcs and lances fade by vertex colour
+        readonly Material white, ring, beam, bubble, glint, flake; // shared; arcs and lances fade by vertex colour
         readonly Material spark, trail, glare, wave, flame, smoke; // the HDR ones; glare, wave, smoke copied for each use
         readonly Mesh quad; // the rings' and flashes'
         // Made the first time they are wanted.
@@ -33,8 +33,9 @@ namespace SystemPrompt.Dungeon
             white = SeaArt.Glow(SeaArt.White, Color.white);
             ring = SeaArt.Glow(SeaArt.Ring, Color.white);
             beam = SeaArt.Glow(SeaArt.Beam, Color.white);
-            bubble = SeaArt.Glow(SeaArt.Atlas, Color.white);
+            bubble = SeaArt.Glow(SeaArt.Bubble, Color.white);
             glint = SeaArt.Glow(SeaArt.Flare, Color.white);
+            flake = SeaArt.Glow(SeaArt.Snow, Color.white * 1.4f);
             spark = SeaArt.Glow(SeaArt.Spark, Color.white * 2.2f);
             trail = SeaArt.Glow(SeaArt.Across, Color.white * 1.2f);
             glare = SeaArt.Glow(SeaArt.Glare, Color.white);
@@ -50,7 +51,7 @@ namespace SystemPrompt.Dungeon
         // goes with the field, and so does its light.
         public void Dispose()
         {
-            foreach (var o in new Object[] { white, ring, beam, bubble, glint, spark, trail, glare, wave, flame, smoke, quad, lance, ice, shard,
+            foreach (var o in new Object[] { white, ring, beam, bubble, glint, flake, spark, trail, glare, wave, flame, smoke, quad, lance, ice, shard,
                          frame, arrow, can, rim, strip, adChrome, adPage, adBar, cardFace, cardStripe, canLook, rimLook, stripLook, chrome, page, bar,
                          cardLook, cardInk })
                 if (o != null) Object.Destroy(o);
@@ -373,7 +374,6 @@ namespace SystemPrompt.Dungeon
             var rise = bubbles.main;
             rise.startColor = new Color(0.75f, 0.95f, 1f, 0.8f);
             rise.gravityModifier = -0.2f;
-            Bubbly(bubbles);
             bubbles.Play();
             Mist(at, color, 5, 1.1f, 0.18f, true);
         }
@@ -614,16 +614,21 @@ namespace SystemPrompt.Dungeon
             if (parent == null) return;
             var root = Parts.Node("Stream", parent);
             root.position = from;
-            var headLook = new Material(glare) { color = Color.Lerp(color, Color.white, 0.6f) * 2.2f };
+            // The head: a small hot middle, the colour of ice rather than white, in a wide soft cloud of the cold.
+            var headLook = new Material(glare) { color = Color.Lerp(color, Color.white, 0.3f) * 1.5f };
+            var haloLook = new Material(glare) { color = color * 0.55f };
             var head = Parts.Shape("Head", root, quad, headLook).transform;
+            var halo = Parts.Shape("Halo", root, quad, haloLook).transform;
             var lamp = Lamp(from, color * 1.8f, 5f);
             var strands = new Transform[width > 0.5f ? 5 : 3];
             for (var i = 0; i < strands.Length; i++)
             {
                 strands[i] = Parts.Node("Strand", root);
-                Trail(strands[i].gameObject, i == 0 ? Color.Lerp(color, Color.white, 0.5f) : color, width * (i == 0 ? 0.6f : 0.32f), 0.24f);
+                Trail(strands[i].gameObject, i == 0 ? Color.Lerp(color, Color.white, 0.35f) : color, width * (i == 0 ? 0.45f : 0.3f), 0.24f);
             }
-            var crystals = Shed(root, color, 60f);
+            // Snowflakes glinting along the way, and a mist of cold hanging behind it.
+            var crystals = Shed(root, color, 50f, flake, 1.3f);
+            var mist = Shed(root, new Color(color.r, color.g, color.b, 0.3f), 16f, flame, 3.2f, false);
             var run = to - from;
             var side = Vector3.Cross(run, Vector3.up).normalized;
             var up = Vector3.Cross(side, run.normalized);
@@ -632,8 +637,11 @@ namespace SystemPrompt.Dungeon
                 if (root == null) return;
                 var p = Vector3.Lerp(from, to, t) + up * (Mathf.Sin(t * Mathf.PI) * 0.3f);
                 head.SetPositionAndRotation(p, camera.transform.rotation);
-                head.localScale = Vector3.one * (width * (2.6f + 0.5f * Mathf.Sin(t * 47f)));
-                crystals.transform.position = p;
+                head.localScale = Vector3.one * (width * (1.7f + 0.3f * Mathf.Sin(t * 47f)));
+                halo.SetPositionAndRotation(p, camera.transform.rotation);
+                halo.localScale = Vector3.one * (width * (4.5f + 0.6f * Mathf.Sin(t * 29f)));
+                haloLook.color = color * (0.5f + 0.12f * Mathf.Sin(t * 53f));
+                crystals.transform.position = mist.transform.position = p;
                 lamp.At = p;
                 for (var i = 0; i < strands.Length; i++)
                 {
@@ -647,10 +655,13 @@ namespace SystemPrompt.Dungeon
             if (root != null)
             {
                 Object.Destroy(head.gameObject);
+                Object.Destroy(halo.gameObject);
                 crystals.Stop();
+                mist.Stop();
                 Object.Destroy(root.gameObject, 0.9f);
             }
             Object.Destroy(headLook);
+            Object.Destroy(haloLook);
         }
 
         // A noise body frozen solid where it stands (S15): a lump of clear ice with crystals standing out of it,
@@ -761,18 +772,23 @@ namespace SystemPrompt.Dungeon
         {
             if (parent == null) return;
             var root = Parts.Node("Vortex", parent, new Vector3(centre.x, 0.04f, centre.z));
-            Mesh floorMesh = Spiral(radius, 6), spoutMesh = Spout(radius, 4.8f, 6);
+            Mesh floorMesh = Spiral(radius, 6), spoutMesh = Spout(radius, 4.8f, 8), wallMesh = Funnel(radius, 4.2f);
             // Dimmer than the rest: seen through the spout the bands lie over one another many deep.
             var deep = new Color(0.12f, 0.35f, 0.95f);
-            Material floorLook = new Material(white) { color = color }, spoutLook = new Material(white) { color = color * 0.5f };
+            Material floorLook = new Material(white) { color = color }, spoutLook = new Material(white) { color = color * 0.6f };
             var underLook = new Material(glare) { color = deep };
+            // The wall of water wound up round it all: bands of current winding up it, the tile scrolling.
+            var wallLook = SeaArt.Glow(SeaArt.Bands, color * 0.22f);
+            wallLook.SetVector("_Scroll", new Vector4(0.3f, -1.1f, 0f, 0f));
+            wallLook.mainTextureScale = new Vector2(2f, 1.5f);
             var under = Parts.Shape("Under", root, quad, underLook).transform;
             under.localRotation = Quaternion.Euler(90f, 0f, 0f);
             under.localScale = Vector3.zero;
             var lamp = Lamp(root.position + Vector3.up * 1.5f, Color.clear, radius * 2.2f);
             var floor = Parts.Shape("Whirl", root, floorMesh, floorLook).transform;
             var spout = Parts.Shape("Spout", root, spoutMesh, spoutLook).transform;
-            floor.localScale = spout.localScale = Vector3.zero;
+            var wall = Parts.Shape("Wall", root, wallMesh, wallLook).transform;
+            floor.localScale = spout.localScale = wall.localScale = Vector3.zero;
             var crystals = Swirl(root, radius, color, false);
             var bubbles = Swirl(root, radius, color, true);
             Ring(root.position, Vector3.up, color, radius * 1.2f, 0.6f);
@@ -786,6 +802,9 @@ namespace SystemPrompt.Dungeon
                 floor.localScale = new Vector3(open, 1f, open);
                 spout.localRotation = Quaternion.Euler(0f, turned * 1.4f, 0f);
                 spout.localScale = new Vector3(open, Ease.OutCubic(Mathf.Clamp01((t - 0.1f) / 0.4f)), open);
+                wall.localRotation = Quaternion.Euler(0f, turned * 0.6f, 0f);
+                wall.localScale = new Vector3(open, Ease.OutCubic(Mathf.Clamp01((t - 0.05f) / 0.45f)), open);
+                wallLook.color = color * (0.22f + 0.05f * Mathf.Sin(t * 41f));
                 floorLook.color = color * (0.8f + 0.2f * Mathf.Sin(t * 37f));
                 under.localScale = Vector3.one * (radius * 3f * open);
                 underLook.color = deep * (0.9f + 0.15f * Mathf.Sin(t * 23f));
@@ -811,13 +830,15 @@ namespace SystemPrompt.Dungeon
                     if (root == null) return;
                     floor.localScale = new Vector3(1f + 0.3f * t, 1f, 1f + 0.3f * t);
                     spout.localScale = new Vector3(1f + 0.4f * t, 1f - t, 1f + 0.4f * t);
+                    wall.localScale = new Vector3(1f + 0.5f * t, 1f - t, 1f + 0.5f * t);
                     floorLook.color = color * (0.8f * (1f - t));
-                    spoutLook.color = color * (0.5f * (1f - t));
+                    spoutLook.color = color * (0.6f * (1f - t));
+                    wallLook.color = color * (0.22f * (1f - t));
                     underLook.color = deep * (1f - t);
                 }, Ease.OutCubic, () => root == null);
                 await Anim.Wait(1.2f); // the last crystals and bubbles out
                 if (root != null) Object.Destroy(root.gameObject);
-                foreach (var o in new Object[] { floorMesh, spoutMesh, floorLook, spoutLook, underLook }) Object.Destroy(o);
+                foreach (var o in new Object[] { floorMesh, spoutMesh, wallMesh, floorLook, spoutLook, wallLook, underLook }) Object.Destroy(o);
             }
         }
 
@@ -874,7 +895,7 @@ namespace SystemPrompt.Dungeon
                     var u = (float)i / Steps;
                     var angle = ((float)b / bands + u * 1.5f) * Mathf.PI * 2f;
                     var middle = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * (radius * Mathf.Lerp(0.9f, 0.4f, u)) + Vector3.up * (height * u);
-                    var half = Vector3.up * Mathf.Lerp(0.3f, 0.75f, u);
+                    var half = Vector3.up * Mathf.Lerp(0.4f, 0.9f, u);
                     vertices.Add(middle - half);
                     vertices.Add(middle);
                     vertices.Add(middle + half);
@@ -890,6 +911,36 @@ namespace SystemPrompt.Dungeon
                 }
             }
             return Build("Spout", vertices, colors, triangles);
+        }
+
+        // The wall of a whirlpool: a funnel `radius` wide at the seabed narrowing toward `height`, gone at its
+        // foot and its top, its u once round and v up it for the bands of current to scroll along.
+        static Mesh Funnel(float radius, float height)
+        {
+            const int Round = 40, Rows = 12;
+            var vertices = new List<Vector3>();
+            var colors = new List<Color>();
+            var uvs = new List<Vector2>();
+            var triangles = new List<int>();
+            for (var j = 0; j <= Rows; j++)
+            {
+                var v = (float)j / Rows;
+                var r = radius * Mathf.Lerp(1.05f, 0.5f, Ease.OutCubic(v));
+                var a = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(v * Mathf.PI)), 0.8f) * 0.45f;
+                for (var i = 0; i <= Round; i++)
+                {
+                    var angle = (float)i / Round * Mathf.PI * 2f;
+                    vertices.Add(new Vector3(Mathf.Cos(angle) * r, height * v, Mathf.Sin(angle) * r));
+                    colors.Add(new Color(1f, 1f, 1f, a));
+                    uvs.Add(new Vector2((float)i / Round, v));
+                    if (i == Round || j == Rows) continue;
+                    var k = j * (Round + 1) + i;
+                    triangles.AddRange(new[] { k, k + Round + 1, k + Round + 2, k, k + Round + 2, k + 1 });
+                }
+            }
+            var mesh = Build("Funnel", vertices, colors, triangles);
+            mesh.SetUVs(0, uvs);
+            return mesh;
         }
 
         // Ice crystals (or bubbles) carried round and up by a whirlpool `radius` out under `holder`.
@@ -908,7 +959,7 @@ namespace SystemPrompt.Dungeon
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
             main.useUnscaledTime = true;
             var emission = ps.emission;
-            emission.rateOverTime = bubbles ? 70f : 140f;
+            emission.rateOverTime = bubbles ? 90f : 140f;
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Circle;
             shape.radius = radius * 0.85f;
@@ -930,7 +981,6 @@ namespace SystemPrompt.Dungeon
             renderer.sharedMaterial = bubbles ? bubble : glint;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
-            if (bubbles) Bubbly(ps);
             ps.Play();
             return ps;
         }
@@ -1177,12 +1227,13 @@ namespace SystemPrompt.Dungeon
                 rimLook ??= SeaArt.Toon(Palette.Hex("#E8EEF5"), Palette.Hex("#9AA6B6"), new Color(1f, 1f, 1f, 0.6f), default, 0.01f);
                 Parts.Shape("Can", body, can, canLook, new Vector3(0f, -0.12f, 0f));
                 Parts.Shape("Top", body, rim, rimLook, new Vector3(0f, 0.12f, 0f));
-                Bubbly(Shed(thing, new Color(0.8f, 0.97f, 1f, 0.9f), 30f, bubble));
+                Shed(thing, new Color(0.8f, 0.97f, 1f, 0.9f), 30f, bubble);
             }
             Trail(thing.gameObject, color, 0.14f, 0.2f);
             var run = to - from;
             var axis = Vector3.Cross(run, Vector3.up).normalized;
-            var height = 1.2f + run.magnitude * 0.12f;
+            // A lob low enough to stay in the frame from down beside the thrower.
+            var height = 0.45f + run.magnitude * 0.07f;
             await Anim.Tween(seconds, t =>
             {
                 if (thing == null) return;
@@ -1208,7 +1259,6 @@ namespace SystemPrompt.Dungeon
             shape.angle = 32f;
             shape.radius = 0.1f;
             shape.rotation = new Vector3(-90f, 0f, 0f);
-            Bubbly(foam);
             foam.Play();
             Sparks(at, Color.white, 26, 6f, 0.07f);
             Flash(at, Color.white, 1.4f, 0.16f, 2.6f);
@@ -1494,7 +1544,6 @@ namespace SystemPrompt.Dungeon
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
             shape.radius = length * 0.2f;
-            Bubbly(ps);
             var renderer = go.GetComponent<ParticleSystemRenderer>();
             renderer.sharedMaterial = bubble;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -1530,7 +1579,9 @@ namespace SystemPrompt.Dungeon
 
         // Glints (or what `look` draws) left behind `holder` as it moves, `perMetre` of them, in the world so they
         // hang where they were shed.
-        ParticleSystem Shed(Transform holder, Color color, float perMetre, Material look = null)
+        // `size` scales them; `pale` draws them between the colour and white, else in the colour as given (with
+        // its alpha).
+        ParticleSystem Shed(Transform holder, Color color, float perMetre, Material look = null, float size = 1f, bool pale = true)
         {
             var go = new GameObject("Shed");
             go.transform.SetParent(holder, false);
@@ -1539,8 +1590,8 @@ namespace SystemPrompt.Dungeon
             var main = ps.main;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.75f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 1.2f);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.24f);
-            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.08f * size, 0.24f * size);
+            main.startColor = pale ? new ParticleSystem.MinMaxGradient(color, Color.white) : new ParticleSystem.MinMaxGradient(color);
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
             main.maxParticles = 200;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -1591,16 +1642,6 @@ namespace SystemPrompt.Dungeon
             g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.6f), new GradientAlphaKey(0f, 1f) });
             shade.color = new ParticleSystem.MinMaxGradient(g);
-        }
-
-        // Particles drawn as the bubble in SeaArt.Atlas, for the `bubble` material.
-        static void Bubbly(ParticleSystem ps)
-        {
-            var sheet = ps.textureSheetAnimation;
-            sheet.enabled = true;
-            sheet.numTilesX = 4;
-            sheet.numTilesY = 1;
-            sheet.frameOverTime = new ParticleSystem.MinMaxCurve((SeaArt.AtlasBubble + 0.5f) / 4f);
         }
 
         // A mesh from points, their colours (or none) and triangles, lit by its own facets' normals.

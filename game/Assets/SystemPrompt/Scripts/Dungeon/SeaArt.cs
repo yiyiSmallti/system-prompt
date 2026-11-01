@@ -190,7 +190,7 @@ namespace SystemPrompt.Dungeon
 
         public const int AtlasBubble = 0, AtlasEmoji = 1, AtlasCard = 2, AtlasDot = 3;
 
-        static Texture2D atlas, beam, white, firewall, ring, flare, cells, socket, sheen, dial, spark, glare, puff, wave, across;
+        static Texture2D atlas, beam, white, firewall, ring, flare, cells, socket, sheen, dial, spark, glare, puff, wave, across, bubble, snow, bands;
 
         // Four 128px cells: a chat bubble, an emoji face, a web card and a soft dot, white on clear.
         public static Texture2D Atlas => atlas ??= MakeAtlas();
@@ -212,6 +212,12 @@ namespace SystemPrompt.Dungeon
         public static Texture2D Wave => wave ??= Radial(128, r => r < 0.92f ? Mathf.Pow(Mathf.Clamp01((r - 0.6f) / 0.32f), 2.6f) * 0.6f + Mathf.Exp(-Mathf.Pow((r - 0.92f) / 0.025f, 2f)) * 0.4f
             : Mathf.Exp(-Mathf.Pow((r - 0.92f) / 0.025f, 2f)));
         public static Texture2D Across => across ??= MakeAcross();
+        // A bubble of air: a thin bright rim round a faint body, a highlight up to its left; a snowflake, six
+        // arms with spurs off them, bright at the middle; and bands of current winding across a tile that
+        // repeats both ways, for a scrolling Glow on a spout of water (the bands rise as its v scrolls down).
+        public static Texture2D Bubble => bubble ??= MakeBubble();
+        public static Texture2D Snow => snow ??= MakeSnow();
+        public static Texture2D Bands => bands ??= MakeBands();
 
         // The atlas rectangle of one cell, for a material's scale and offset.
         public static Vector4 AtlasCell(int i) => new Vector4(0.25f, 1f, 0.25f * i, 0f);
@@ -396,6 +402,84 @@ namespace SystemPrompt.Dungeon
                 var r = new Vector2(x - size / 2f + 0.5f, y - size / 2f + 0.5f).magnitude / (size / 2f);
                 var a = shape(r) * Mathf.Clamp01((1f - r) * 6f);
                 px[y * size + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        static Texture2D MakeBubble()
+        {
+            const int S = 64;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f) / (S / 2f);
+                var r = p.magnitude;
+                var rim = Mathf.Exp(-Mathf.Pow((r - 0.8f) / 0.08f, 2f));
+                var body = r < 0.8f ? 0.14f * (0.5f + 0.5f * r / 0.8f) : 0f;
+                var shine = 0.7f * Mathf.Exp(-(p - new Vector2(-0.32f, 0.36f)).sqrMagnitude / 0.03f);
+                var a = (rim * 0.95f + body + shine) * Mathf.Clamp01((0.95f - r) * 12f);
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        static Texture2D MakeSnow()
+        {
+            const int S = 64;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            float Segment(Vector2 p, Vector2 a, Vector2 b)
+            {
+                var ab = b - a;
+                var k = Mathf.Clamp01(Vector2.Dot(p - a, ab) / ab.sqrMagnitude);
+                return (p - (a + ab * k)).magnitude;
+            }
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f) / (S / 2f);
+                var near = 10f;
+                for (var k = 0; k < 6; k++)
+                {
+                    var arm = new Vector2(Mathf.Cos(k * Mathf.PI / 3f), Mathf.Sin(k * Mathf.PI / 3f));
+                    near = Mathf.Min(near, Segment(p, Vector2.zero, arm * 0.92f));
+                    foreach (var along in new[] { 0.42f, 0.68f })
+                    foreach (var side in new[] { 1f, -1f })
+                    {
+                        var spur = new Vector2(Mathf.Cos(k * Mathf.PI / 3f + side * Mathf.PI / 3f), Mathf.Sin(k * Mathf.PI / 3f + side * Mathf.PI / 3f));
+                        near = Mathf.Min(near, Segment(p, arm * along, arm * along + spur * (0.26f - 0.08f * (along - 0.42f) / 0.26f)) + 0.012f);
+                    }
+                }
+                var line = Mathf.Exp(-Mathf.Pow(near / 0.045f, 2f));
+                var heart = 0.7f * Mathf.Exp(-p.sqrMagnitude * 18f);
+                var a = Mathf.Clamp01(line + heart) * Mathf.Clamp01((1f - p.magnitude) * 8f);
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        static Texture2D MakeBands()
+        {
+            const int S = 64;
+            var t = New(S, S, TextureWrapMode.Repeat);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                float u = (x + 0.5f) / S, v = (y + 0.5f) / S;
+                // Three bands across the tile, leaning as they go up, their edges wavering a little.
+                var phase = (3f * u + 2f * v) * Mathf.PI * 2f + 0.35f * Mathf.Sin(v * Mathf.PI * 2f * 2f) * Mathf.Sin(u * Mathf.PI * 2f);
+                var band = Mathf.Pow(0.5f + 0.5f * Mathf.Sin(phase), 2.4f);
+                var a = band * (0.55f + 0.45f * Mathf.PerlinNoise(u * 6f + 2.3f, v * 6f + 7.1f));
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
             }
             t.SetPixels32(px);
             t.Apply();
