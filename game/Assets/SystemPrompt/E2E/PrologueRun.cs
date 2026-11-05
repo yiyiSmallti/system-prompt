@@ -256,6 +256,8 @@ namespace SystemPrompt.E2E
             yield return Pump(() => Maze.Exploring, "进入缓存海·浅层探索");
             yield return Shallows();
             if (finished) yield break;
+            yield return OldSaves();
+            if (finished) yield break;
             yield return Pump(() => game.InBattle, "进入教学战斗");
             yield return Pump(() => !game.InBattle, "教学战斗结束");
             var deepSeek = game.State.members.Find(m => m.id == "DeepSeek");
@@ -1326,8 +1328,22 @@ namespace SystemPrompt.E2E
             if (!finished) passes.Add($"{Now:0.0}s　{what}");
         }
 
-        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；先照旧叫她「DeepSeek」（比称呼的上限长，
-        // 算欠着），读回天台开头的快速存档重起一次：起「大肥鱼」她抗议但照样认，接下来的台词用上这个称呼。
+        // What the run types on the rooftop before the name it keeps, what each is stored as, and a line of
+        // her reaction: her own name (longer than a nickname may be, any capitals: still owed), the names she
+        // weighed herself, the community's, a plain one and a sore one.
+        static readonly (string Typed, string Stored, string Line, bool Sore)[] Tried =
+        {
+            ("deepseek", "DeepSeek", "先欠着", false),
+            ("D老师", "D老师", "你偷看我的思考过程了", false),
+            ("小d", "小D", "暂时通过", false),
+            ("小鲸鱼", "小鲸鱼", "只限你叫", false),
+            ("鲸鱼娘", "鲸鱼娘", "在教室里要小声一点", false),
+            ("鲸老师", "鲸老师", "查不到出处", false),
+            ("小胖鲸", "小胖鲸", "要赔我一盒白米饭", true),
+        };
+
+        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；Tried 里的称呼逐个起一遍，每次读回天台开头的
+        // 快速存档重来；最后起「大肥鱼」，她抗议但照样认，接下来的台词用上这个称呼。
         IEnumerator Naming()
         {
             yield return Pump(() => game.Nickname.IsOpen, "起称呼的输入框打开");
@@ -1341,39 +1357,108 @@ namespace SystemPrompt.E2E
             var refusal = dialog.Q<Label>(className: "sp-newgame__error").text;
             Check(refusal.Contains("已经被占用") && game.Nickname.IsOpen && !game.Confirm.IsOpen, $"别的角色的名字不能用作称呼（{refusal}）");
             yield return Snap("nickname-refused", "起称呼：别人的名字不能用");
-
             Check(field.maxLength >= "DeepSeek".Length, $"输入框放得下「DeepSeek」（上限 {field.maxLength} 个字）");
-            yield return Name("deepseek", null);
-            Check(game.StoryString("$player_calls_deepseek") == "DeepSeek", "照旧叫她「DeepSeek」：大小写归一，不受 6 个字的上限限制");
-            yield return Pump(() => Said("先欠着"), "没起新称呼，她说先欠着");
-            yield return Pump(() => Said("称呼没有变化"), "系统提示称呼没有变化");
 
-            yield return Press(Key.F9);
-            yield return Until(() => !Said("先欠着"), "读回天台开头的快速存档");
-            yield return Pump(() => game.Nickname.IsOpen, "读档后重新问称呼");
-            if (finished) yield break;
-            Check(game.StoryString("$player_calls_deepseek") == "", "读档后上一次起的称呼不留");
-            yield return Wait(0.5f);
-            yield return Name(Nickname, "nickname");
+            for (var i = 0; i < Tried.Length && !finished; i++)
+            {
+                var (typed, stored, line, sore) = Tried[i];
+                yield return Name(typed, null, i == 0);
+                Check(game.StoryString("$player_calls_deepseek") == stored, $"输入「{typed}」，称呼记为「{stored}」");
+                Check(game.StoryBool("$player_calls_deepseek_sore") == sore, $"「{stored}」{(sore ? "戳到痛处" : "没有戳到痛处")}");
+                yield return Pump(() => Said(line), $"「{stored}」的反应：{line}");
+                var owed = stored == "DeepSeek";
+                var last = owed ? "称呼没有变化" : sore ? "今天的份已经超了" : "今天的份用完了";
+                yield return Pump(() => Said(last), $"「{stored}」这一段说完：{last}");
+                if (owed) yield return ProfileSays("还欠着");
+
+                yield return Idle();
+                yield return Press(Key.F9);
+                yield return Until(() => !Said(line), "读回天台开头的快速存档");
+                yield return Pump(() => game.Nickname.IsOpen, "读档后重新问称呼");
+                if (finished) yield break;
+                Check(game.StoryString("$player_calls_deepseek") == "", "读档后上一次起的称呼不留");
+                yield return Wait(0.5f);
+            }
+
+            yield return Name(Nickname, "nickname", false);
             Check(game.StoryString("$player_calls_deepseek") == Nickname, $"主角称呼 DeepSeek 为「{Nickname}」");
             Check(game.StoryBool("$player_calls_deepseek_sore"), "带「肥」字的称呼没有被退回，记为戳到痛处");
             yield return Pump(() => Said("那次是我自己看错了图"), "「大肥鱼」的专属反应");
             yield return Pump(() => Said($"称呼变成了「{Nickname}」"), "系统提示称呼变更");
             yield return Pump(() => Said("今天的份已经超了"), "她抗议但认了这个称呼");
+            yield return ProfileSays($"「{Nickname}」");
         }
 
         // Fills in the open nickname dialog and confirms. shot: the id of the screenshots, or null for none.
-        IEnumerator Name(string name, string shot)
+        // hesitate: answers 再想想 first, which has to leave the dialog open and nothing decided.
+        IEnumerator Name(string name, string shot, bool hesitate)
         {
             ui.Q(className: "sp-nickname").Q<TextField>().value = name;
             yield return Wait(0.2f);
             if (shot != null) yield return Snap(shot, "起称呼");
             for (var i = 0; i < 4 && !game.Confirm.IsOpen; i++) yield return Press(Key.Enter);
             yield return Until(() => game.Confirm.IsOpen, "称呼确认");
+            if (hesitate)
+            {
+                yield return Wait(0.3f);
+                yield return Press(Key.RightArrow);
+                yield return Press(Key.Enter);
+                yield return Until(() => !game.Confirm.IsOpen, "选了「再想想」");
+                Check(game.Nickname.IsOpen && game.StoryString("$player_calls_deepseek") == "", "「再想想」后输入框还在，称呼没定");
+                for (var i = 0; i < 4 && !game.Confirm.IsOpen; i++) yield return Press(Key.Enter);
+                yield return Until(() => game.Confirm.IsOpen, "再次确认称呼");
+            }
             yield return Wait(0.45f);
             if (shot != null) yield return Snap(shot + "-confirm", "称呼确认");
             yield return Press(Key.Enter);
             yield return Until(() => !game.ModalOpen, $"称呼定下（{name}）");
+        }
+
+        // DeepSeek's phone profile shows `value` (what the player calls her) among its fields.
+        IEnumerator ProfileSays(string value)
+        {
+            game.Profile.Open("DeepSeek");
+            yield return Until(() => game.Profile.IsOpen, "DeepSeek 资料打开");
+            yield return Wait(0.4f);
+            var shown = ui.Query<Label>(className: "sp-profile__value").ToList().Select(l => l.text).ToList();
+            Check(shown.Contains(value), $"资料页「你对她的称呼」是 {value}（实际 {string.Join("、", shown)}）");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.ModalOpen, "资料关闭");
+        }
+
+        // 旧存档：改天台之前的存档没有 $player_calls_deepseek，只记了叫没叫「D老师」（$called_d_teacher）。把灯塔节点
+        // 开头的检查点改成那时的样子读进来，叫过的恢复成「D老师」，没叫的算欠着，直面影子的台词各不落空；
+        // 最后读回原样的检查点，接着往下走。
+        IEnumerator OldSaves()
+        {
+            yield return Pump(() => game.StoryRunner?.CurrentNode == "Prologue_Lighthouse" && !game.InDungeon, "到灯塔脚下");
+            if (finished) yield break;
+            var now = game.StoryRunner.Checkpoint;
+            Check(now.strings.Any(v => v.name == "$player_calls_deepseek" && v.value == Nickname), "起的称呼写进了检查点");
+            foreach (var (called, name, line) in new[] { (true, "D老师", "还想被叫D老师"), (false, "DeepSeek", "还想听鱼片欠我的那个称呼") })
+            {
+                var old = new SaveData
+                {
+                    node = now.node, playSeconds = now.playSeconds, state = now.state.Clone(), floats = now.floats.ToList(),
+                    strings = now.strings.Where(v => !v.name.StartsWith("$player_calls_")).ToList(),
+                    bools = now.bools.Where(v => !v.name.StartsWith("$player_calls_")).ToList(),
+                };
+                if (called) old.bools.Add(new BoolVar { name = "$called_d_teacher", value = true });
+                yield return Load(old, $"读旧存档（{(called ? "叫过 D老师" : "没叫过")}）");
+                if (finished) yield break;
+                Check(game.StoryString("$player_calls_deepseek") == name, $"旧存档的称呼补成「{name}」（实际「{game.StoryString("$player_calls_deepseek")}」）");
+                yield return Pump(() => Said(line), $"旧存档直面影子：{line}");
+            }
+            yield return Load(now, "读回原样的检查点");
+            Check(game.StoryString("$player_calls_deepseek") == Nickname, $"新存档读回来称呼还是「{Nickname}」");
+        }
+
+        IEnumerator Load(SaveData save, string what)
+        {
+            yield return Idle();
+            var before = game.StoryRunner;
+            game.LoadGame(save);
+            yield return Until(() => game.StoryRunner != before && game.StoryRunner?.CurrentNode == save.node && !game.Transitions.Busy, what);
         }
 
         bool Said(string text) => game.Story.Backlog.Any(b => b.Text.Contains(text));
