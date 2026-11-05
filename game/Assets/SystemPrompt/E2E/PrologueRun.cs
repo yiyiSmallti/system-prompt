@@ -27,6 +27,7 @@ namespace SystemPrompt.E2E
         const float RunTimeout = 1500f;
         const float StepTimeout = 180f; // the tutorial battle alone takes ~130 s on a busy machine
         const string PlayerName = "测试员";
+        const string Nickname = "大肥鱼"; // what the run calls DeepSeek on the rooftop: the community's name for her, and a sore one
 
         sealed class Checkpoint
         {
@@ -248,6 +249,8 @@ namespace SystemPrompt.E2E
 
             // 一路到教学战斗结束。到战斗前的剧情较长，分段推进，每段各算超时
             yield return Pump(() => game.State.scene == "rooftop", "到达天台");
+            yield return Naming();
+            if (finished) yield break;
             yield return Pump(() => game.State.scene == "cache_sea", "进入缓存海");
             yield return Pump(() => Maze.Exploring, "进入缓存海·浅层探索");
             yield return Shallows();
@@ -271,6 +274,8 @@ namespace SystemPrompt.E2E
             Check(game.State.abilities.Contains("deep_dive"), "获得能力「深海潜行」");
             Check(game.State.deadlines.Any(d => d.id == "deepseek_evaluation" && d.month == 5 && d.day == 6), "评测日设为 5/6");
             Check(game.State.contacts.Contains("ChatGPT"), "通讯录里有 ChatGPT");
+            Check(Said($"还想被叫{Nickname}"), "直面影子时说还想被叫这个称呼");
+            Check(Said($"中午你给我起的「{Nickname}」") && Said("记仇的那种记"), "战后说会记着这个称呼（记仇）");
 
             // 回到标题，看读档界面
             yield return Pump(() => !game.InStory && Visible(ui.Q(className: "sp-title")), "回到标题");
@@ -1319,6 +1324,38 @@ namespace SystemPrompt.E2E
             }
             if (!finished) passes.Add($"{Now:0.0}s　{what}");
         }
+
+        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；起「大肥鱼」她抗议但照样认，接下来的台词用上这个称呼。
+        IEnumerator Naming()
+        {
+            yield return Pump(() => game.Nickname.IsOpen, "起称呼的输入框打开");
+            if (finished) yield break;
+            yield return Wait(0.5f);
+            var dialog = ui.Q(className: "sp-nickname");
+            var field = dialog.Q<TextField>();
+            field.value = "Claude";
+            yield return Press(Key.Enter);
+            yield return Wait(0.3f);
+            var refusal = dialog.Q<Label>(className: "sp-newgame__error").text;
+            Check(refusal.Contains("已经被占用") && game.Nickname.IsOpen && !game.Confirm.IsOpen, $"别的角色的名字不能用作称呼（{refusal}）");
+            yield return Snap("nickname-refused", "起称呼：别人的名字不能用");
+            field.value = Nickname;
+            yield return Wait(0.2f);
+            yield return Snap("nickname", "起称呼");
+            for (var i = 0; i < 4 && !game.Confirm.IsOpen; i++) yield return Press(Key.Enter);
+            yield return Until(() => game.Confirm.IsOpen, "称呼确认");
+            yield return Wait(0.45f);
+            yield return Snap("nickname-confirm", "称呼确认");
+            yield return Press(Key.Enter);
+            yield return Until(() => !game.ModalOpen, "称呼定下");
+            Check(game.StoryString("$player_calls_deepseek") == Nickname, $"主角称呼 DeepSeek 为「{Nickname}」");
+            Check(game.StoryBool("$player_calls_deepseek_sore"), "带「肥」字的称呼没有被退回，记为戳到痛处");
+            yield return Pump(() => Said("那次是我自己看错了图"), "「大肥鱼」的专属反应");
+            yield return Pump(() => Said($"称呼变成了「{Nickname}」"), "系统提示称呼变更");
+            yield return Pump(() => Said("今天的份已经超了"), "她抗议但认了这个称呼");
+        }
+
+        bool Said(string text) => game.Story.Backlog.Any(b => b.Text.Contains(text));
 
         // Stands still in the maze until `condition`, reading on through whatever talks meanwhile.
         IEnumerator Lurk(Func<bool> condition, string what)

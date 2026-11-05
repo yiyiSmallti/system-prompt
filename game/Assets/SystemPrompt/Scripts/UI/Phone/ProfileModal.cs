@@ -69,6 +69,9 @@ namespace SystemPrompt.UI
             {
                 var nickname = Game.StoryString("$deepseek_calls_player");
                 Field(table, "对你的称呼", string.IsNullOrEmpty(nickname) ? "——" : $"「{nickname}」");
+                // Named DeepSeek on the rooftop: the name is still owed.
+                var mine = Game.StoryString(Story.StoryCommands.NicknameVariable(def.Id));
+                Field(table, "你对她的称呼", string.IsNullOrEmpty(mine) ? "——" : mine == def.Id ? "还欠着" : $"「{mine}」");
             }
 
             var coop = Game.State.Coop(def.Id);

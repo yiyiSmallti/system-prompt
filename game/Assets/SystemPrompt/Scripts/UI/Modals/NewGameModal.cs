@@ -8,8 +8,6 @@ namespace SystemPrompt.UI
     public sealed class NewGameModal : Modal
     {
         const int MaxNameLength = 8;
-        // The name is substituted into lines before Yarn parses them, so markup and speaker syntax are off limits.
-        const string ForbiddenChars = ":：[]{}#\\/<>\"";
 
         readonly TextField nameField;
         readonly Label error;
@@ -96,14 +94,7 @@ namespace SystemPrompt.UI
             SetTyping(false);
         }
 
-        static string Validate(string name)
-        {
-            if (name.Length == 0) return "请输入姓名";
-            if (name.Length > MaxNameLength) return $"姓名最多 {MaxNameLength} 个字";
-            if (name.IndexOfAny(ForbiddenChars.ToCharArray()) >= 0) return "姓名里不能有符号 " + ForbiddenChars;
-            if (Array.IndexOf(GameData.ReservedNames, name) >= 0) return "这个名字已经被占用了";
-            return null;
-        }
+        static string Validate(string name) => GameData.NameProblem(name, MaxNameLength, "姓名");
 
         void Submit()
         {

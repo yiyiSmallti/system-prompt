@@ -37,6 +37,7 @@ namespace SystemPrompt
         public SaveLoadModal SaveLoad { get; private set; }
         public SettingsModal SettingsModal { get; private set; }
         public NewGameModal NewGame { get; private set; }
+        public NicknameModal Nickname { get; private set; }
         public ConfirmModal Confirm { get; private set; }
 
         VisualElement frame;
@@ -112,6 +113,7 @@ namespace SystemPrompt
             SaveLoad = new SaveLoadModal(this);
             SettingsModal = new SettingsModal(this);
             NewGame = new NewGameModal(this);
+            Nickname = new NicknameModal(this);
             Confirm = new ConfirmModal(this);
         }
 
@@ -418,7 +420,7 @@ namespace SystemPrompt
             Notice("已读取快速存档");
         }
 
-        // The Yarn variable the phone profile shows as "how she calls you".
+        // The Yarn variables the phone profile shows as "how she calls you" and "how you call her".
         public string StoryString(string variable) => story?.GetString(variable) ?? "";
         public bool StoryBool(string variable) => story?.GetBool(variable) ?? false;
     }

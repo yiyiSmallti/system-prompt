@@ -123,7 +123,7 @@ namespace SystemPrompt.Story
             mainPresenter.NodeEntered = OnNodeEntered;
             mainPresenter.Completed = OnCompleted;
             main = CreateRunner(mainPresenter);
-            StoryCommands.Register(main, game, screen, Guard);
+            StoryCommands.Register(main, game, screen, Guard, storage.SetValue, storage.SetValue);
 
             hintPresenter = host.AddComponent<StoryPresenter>();
             hints = CreateRunner(hintPresenter);

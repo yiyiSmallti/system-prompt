@@ -190,7 +190,7 @@ game/Tools/e2e.sh
 
 剧本只在仓库根目录的 `story/` 维护。Unity 只能导入 `Assets/` 下的文件，所以 `Editor/YarnStorySync.cs` 在打开编辑器、每次进入 Play 前和构建测试版前，把 `story/*.yarn` 复制到 `Resources/Story/Synced/`（已加入 `.gitignore`），`Prologue.yarnproject` 编译这个文件夹。也可以手动点菜单 **System Prompt → 同步剧本**。不要直接改 `Synced/` 里的副本。
 
-剧本里的命令（`<<calendar>>`、`<<scene>>`、`<<battle>>` 等）在 `Scripts/Story/StoryCommands.cs` 注册，新增命令也加在这里。说话人决定台词的呈现方式：`旁白` 是旁白框，`系统` 是左侧弹出的系统提示，`屏幕` 显示在手机画面上，`文件` 是终端投影，主角的台词加 `#inner` 是内心独白，DeepSeek 的台词加 `#thinking` 显示在思考框里。立绘表情用行标签 `#face:表情`，可选表情写在 `story/00-prologue.yarn` 开头的注释里。角色第一次说话时自动登场，换场景时清场。
+剧本里的命令（`<<calendar>>`、`<<scene>>`、`<<battle>>` 等）在 `Scripts/Story/StoryCommands.cs` 注册，新增命令也加在这里。说话人决定台词的呈现方式：`旁白` 是旁白框，`系统` 是左侧弹出的系统提示，`屏幕` 显示在手机画面上，`文件` 是终端投影，主角的台词加 `#inner` 是内心独白，DeepSeek 的台词加 `#thinking` 显示在思考框里。立绘表情用行标签 `#face:表情`，可选表情写在 `story/00-prologue.yarn` 开头的注释里。角色第一次说话时自动登场，换场景时清场。`<<nickname_ask 角色>>` 在对话框的位置弹出输入框（`UI/Modals/NicknameModal.cs`），玩家给角色起的称呼写进 `$player_calls_<角色名小写>`，台词里用 `{$player_calls_deepseek}` 引用，手机资料页也显示；称呼和主角姓名共用 `GameData.NameProblem` 的校验。
 
 战斗中的提示和台词放在 `Prologue_Battle_*` 节点，由战斗系统在对应时机调用。`<<dungeon 区域ID>>` 进入潜空间探索，探索中的教学、区域、碎片和事件放在 `Prologue_Sea_*`、`Prologue_Deep_*` 节点，节点名、地图、分区和宝箱写在 `Scripts/Dungeon/DungeonData.cs`；这些节点在探索画面的对话框里播放，不能放选项；门打开（`Prologue_Sea_Gate`）、出口出现（`Prologue_Deep_Light`）、维护进度 80%（`Prologue_Deep_Warning`）和第一次被偷袭（`*_Ambushed`）的节点改由 DeepSeek 在右上角播报，只放她的台词。它们只能用探索专用的命令（`StoryCommands.RegisterHints`），目前是 `<<mirror on|off>>`：让出口旁的白门变成镜子、再变回来。
 

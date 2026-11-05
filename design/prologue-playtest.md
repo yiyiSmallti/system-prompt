@@ -65,7 +65,7 @@
 
 ## 剧本选项
 
-Yarn 里 33 个选项行，约 15 个选项点，4 个写进变量：`$told_chatgpt_customer_service`、`$noticed_claude_crease`、`$called_d_teacher`、`$sea_read_47s`。四个标记各换回一到三句台词（Claude 压平书脊、ChatGPT 自言自语、DeepSeek 记着 D 老师、影子前的独白），没有一个改变场景、奖励、数值或战斗。「等到三点／还是睡吧」「是／否」都强制进入同一结果，玩家第一次按选项就学到「选什么都一样」。
+Yarn 里 30 个选项行，约 14 个选项点，3 个写进变量：`$told_chatgpt_customer_service`、`$noticed_claude_crease`、`$sea_read_47s`；天台上原来「叫不叫 D老师」的选项（`$called_d_teacher`）已改成玩家打字给 DeepSeek 起称呼（`$player_calls_deepseek`）。四个标记各换回一到三句台词（Claude 压平书脊、ChatGPT 自言自语、DeepSeek 记着主角起的称呼、影子前的独白），没有一个改变场景、奖励、数值或战斗。「等到三点／还是睡吧」「是／否」都强制进入同一结果，玩家第一次按选项就学到「选什么都一样」。
 
 [systems.md](systems.md) 的陪伴生五维（学力、胆量、细心、耐心、表达）和「细心可以提前识破钓鱼型噪声体」是现成的钩子，序章一个都没有接上。
 

@@ -9,7 +9,12 @@ namespace SystemPrompt.Story
     // then plays its presentation, so skipping or a missing asset never loses progress.
     public static class StoryCommands
     {
-        public static void Register(DialogueRunner runner, GameRoot game, StoryScreen screen, Func<Func<Awaitable>, Awaitable> guard)
+        // The Yarn variable <<nickname_ask 角色>> writes and the phone profile reads.
+        public static string NicknameVariable(string who) => "$player_calls_" + who.ToLowerInvariant();
+
+        // setString and setBool write Yarn variables of the run these commands belong to.
+        public static void Register(DialogueRunner runner, GameRoot game, StoryScreen screen, Func<Func<Awaitable>, Awaitable> guard,
+            Action<string, string> setString, Action<string, bool> setBool)
         {
             var state = (Func<GameState>)(() => game.State);
 
@@ -46,6 +51,13 @@ namespace SystemPrompt.Story
             runner.AddCommandHandler("battle", (Func<string, Awaitable>)(id => guard(() => game.RunBattle(id))));
 
             runner.AddCommandHandler("dungeon", (Func<string, Awaitable>)(id => guard(() => game.RunDungeon(id))));
+
+            runner.AddCommandHandler("nickname_ask", (Func<string, Awaitable>)(who => guard(async () =>
+            {
+                var name = await game.Nickname.Ask(who);
+                setString(NicknameVariable(who), name);
+                setBool(NicknameVariable(who) + "_sore", GameData.NicknameSore(who, name));
+            })));
 
             runner.AddCommandHandler("coop_rank", (Func<string, int, Awaitable>)((who, rank) => guard(() =>
             {

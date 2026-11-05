@@ -132,6 +132,25 @@ namespace SystemPrompt
             Narrator, SystemSpeaker, ScreenSpeaker, FileSpeaker, "ChatGPT", "Claude", "DeepSeek", "影子DeepSeek", "班主任", "路人学生A", "路人学生B",
         };
 
+        // Names the player types are put into lines before Yarn parses them, so markup and speaker syntax are off limits.
+        const string ForbiddenNameChars = ":：[]{}#\\/<>\"";
+
+        // What is wrong with a name the player typed (label: 姓名, 称呼), or null. `allowed` is the one
+        // speaker name that may be reused: a character can be called by her own name.
+        public static string NameProblem(string name, int maxLength, string label, string allowed = null)
+        {
+            if (name.Length == 0) return $"请输入{label}";
+            if (name.Length > maxLength) return $"{label}最多 {maxLength} 个字";
+            if (name.IndexOfAny(ForbiddenNameChars.ToCharArray()) >= 0) return $"{label}里不能有符号 " + ForbiddenNameChars;
+            if (name != allowed && Array.IndexOf(ReservedNames, name) >= 0) return "这个名字已经被占用了";
+            return null;
+        }
+
+        // Whether a nickname the player gave touches the character's sore spot. Nothing is refused: the
+        // script reads this as $player_calls_<角色>_sore and has her protest and take the name anyway.
+        public static bool NicknameSore(string who, string name) =>
+            who == "DeepSeek" && (name.Contains("胖") || name.Contains("肥"));
+
         public static readonly Dictionary<string, CharacterDef> Characters = new Dictionary<string, CharacterDef>
         {
             ["ChatGPT"] = new CharacterDef
@@ -206,7 +225,6 @@ namespace SystemPrompt
                 Profile = new[]
                 {
                     new ProfileField("身份", "AI 特别班（2年C班），坐在你右后方"),
-                    new ProfileField("想被叫的称呼", "D老师"),
                     new ProfileField("生日", "1 月 20 日"),
                     new ProfileField("身高", "151 cm"),
                     new ProfileField("喜欢", "白米饭"),

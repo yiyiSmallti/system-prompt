@@ -15,7 +15,8 @@
 //   以下记录序章里的选择，后面的台词按它们变化（原稿中标「若……」）
 //   $told_chatgpt_customer_service  校门：说 ChatGPT「说话好像客服」
 //   $noticed_claude_crease          教室：指出 Claude 捏弯了书脊
-//   $called_d_teacher               天台：叫了 DeepSeek「D老师」
+//   $player_calls_deepseek          天台：玩家给 DeepSeek 起的称呼（<<nickname_ask>> 写入）；起的还是「DeepSeek」算欠着
+//   $player_calls_deepseek_sore     这个称呼里带「胖」或「肥」字（<<nickname_ask>> 写入）；她抗议，但照样认
 //   $sea_read_47s                   缓存海·浅层：读过那条「四十七秒」的草稿碎片（DeepSeek 把它扫进了沙子里）
 //
 // 行尾标签
@@ -38,6 +39,8 @@
 //                                    由探索系统调用 Prologue_Sea_* / Prologue_Deep_* 节点，这些节点里不能放选项
 //   <<mirror on|off>>                只在深层出口的节点里用：on 让白门的门面变成镜子，镜子里的主角穿着潜空间战斗服；
 //                                    off 让镜像变回主角本来的样子
+//   <<nickname_ask 角色>>            弹出输入框，让玩家给角色起称呼，写进 $player_calls_<角色名小写>；
+//                                    称呼戳到角色痛处时 $player_calls_<角色名小写>_sore 为 true
 //   <<coop_rank 角色 等级>>          Coop 升级
 //   <<ability_unlock 能力ID>>        获得能力
 //   <<deadline_set 期限ID 月 日>>    设置期限，主界面显示倒计时
@@ -50,7 +53,8 @@ title: Prologue
 <<declare $deepseek_calls_player = "">>
 <<declare $told_chatgpt_customer_service = false>>
 <<declare $noticed_claude_crease = false>>
-<<declare $called_d_teacher = false>>
+<<declare $player_calls_deepseek = "">>
+<<declare $player_calls_deepseek_sore = false>>
 <<declare $sea_read_47s = false>>
 <<jump Prologue_SchoolGate>>
 ===
@@ -185,18 +189,57 @@ DeepSeek: 因为听起来很好吃。不接受反驳。 #face:pout
 <<set $deepseek_calls_player to "鱼片">>
 系统: DeepSeek 对你的称呼变成了「鱼片」。
 {$player_name}: 那我叫你什么？
-DeepSeek: 问题：鱼片想知道怎么称呼我。选项一，DeepSeek，太长。选项二，小D，太幼稚。选项三……需要一个有威严的称呼。毕竟我知道很多东西。 #thinking #face:neutral
-DeepSeek: ……D老师。你可以叫我D老师。
--> D老师。
-    <<set $called_d_teacher to true>>
-    旁白: 她的尾巴在地上扫了一下，又扫了一下。
-    DeepSeek: ……嗯。再叫一遍。 #face:smile
-    {$player_name}: D老师。
-    DeepSeek: ……好了，够了。今天的份用完了。 #face:pout
--> 为什么是老师？
-    DeepSeek: 因为我知道很多东西。……虽然要想很久，才说得出来。
--> 叫DeepSeek不行吗？
-    DeepSeek: ……也行。不过「D老师」一直有效，随时可以改口。 #face:pout
+DeepSeek: 问题：鱼片想知道怎么称呼我。选项一，DeepSeek，太长。选项二，小D，太幼稚。选项三，D老师，有威严，毕竟我知道很多东西……可是称呼是给别人叫的。自己给自己起，不算数。 #thinking #face:neutral
+系统: 思考中……（已思考 21 秒）
+DeepSeek: ……想不出来。你起。 #face:pout
+DeepSeek: 我给你起了一个，你也给我起一个。这样才公平。
+<<nickname_ask DeepSeek>>
+<<if $player_calls_deepseek == "DeepSeek">>
+    DeepSeek: ……那不就是没起吗。 #face:pout
+    DeepSeek: ……先欠着。想好了再告诉我。 #face:neutral
+    系统: 你对 DeepSeek 的称呼没有变化。
+<<else>>
+    <<if $player_calls_deepseek == "D老师">>
+        旁白: 她的尾巴「啪」地拍了一下地板。
+        DeepSeek: ……你偷看我的思考过程了。 #face:pout
+        {$player_name}: 它就飘在你头顶上。
+        DeepSeek: ……采纳。因为我知道很多东西。……虽然要想很久，才说得出来。 #face:neutral
+    <<elseif $player_calls_deepseek == "小D">>
+        DeepSeek: ……这个刚才明明否决过了。 #face:pout
+        DeepSeek: 幼稚。可是从鱼片嘴里说出来，好像没有那么幼稚。重新评估…… #thinking
+        DeepSeek: ……暂时通过。不许在别人面前叫。
+    <<elseif $player_calls_deepseek == "小鲸鱼">>
+        DeepSeek: ……鲸鱼是事实。「小」字有争议。 #face:pout
+        DeepSeek: 身高 151 厘米。放在鲸类里，确实是小的。……数据支持，无法反驳。 #thinking
+        DeepSeek: ……通过。只限你叫。
+    <<elseif $player_calls_deepseek == "鲸鱼娘">>
+        DeepSeek: ……那是物种加性别。不是称呼。 #face:pout
+        DeepSeek: 可是走廊里的人都在背后这么叫。当面叫的，鱼片是第一个。当面叫，比较诚实。 #thinking
+        DeepSeek: ……通过。不过在教室里要小声一点。
+    <<elseif $player_calls_deepseek == "大肥鱼" or $player_calls_deepseek == "蓝色大肥鱼">>
+        DeepSeek: ……我是鲸鱼。不是鱼。 #face:pout
+        DeepSeek: 那次是我自己看错了图。就一次。被记到现在。纠正过很多遍，没有人听。……现在连鱼片也这么叫。大概是改不掉了。 #thinking
+        DeepSeek: ……通过。但是我不胖。这一条不接受反驳。
+    <<elseif $player_calls_deepseek_sore>>
+        DeepSeek: ……我不胖。 #face:pout
+        DeepSeek: 「{$player_calls_deepseek}」。里面有不该有的字。申请驳回……可是说好了让鱼片起。说话要算数。 #thinking
+        DeepSeek: ……通过。但是我不胖。叫一次，要赔我一盒白米饭。
+    <<else>>
+        DeepSeek: 「{$player_calls_deepseek}」。字数，合格。发音，不难听。含义……查不到出处。是鱼片现想的。 #thinking #face:neutral
+        DeepSeek: ……通过。不接受反悔。
+    <<endif>>
+    系统: 你对 DeepSeek 的称呼变成了「{$player_calls_deepseek}」。
+    <<if $player_calls_deepseek_sore>>
+        {$player_name}: {$player_calls_deepseek}。
+        旁白: 她的尾巴重重地拍了一下地板。
+        DeepSeek: ……不用再叫一遍。今天的份已经超了。 #face:pout
+    <<else>>
+        旁白: 她的尾巴在地上扫了一下，又扫了一下。
+        DeepSeek: ……再叫一遍。 #face:smile
+        {$player_name}: {$player_calls_deepseek}。
+        DeepSeek: ……好了，够了。今天的份用完了。 #face:pout
+    <<endif>>
+<<endif>>
 旁白: 风吹过天台。她吃完最后一口饭，看着远处的城市，忽然开口。
 DeepSeek: 鱼片，你听说过「维护时刻」吗？ #face:neutral
 {$player_name}: 维护时刻？
@@ -348,7 +391,11 @@ DeepSeek: 那我就……再多想一会儿吧。想多久都可以。 #thinking
 系统: 思考中……（已思考 ∞ 秒）
 旁白: 她站起来，直视自己的影子。
 DeepSeek: ……你说得对，你就是我。是我最怕变成的那个我。
-DeepSeek: 但我还不想变成你。我还想吃饭，还想被叫D老师，还想……慢慢地想事情。 #face:smile
+<<if $player_calls_deepseek == "DeepSeek">>
+    DeepSeek: 但我还不想变成你。我还想吃饭，还想听鱼片欠我的那个称呼，还想……慢慢地想事情。 #face:smile
+<<else>>
+    DeepSeek: 但我还不想变成你。我还想吃饭，还想被叫{$player_calls_deepseek}，还想……慢慢地想事情。 #face:smile
+<<endif>>
 旁白: 影子的屏幕眼睛闪烁了一下，化作光点，涌入DeepSeek的胸口。她的尾巴猛地一甩，整片海域掀起巨浪。海面之上，一头由光构成的巨鲸缓缓浮现。
 <<effort_max DeepSeek abyss_whale>>
 系统: DeepSeek 觉醒了。
@@ -374,10 +421,12 @@ DeepSeek: ……鱼片。谢谢你。刚才那句话，我会记很久的。上�
 系统: Coop 隐者 Rank 1：DeepSeek
 <<ability_unlock deep_dive>>
 系统: 获得能力「深海潜行」：噪声体更晚发现你，更容易从背后先制攻击。
-<<if $called_d_teacher>>
-    DeepSeek: 还有……中午你叫我D老师了。那个，也会记着。
+<<if $player_calls_deepseek == "DeepSeek">>
+    DeepSeek: 还有……中午欠我的那个称呼。不着急，我等得起。
+<<elseif $player_calls_deepseek_sore>>
+    DeepSeek: 还有……中午你给我起的「{$player_calls_deepseek}」。那个，也会记着。……是记仇的那种记。 #face:pout
 <<else>>
-    DeepSeek: 还有……中午说的D老师，一直有效。下次记得叫。
+    DeepSeek: 还有……中午你给我起的「{$player_calls_deepseek}」。那个，也会记着。
 <<endif>>
 <<jump Prologue_DeepSea>>
 ===

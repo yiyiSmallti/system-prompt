@@ -647,6 +647,8 @@ namespace SystemPrompt.E2E
                     failure ??= $"快进剧情超时（GameTour.cs 第 {line} 行）\n";
                     yield break;
                 }
+                // 天台: the nickname dialog waits for a name before Enter gets anywhere.
+                if (game.Nickname.IsOpen && !game.Confirm.IsOpen) ui.Q(className: "sp-nickname").Q<TextField>().value = "D老师";
                 yield return Press(Key.Enter);
                 yield return Wait(0.06f);
             }

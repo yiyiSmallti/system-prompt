@@ -1102,6 +1102,22 @@
     margin: 0 18px;
 }
 
+/* ------------------------------------------------------------------ nickname */
+
+/* Over the dialogue box: the one being named stays in view above it. */
+.sp-nickname {
+    justify-content: flex-end;
+    padding-bottom: 56px;
+}
+
+.sp-nickname .sp-modal__backdrop {
+    background-color: rgba(12, 12, 16, 0.35);
+}
+
+.sp-nickname__panel {
+    width: 940px;
+}
+
 /* ------------------------------------------------------------------ new game */
 
 .sp-newgame__panel {
