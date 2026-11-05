@@ -154,6 +154,11 @@ namespace SystemPrompt.Story
             var floats = save.floats.ToDictionary(v => v.name, v => v.value);
             var strings = save.strings.ToDictionary(v => v.name, v => v.value);
             var bools = save.bools.ToDictionary(v => v.name, v => v.value);
+            // Saves from before the player named DeepSeek: 天台 only asked whether to call her D老师. Past it
+            // (she calls the player 鱼片 by then) the old choice stands in for the name, 没叫 as one still owed.
+            const string nickname = "$player_calls_deepseek";
+            if (!strings.ContainsKey(nickname) && strings.ContainsKey("$deepseek_calls_player"))
+                strings[nickname] = bools.TryGetValue("$called_d_teacher", out var called) && called ? "D老师" : "DeepSeek";
             storage.SetAllVariables(floats, strings, bools, true);
             if (!project.NodeNames.Contains(save.node))
             {

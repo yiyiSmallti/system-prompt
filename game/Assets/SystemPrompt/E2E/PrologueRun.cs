@@ -249,6 +249,7 @@ namespace SystemPrompt.E2E
 
             // 一路到教学战斗结束。到战斗前的剧情较长，分段推进，每段各算超时
             yield return Pump(() => game.State.scene == "rooftop", "到达天台");
+            yield return Press(Key.F5); // the checkpoint is the start of 天台: Naming loads it to name her twice
             yield return Naming();
             if (finished) yield break;
             yield return Pump(() => game.State.scene == "cache_sea", "进入缓存海");
@@ -1325,7 +1326,8 @@ namespace SystemPrompt.E2E
             if (!finished) passes.Add($"{Now:0.0}s　{what}");
         }
 
-        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；起「大肥鱼」她抗议但照样认，接下来的台词用上这个称呼。
+        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；先照旧叫她「DeepSeek」（比称呼的上限长，
+        // 算欠着），读回天台开头的快速存档重起一次：起「大肥鱼」她抗议但照样认，接下来的台词用上这个称呼。
         IEnumerator Naming()
         {
             yield return Pump(() => game.Nickname.IsOpen, "起称呼的输入框打开");
@@ -1339,20 +1341,39 @@ namespace SystemPrompt.E2E
             var refusal = dialog.Q<Label>(className: "sp-newgame__error").text;
             Check(refusal.Contains("已经被占用") && game.Nickname.IsOpen && !game.Confirm.IsOpen, $"别的角色的名字不能用作称呼（{refusal}）");
             yield return Snap("nickname-refused", "起称呼：别人的名字不能用");
-            field.value = Nickname;
-            yield return Wait(0.2f);
-            yield return Snap("nickname", "起称呼");
-            for (var i = 0; i < 4 && !game.Confirm.IsOpen; i++) yield return Press(Key.Enter);
-            yield return Until(() => game.Confirm.IsOpen, "称呼确认");
-            yield return Wait(0.45f);
-            yield return Snap("nickname-confirm", "称呼确认");
-            yield return Press(Key.Enter);
-            yield return Until(() => !game.ModalOpen, "称呼定下");
+
+            Check(field.maxLength >= "DeepSeek".Length, $"输入框放得下「DeepSeek」（上限 {field.maxLength} 个字）");
+            yield return Name("deepseek", null);
+            Check(game.StoryString("$player_calls_deepseek") == "DeepSeek", "照旧叫她「DeepSeek」：大小写归一，不受 6 个字的上限限制");
+            yield return Pump(() => Said("先欠着"), "没起新称呼，她说先欠着");
+            yield return Pump(() => Said("称呼没有变化"), "系统提示称呼没有变化");
+
+            yield return Press(Key.F9);
+            yield return Until(() => !Said("先欠着"), "读回天台开头的快速存档");
+            yield return Pump(() => game.Nickname.IsOpen, "读档后重新问称呼");
+            if (finished) yield break;
+            Check(game.StoryString("$player_calls_deepseek") == "", "读档后上一次起的称呼不留");
+            yield return Wait(0.5f);
+            yield return Name(Nickname, "nickname");
             Check(game.StoryString("$player_calls_deepseek") == Nickname, $"主角称呼 DeepSeek 为「{Nickname}」");
             Check(game.StoryBool("$player_calls_deepseek_sore"), "带「肥」字的称呼没有被退回，记为戳到痛处");
             yield return Pump(() => Said("那次是我自己看错了图"), "「大肥鱼」的专属反应");
             yield return Pump(() => Said($"称呼变成了「{Nickname}」"), "系统提示称呼变更");
             yield return Pump(() => Said("今天的份已经超了"), "她抗议但认了这个称呼");
+        }
+
+        // Fills in the open nickname dialog and confirms. shot: the id of the screenshots, or null for none.
+        IEnumerator Name(string name, string shot)
+        {
+            ui.Q(className: "sp-nickname").Q<TextField>().value = name;
+            yield return Wait(0.2f);
+            if (shot != null) yield return Snap(shot, "起称呼");
+            for (var i = 0; i < 4 && !game.Confirm.IsOpen; i++) yield return Press(Key.Enter);
+            yield return Until(() => game.Confirm.IsOpen, "称呼确认");
+            yield return Wait(0.45f);
+            if (shot != null) yield return Snap(shot + "-confirm", "称呼确认");
+            yield return Press(Key.Enter);
+            yield return Until(() => !game.ModalOpen, $"称呼定下（{name}）");
         }
 
         bool Said(string text) => game.Story.Backlog.Any(b => b.Text.Contains(text));

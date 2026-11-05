@@ -136,13 +136,14 @@ namespace SystemPrompt
         const string ForbiddenNameChars = ":：[]{}#\\/<>\"";
 
         // What is wrong with a name the player typed (label: 姓名, 称呼), or null. `allowed` is the one
-        // speaker name that may be reused: a character can be called by her own name.
+        // speaker name that may be reused, whatever its length: a character can be called by her own name.
         public static string NameProblem(string name, int maxLength, string label, string allowed = null)
         {
             if (name.Length == 0) return $"请输入{label}";
+            if (name == allowed) return null;
             if (name.Length > maxLength) return $"{label}最多 {maxLength} 个字";
             if (name.IndexOfAny(ForbiddenNameChars.ToCharArray()) >= 0) return $"{label}里不能有符号 " + ForbiddenNameChars;
-            if (name != allowed && Array.IndexOf(ReservedNames, name) >= 0) return "这个名字已经被占用了";
+            if (Array.IndexOf(ReservedNames, name) >= 0) return "这个名字已经被占用了";
             return null;
         }
 

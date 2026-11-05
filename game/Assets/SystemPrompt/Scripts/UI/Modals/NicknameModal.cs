@@ -50,6 +50,9 @@ namespace SystemPrompt.UI
         {
             who = character;
             lead.text = $"给 {character} 起一个称呼，以后就这么叫她";
+            // Her own name is longer than a nickname may be, and typing it has to stay possible: it is how
+            // the player declines to rename her.
+            field.maxLength = Mathf.Max(MaxLength, character.Length);
             answer = new AwaitableCompletionSource<string>();
             Open();
             return answer.Awaitable;
