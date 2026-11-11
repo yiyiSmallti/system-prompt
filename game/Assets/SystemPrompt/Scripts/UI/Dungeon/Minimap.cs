@@ -174,7 +174,8 @@ namespace SystemPrompt.UI
             p2.fillColor = Palette.Red;
             foreach (var e in world.Enemies)
             {
-                if (!e.Active || Vector3.Distance(e.Position, world.PlayerPosition) > EnemyRange) continue;
+                // Not one taken off into the battle it is in (DungeonWorld.EndStrike).
+                if (!e.Active || !e.Root.gameObject.activeSelf || Vector3.Distance(e.Position, world.PlayerPosition) > EnemyRange) continue;
                 Circle(p2, OfWorld(e.Position), cell * (e.Alerted ? 0.36f : 0.26f));
             }
 

@@ -393,7 +393,7 @@
         }
       },
       "reimported_meshes": 2741,
-      "reimported_triangles": 582143,
+      "reimported_triangles": 587625,
       "material_slot_checks": 2741,
       "material_slot_mismatches": [],
       "fbx_metadata": {
@@ -614,25 +614,25 @@
     },
     "BubbleLow": {
       "max_bounds_error_m": 1.341104507446289e-07,
-      "triangles": 204,
+      "triangles": 272,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "BubbleStack_1": {
       "max_bounds_error_m": 3.5762786865234375e-07,
-      "triangles": 612,
+      "triangles": 816,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "BubbleStack_2": {
       "max_bounds_error_m": 3.5762786865234375e-07,
-      "triangles": 612,
+      "triangles": 816,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "BubbleStack_3": {
       "max_bounds_error_m": 3.5762786865234375e-07,
-      "triangles": 612,
+      "triangles": 816,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -656,19 +656,19 @@
     },
     "EmojiCoral_1": {
       "max_bounds_error_m": 4.76837158203125e-07,
-      "triangles": 1818,
+      "triangles": 1892,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "EmojiCoral_2": {
       "max_bounds_error_m": 4.76837158203125e-07,
-      "triangles": 1818,
+      "triangles": 1892,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
     "EmojiCoral_3": {
       "max_bounds_error_m": 4.76837158203125e-07,
-      "triangles": 1818,
+      "triangles": 2004,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -703,8 +703,8 @@
       "material_slot_mismatches": []
     },
     "GraveLowPair": {
-      "max_bounds_error_m": 1.1920928955078125e-07,
-      "triangles": 1880,
+      "max_bounds_error_m": 8.940696716308594e-08,
+      "triangles": 1844,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -716,7 +716,7 @@
     },
     "KelpEdge": {
       "max_bounds_error_m": 2.384185791015625e-07,
-      "triangles": 210,
+      "triangles": 240,
       "material_slot_checks": 1,
       "material_slot_mismatches": []
     },
@@ -886,8 +886,8 @@
     ],
     "independently_rerun_this_round": false
   },
-  "export_seconds": 7.507,
-  "total_seconds": 9.753,
+  "export_seconds": 9.728,
+  "total_seconds": 12.541,
   "bounds_before": {
     "min": [
       -0.08872891962528229,
@@ -1229,7 +1229,7 @@
     }
   },
   "reimported_meshes": 2741,
-  "reimported_triangles": 582143,
+  "reimported_triangles": 587625,
   "material_slot_checks": 2741,
   "material_slot_mismatches": [],
   "fbx_axis_units": {

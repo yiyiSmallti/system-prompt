@@ -16,6 +16,29 @@ if [ -z "${UNITY:-}" ]; then
 fi
 if [ -z "${UNITY:-}" ]; then echo "找不到 Unity $VERSION，用 UNITY=/path/to/Unity 指定" >&2; exit 2; fi
 
+# 和视觉实验室（lab.sh）共用一把锁（git 公共目录下的 sp-lab.lock）：两边都用 batchmode 构建同一个工程、都弹窗并用虚拟输入操作，不能同时跑。
+# 目录里的 pid 是持有者，进程不在了就算失效；被占着时最多等 60 分钟。
+COMMON="$(git -C "$GAME" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+if [ -z "$COMMON" ]; then COMMON="$GAME/Temp"; mkdir -p "$COMMON"; fi
+LOCK="$COMMON/sp-lab.lock"
+OWN_LOCK=0
+unlock() { if [ "$OWN_LOCK" = 1 ] && [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ]; then rm -rf "$LOCK"; fi; }
+trap unlock EXIT
+trap 'exit 130' INT TERM HUP
+WAITED=0
+while ! mkdir "$LOCK" 2>/dev/null; do
+  HOLDER="$(cat "$LOCK/pid" 2>/dev/null || true)"
+  if [ -n "$HOLDER" ] && ! ps -p "$HOLDER" >/dev/null 2>&1; then rm -rf "$LOCK"; continue; fi
+  if [ -z "$HOLDER" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then rm -rf "$LOCK"; continue; fi
+  if [ $((WAITED % 30)) -eq 0 ]; then echo "等实验室的锁（已等 ${WAITED} 秒）：$(cat "$LOCK/who" 2>/dev/null || echo "pid $HOLDER")"; fi
+  if [ "$WAITED" -ge 3600 ]; then echo "等了 60 分钟锁还被占着，放弃" >&2; exit 4; fi
+  sleep 2
+  WAITED=$((WAITED + 2))
+done
+OWN_LOCK=1
+echo "$$" > "$LOCK/pid"
+echo "pid $$，$(date '+%H:%M:%S') 起，端到端验证（e2e.sh $MODE）" > "$LOCK/who"
+
 OUT="$GAME/E2E/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT"
 APP="$GAME/Builds/E2E/SystemPromptE2E.app"

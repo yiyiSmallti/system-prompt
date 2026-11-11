@@ -66,6 +66,7 @@ namespace SystemPrompt.Dungeon
             public Vector3 hang;     // that axis at rest, in the anchor's space
             public Vector3 tip, was; // where the tip is and was a frame ago, in the centre's space
             public (Transform bone, Collider shape)[] colliders;
+            public float swing;      // degrees its pull is turned aside about the figure's up (Swing)
         }
 
         const float LongestStep = 0.05f; // a hitch is taken as this long, so the hair doesn't fly off
@@ -114,6 +115,13 @@ namespace SystemPrompt.Dungeon
             Reset();
         }
 
+        // The link at a bone (the first joint of a spring), or -1.
+        public int Find(string bone) => links.FindIndex(l => l.bone.name == bone);
+
+        // Turns where a link's stiffness pulls it aside about the figure's up, degrees, this frame and on: the tail
+        // swaying and wagging of itself (SeaFigure). Only the pull: the joint still swings and trails as a spring.
+        public void Swing(int link, float degrees) => links[link].swing = degrees;
+
         // Every joint back at rest and still, as posed now.
         public void Reset()
         {
@@ -139,8 +147,9 @@ namespace SystemPrompt.Dungeon
                 var scale = Scale(link.bone); // the forces are for a model at its own size
                 var turn = link.bone.parent.rotation * link.rest;
                 var aim = turn * link.axis;
+                var pull = link.swing != 0f ? Quaternion.AngleAxis(link.swing, root.up) * aim : aim;
                 Vector3 tip = Out(link, link.tip), was = Out(link, link.was);
-                var next = tip + (tip - was) * (1f - joint.drag) + (aim * joint.stiffness + joint.gravityDir * joint.gravity) * (dt * scale);
+                var next = tip + (tip - was) * (1f - joint.drag) + (pull * joint.stiffness + joint.gravityDir * joint.gravity) * (dt * scale);
                 next = head + (next - head).normalized * link.length;
                 foreach (var (bone, shape) in link.colliders)
                 {

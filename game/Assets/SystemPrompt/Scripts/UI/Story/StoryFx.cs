@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.Video;
 
 namespace SystemPrompt.UI
 {
-    // Presentation for the Yarn commands: calendar card, scene change, awakening, Coop card, chapter end.
+    // Presentation for the Yarn commands: calendar card, scene change, cutscene picture, awakening, Coop card, chapter end.
     public sealed partial class StoryScreen
     {
         static readonly string[] EffortStops = { "低", "中", "高", "Max" };
@@ -101,6 +102,150 @@ namespace SystemPrompt.UI
                 }, def.Label, preview: Ui.Tex(def.BackgroundKey));
             }
             RefreshHud();
+        }
+
+        // ------------------------------------------------------------------ <<cg>>
+
+        // The picture that is up, by its id in GameData.Cgs; null when the scene shows.
+        public string Cg { get; private set; }
+        // Whether the picture that is up is its moving version (false when skipped to, or it has none).
+        public bool CgMoving => cgVideo != null && cgVideo.clip != null;
+        // How far into its clip the picture is, in frames; -1 for a still.
+        public long CgFrame => CgMoving ? cgVideo.frame : -1;
+
+        VisualElement cgPicture;
+        VideoPlayer cgVideo;
+        int cgTake; // bumped whenever the picture changes, so a clip still loading for an old one is dropped
+
+        // <<cg 图ID>> puts a full-screen picture over the scene and its portraits, <<cg off>> fades it away;
+        // a scene change, a battle or the maze takes it down as well. A picture with a clip fades in on its first
+        // frame, plays it once and holds its last frame, which is also the still shown when the story is being
+        // skipped; either way it keeps drifting closer to its subject.
+        public async Awaitable ShowCg(string id)
+        {
+            if (id == "off")
+            {
+                await HideCg();
+                return;
+            }
+            if (!GameData.Cgs.TryGetValue(id, out var def))
+            {
+                Debug.LogError($"<<cg {id}>>：GameData.Cgs 里没有这张图");
+                return;
+            }
+            var still = Ui.Tex(def.PictureKey);
+            if (still == null) return;
+            HideAllLines();
+            var e = epoch;
+            var take = ++cgTake;
+            var skipping = SkipWanted;
+
+            // The clip's first frame is decoded before anything shows and held while the picture fades in: the
+            // clip starts once it can be seen (the shadow in 深渊之鲸 is gone within its first two seconds).
+            Texture shown = still;
+            var clip = skipping ? null : Resources.Load<VideoClip>(def.MotionKey);
+            if (clip != null)
+            {
+                var video = CgVideo();
+                video.Stop();
+                ReleaseCgTarget();
+                video.targetTexture = new RenderTexture((int)clip.width, (int)clip.height, 0) { name = "CG video" };
+                video.clip = clip;
+                video.Play();
+                var waited = 0f;
+                while (video.frame < 0 && waited < 2f)
+                {
+                    await Awaitable.NextFrameAsync();
+                    waited += Time.unscaledDeltaTime;
+                }
+                if (e != epoch || take != cgTake) return;
+                if (video.frame >= 0)
+                {
+                    video.Pause();
+                    shown = video.targetTexture;
+                }
+                else
+                {
+                    Debug.LogWarning($"<<cg {id}>>：动态版两秒内没放出第一帧，改用静态图");
+                    StopCgVideo();
+                }
+            }
+            else StopCgVideo();
+
+            var old = cgPicture;
+            var picture = Ui.Picture(shown, ScaleMode.ScaleAndCrop, "sp-cg__picture", cgLayer);
+            Ui.Fill(picture);
+            picture.style.transformOrigin = new TransformOrigin(Length.Percent(def.Focus.x * 100f), Length.Percent(def.Focus.y * 100f));
+            var born = Time.unscaledTime;
+            picture.schedule.Execute(() => Ui.Zoom(picture, 1f + 0.07f * (1f - Mathf.Exp(-(Time.unscaledTime - born) / 16f)))).Every(16);
+            cgPicture = picture;
+            Cg = id;
+            if (skipping)
+            {
+                old?.RemoveFromHierarchy();
+                return;
+            }
+
+            picture.style.opacity = 0;
+            if (def.Sfx != null) game.Audio.Sfx(def.Sfx, 0.7f);
+            await Anim.Tween(0.7f, t => picture.style.opacity = t, Ease.Linear);
+            old?.RemoveFromHierarchy();
+            if (e == epoch && take == cgTake && shown != still) cgVideo.Play();
+            // A moment with nothing over the picture before the next line's box comes up.
+            if (e == epoch && take == cgTake) await WaitBeat(0.5f, 1.4f);
+        }
+
+        async Awaitable HideCg()
+        {
+            var old = cgPicture;
+            if (old == null) return;
+            HideAllLines();
+            cgPicture = null;
+            Cg = null;
+            var take = ++cgTake;
+            if (!SkipWanted) await Anim.Tween(0.6f, t => old.style.opacity = 1 - t, Ease.Linear);
+            old.RemoveFromHierarchy();
+            if (take == cgTake) StopCgVideo();
+        }
+
+        void ClearCg()
+        {
+            cgTake++;
+            cgLayer.Clear();
+            cgPicture = null;
+            Cg = null;
+            StopCgVideo();
+        }
+
+        VideoPlayer CgVideo()
+        {
+            if (cgVideo != null) return cgVideo;
+            cgVideo = new GameObject("CG video").AddComponent<VideoPlayer>();
+            cgVideo.transform.SetParent(game.transform, false);
+            cgVideo.playOnAwake = false;
+            cgVideo.isLooping = false;
+            cgVideo.skipOnDrop = true;
+            cgVideo.audioOutputMode = VideoAudioOutputMode.None;
+            cgVideo.timeUpdateMode = VideoTimeUpdateMode.UnscaledGameTime;
+            cgVideo.renderMode = VideoRenderMode.RenderTexture;
+            return cgVideo;
+        }
+
+        void StopCgVideo()
+        {
+            if (cgVideo == null) return;
+            cgVideo.Stop();
+            cgVideo.clip = null;
+            ReleaseCgTarget();
+        }
+
+        void ReleaseCgTarget()
+        {
+            var target = cgVideo.targetTexture;
+            if (target == null) return;
+            cgVideo.targetTexture = null;
+            target.Release();
+            Object.Destroy(target);
         }
 
         // The room "deleted like files, block by block" (剧本场景4). Between the blocks the room itself

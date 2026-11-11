@@ -15,7 +15,7 @@ namespace SystemPrompt.UI
         public readonly VisualElement Root;
         readonly VisualElement bodyBox;
         readonly Shape plate;
-        readonly VisualElement hpFill;
+        readonly VisualElement hpFill, hpLag;
         readonly Label weakness;
         readonly VisualElement weakTag;
         readonly VisualElement cursor;
@@ -23,6 +23,9 @@ namespace SystemPrompt.UI
         readonly VisualElement downTag;
         readonly Label[] words;
         bool frozen;
+        int shouting; // tenths of a second into its shouting, from a start of its own
+        float fill = -1f, lag; // the HP fraction shown, and where the white bar trailing it has got to
+        int lagging, peeks;
 
         public Vector2 Center = new Vector2(960, 480); // the body's centre in the battle frame, where effects aim
 
@@ -32,12 +35,14 @@ namespace SystemPrompt.UI
             Root = Ui.El("sp-enemy", parent);
             Root.style.visibility = Visibility.Hidden; // until it is first placed
 
-            var plateBox = Ui.El("sp-enemy__plate", Root);
+            var info = Ui.El("sp-enemy__info", Root); // what SetQuiet puts away, Peek brings back
+            var plateBox = Ui.El("sp-enemy__plate", info);
             plate = Shape.Backdrop(plateBox, Shape.Slant(12), Palette.Ink).Shadow(new Vector2(6, 6), Palette.Green);
             Ui.Text(unit.Name, "sp-enemy__name", plateBox, FontKind.Black);
             var bar = Ui.El("sp-enemy__hp", plateBox);
+            hpLag = Ui.El("sp-enemy__hp-lag", bar);
             hpFill = Ui.El("sp-enemy__hp-fill", bar);
-            weakTag = Ui.El("sp-enemy__weak", Root);
+            weakTag = Ui.El("sp-enemy__weak", info);
             Shape.Backdrop(weakTag, Shape.Slant(10), Palette.Paper).Stroke(Palette.Ink, 2);
             weakness = Ui.Text("", "sp-enemy__weak-text", weakTag, FontKind.Black);
 
@@ -58,6 +63,8 @@ namespace SystemPrompt.UI
             Ui.Show(forecast, false);
 
             Root.schedule.Execute(Twitch).Every(140);
+            shouting = Random.Range(0, 32);
+            Root.schedule.Execute(Shout).Every(100);
             Refresh();
         }
 
@@ -78,9 +85,29 @@ namespace SystemPrompt.UI
             foreach (var w in words) w.style.translate = new Translate(Random.Range(-6f, 6f), Random.Range(-4f, 4f));
         }
 
+        // Its shouts stuck on beside the body, off its face, one at a time: each popped on (USS) for 1.4 s of a
+        // 3.2 s round, the second half a round after the first. Put away while it is aimed at (USS) or down.
+        void Shout()
+        {
+            shouting++;
+            for (var i = 0; i < words.Length; i++) words[i].EnableInClassList("is-on", (shouting + 32 - i * 16) % 32 < 14);
+        }
+
         public void Refresh()
         {
-            hpFill.style.width = Length.Percent(100f * Unit.Hp / Mathf.Max(1, Unit.MaxHp));
+            var hp = (float)Unit.Hp / Mathf.Max(1, Unit.MaxHp);
+            if (hp != fill)
+            {
+                hpFill.style.width = Length.Percent(100f * hp);
+                // A loss shows at once in red, the white bar behind it following a beat later; a gain moves both.
+                if (fill >= 0f && hp < lag) Trail(hp).Forget();
+                else
+                {
+                    lagging++;
+                    SetLag(hp);
+                }
+                fill = hp;
+            }
             // Resistances once a hit has shown them (a 辣条 thrown at 标题党型's fake 「弱点：火」 shows 耐性：火).
             var resists = string.Concat(Unit.Affinities.Where(a => a.Value == Affinity.Resist && Unit.Known.Contains(a.Key)).Select(a => Battles.ElementLabel(a.Key)));
             weakness.text = resists.Length > 0 ? $"弱点：{Unit.WeaknessLabel}　耐性：{resists}" : $"弱点：{Unit.WeaknessLabel}";
@@ -103,14 +130,42 @@ namespace SystemPrompt.UI
         {
             Ui.Show(downTag, down);
             frozen = down;
-            // The words go over with the body.
-            var from = down ? 0f : 1f;
-            Anim.Tween(0.25f, t =>
+            // Lying there it has nothing to shout: only DOWN over it, and its dizzy stars on the field.
+            foreach (var w in words) Ui.Show(w, !down);
+        }
+
+        async Awaitable Trail(float to)
+        {
+            var id = ++lagging;
+            await Anim.Wait(0.25f, () => id != lagging);
+            if (id != lagging) return;
+            var from = lag;
+            await Anim.Tween(0.35f, t => { if (id == lagging) SetLag(Mathf.Lerp(from, to, t)); }, Ease.InCubic, () => id != lagging);
+        }
+
+        void SetLag(float hp)
+        {
+            lag = hp;
+            hpLag.style.width = Length.Percent(100f * hp);
+        }
+
+        // While an action plays, the plate, the weakness tag and the 2D shouting step aside for the bodies and the
+        // effects (DOWN as well in the 集成); a hit brings the plate back for a moment (Peek). Opacity only, by USS
+        // transition, so Place goes on pinning it.
+        public void SetQuiet(bool quiet, bool hideDown = false)
+        {
+            Root.EnableInClassList("is-quiet", quiet);
+            Root.EnableInClassList("is-quiet-down", quiet && hideDown);
+        }
+
+        public void Peek(float seconds)
+        {
+            peeks++;
+            Root.AddToClassList("is-peek");
+            Root.schedule.Execute(() =>
             {
-                var k = Mathf.Abs(from - t);
-                bodyBox.style.rotate = new Rotate(new Angle(k * -62f, AngleUnit.Degree));
-                bodyBox.style.translate = new Translate(k * -30f, k * 70f);
-            }, Ease.OutBack).Forget();
+                if (--peeks == 0) Root.RemoveFromClassList("is-peek");
+            }).StartingIn((long)(seconds * 1000f));
         }
 
         public async Awaitable Die()

@@ -17,9 +17,15 @@ namespace SystemPrompt.UI
 
         async Awaitable Intro()
         {
-            // Runs while the encounter wipe splits open; the party and enemies enter once it has cleared.
+            // Runs while the encounter wipe splits open; the party and enemies enter once it has cleared. The
+            // opening's push-in ends on the shot the first turn wants: behind the first to act, or the whole field
+            // when the noise bodies act first.
             await Anim.Wait(0.3f);
-            stage?.Opening();
+            if (stage != null)
+            {
+                var first = party.Where(c => !c.Unit.Dead).OrderByDescending(c => c.Unit.Agi).FirstOrDefault();
+                stage.Opening(opening == BattleOpening.Ambush || first == null ? stage.Overview : stage.Behind(party.IndexOf(first)), opening);
+            }
             game.Audio.Sfx("whoosh");
             foreach (var card in party)
             {
@@ -39,18 +45,28 @@ namespace SystemPrompt.UI
             await Anim.Wait(0.3f);
         }
 
-        async Awaitable Banner(string text)
+        // A band across the middle: the encounter's (先制攻击！, 被偷袭！) holds the battle up for it; the enemies'
+        // turn's is `quick`, done once it has been read (0.32 s), sliding away as the first noise body's turn starts.
+        async Awaitable Banner(string text, bool quick = false)
         {
             var band = Ui.El("sp-turnbanner", fx);
             Shape.Backdrop(band, Shape.Slant(40), Palette.Ink).Shadow(new Vector2(12, 12), Palette.Red);
             Ui.Text(text, "sp-turnbanner__text", band, FontKind.Black);
             game.Audio.Sfx("whoosh", 0.7f);
-            await Anim.Tween(0.2f, t => band.style.translate = new Translate((1 - t) * -2400f, 0));
-            await Anim.Wait(0.45f);
-            await Anim.Tween(0.18f, t => band.style.translate = new Translate(t * 2400f, 0), Ease.InCubic);
-            band.RemoveFromHierarchy();
+            float slide = quick ? 0.12f : 0.15f, stay = quick ? 0.2f : 0.3f;
+            await Anim.Tween(slide, t => band.style.translate = new Translate((1 - t) * -2400f, 0));
+            await Anim.Wait(stay);
+            if (quick) Leave().Forget();
+            else await Leave();
+
+            async Awaitable Leave()
+            {
+                await Anim.Tween(slide, t => band.style.translate = new Translate(t * 2400f, 0), Ease.InCubic);
+                band.RemoveFromHierarchy();
+            }
         }
 
+        // What a member does, named over the top as they start it, sliding in from the left; it holds nothing up.
         async Awaitable SkillBar(Combatant unit, string name)
         {
             var bar = Ui.El("sp-skillbar", fx);
@@ -58,15 +74,16 @@ namespace SystemPrompt.UI
             Ui.Text(unit.Name, "sp-skillbar__who", bar, FontKind.Bold);
             Ui.Text(name, "sp-skillbar__name", bar, FontKind.Black);
             game.Audio.Sfx("confirm", 0.7f);
-            await Anim.Tween(0.14f, t =>
+            await Anim.Tween(0.12f, t =>
             {
                 bar.style.opacity = t;
-                bar.style.translate = new Translate(0, (1 - t) * -60f);
+                bar.style.translate = new Translate((1 - t) * -120f, 0);
             });
-            await Anim.Wait(0.4f);
-            Ui.FadeOutAndRemove(bar, 0.2f).Forget();
+            await Anim.Wait(0.45f);
+            await Ui.FadeOutAndRemove(bar, 0.2f);
         }
 
+        // A noise body's skill: its turn waits only for the name to come in, which goes again as the attack plays.
         async Awaitable EnemyBar(EnemyView view, string name)
         {
             var bar = Ui.El("sp-skillbar is-enemy", fx);
@@ -74,12 +91,19 @@ namespace SystemPrompt.UI
             Ui.Text(view.Unit.Name, "sp-skillbar__who", bar, FontKind.Bold);
             Ui.Text(name, "sp-skillbar__name", bar, FontKind.Black);
             await Anim.Tween(0.14f, t => bar.style.opacity = t);
-            await Anim.Wait(0.35f);
-            Ui.FadeOutAndRemove(bar, 0.2f).Forget();
+            await Anim.Wait(0.06f);
+            Leave().Forget();
+
+            async Awaitable Leave()
+            {
+                await Anim.Wait(0.3f);
+                await Ui.FadeOutAndRemove(bar, 0.2f);
+            }
         }
 
-        // 截图: a first-person viewfinder locks onto the target, then the shutter flashes, on the field too.
-        async Awaitable ScreenshotFx(EnemyView target, int member)
+        // 截图: a first-person viewfinder locks onto the target, then the shutter flashes, on the field too. Done at
+        // the shutter, the hit landing with it (the field held a moment unless the shot `missed`).
+        async Awaitable ScreenshotFx(EnemyView target, int member, bool missed)
         {
             const float w = 440f, h = 340f;
             var frame = Ui.El("sp-viewfinder", fx);
@@ -112,11 +136,11 @@ namespace SystemPrompt.UI
             await Anim.Wait(0.15f);
             game.Audio.Sfx("shutter");
             var photo = stage?.Photo(member, enemies.IndexOf(target), 640, 360);
-            stage?.Capture(member, enemies.IndexOf(target));
+            stage?.Capture(member, enemies.IndexOf(target), missed);
             Fx.Flash(fx, Color.white, 0.22f);
             Fx.Shake(Root, 12f, 0.2f);
             if (photo != null) Thumbnail(photo).Forget();
-            await Ui.FadeOutAndRemove(frame, 0.15f);
+            Ui.FadeOutAndRemove(frame, 0.15f).Forget();
         }
 
         // The shot just taken, like a phone's: big in the middle of the screen, then down to the bottom left
@@ -160,20 +184,14 @@ namespace SystemPrompt.UI
             return pts;
         };
 
-        async Awaitable SlashFx(EnemyView target)
-        {
-            game.Audio.Sfx("whoosh", 0.8f);
-            stage?.Slash(enemies.IndexOf(target));
-            await Anim.Wait(0.18f);
-        }
-
         // The eye cut-in band before a skill (PV U13).
         async Awaitable CutIn(Combatant unit, string skillName)
         {
             var def = GameData.Character(unit.Id);
             var band = Ui.El("sp-cutin", fx);
             Shape.Backdrop(band, Shape.Slant(60), Palette.Ink).Stroke(def?.Color ?? Palette.Green, 5);
-            if (unit.Id == "DeepSeek") Ui.FaceCrop("Art/Portraits/deepseek_battle", 1300f, 190f, "sp-cutin__eyes", band, 2.1f, 0.17f);
+            // Her eyes sit 23 % down the portrait (rows 330-385 of 1536); higher, the band showed only her fringe.
+            if (unit.Id == "DeepSeek") Ui.FaceCrop("Art/Portraits/deepseek_battle", 1300f, 190f, "sp-cutin__eyes", band, 2.1f, 0.23f);
             Ui.Text(skillName, "sp-cutin__name", band, FontKind.Black);
             game.Audio.Sfx("rise");
             await Anim.Tween(0.18f, t => band.style.translate = new Translate((1 - t) * 2400f, 0));
@@ -221,31 +239,88 @@ namespace SystemPrompt.UI
             else await stage.Bait(foe, party.IndexOf(victims[0]));
         }
 
-        void Popup(Vector2 at, string text, Color color, string tag)
+        // A number over what a hit or a heal landed on, kept on its body as the camera moves (Pin), one above another
+        // when they come faster than they go. On a noise body it goes where the body goes (knocked flat, its plate
+        // dropping with it, the number stays clear of the plate); on a member it stays where the hit landed.
+        sealed class Number
         {
-            var root = Ui.El("sp-dmg", fx);
-            root.style.left = at.x;
-            root.style.top = at.y;
-            if (tag != null)
-            {
-                var t = Ui.Text(tag, "sp-dmg__tag", root, FontKind.Black);
-                t.style.color = tag == "WEAK" ? Palette.Green : tag == "CRITICAL" ? Palette.Red : Palette.Gray;
-            }
-            var number = Ui.Text(text, "sp-dmg__num", root, FontKind.Black);
-            number.style.color = color;
-            PopupLife(root).Forget();
+            public VisualElement Root;
+            public Combatant On;
+            public int Foe = -1;   // the noise body it is on
+            public Vector3? World; // on a member: where; none when it is over a party card
+            public float Lift;
+            public VisualElement Burst;
         }
 
-        static async Awaitable PopupLife(VisualElement root)
+        readonly List<Number> numbers = new List<Number>();
+        int numberSeed;
+
+        // Slammed down a character at a time, each a little crooked; a weak point's or a critical's bigger, on a
+        // burst of its colour. Damage to the noise bodies in paper, to the party in red.
+        void Popup(Combatant on, string text, Color color, string tag)
         {
-            await Anim.Tween(0.18f, t => Ui.Zoom(root, Mathf.Lerp(1.9f, 1f, t)), Ease.OutBack);
-            await Anim.Wait(0.55f);
-            await Anim.Tween(0.35f, t =>
+            var world = Anchor(on, out var at);
+            var foe = stage != null ? enemies.FindIndex(v => v.Unit == on) : -1;
+            var n = new Number { Root = Ui.El("sp-dmg", fx), On = on, Foe = foe, World = foe < 0 ? world : null, Lift = 70f * numbers.Count(m => m.On == on) };
+            var root = n.Root;
+            root.style.left = at.x;
+            root.style.top = at.y - n.Lift;
+            Label label = null;
+            if (tag != null)
             {
-                root.style.translate = new Translate(0, -40f * t);
-                root.style.opacity = 1 - t;
+                label = Ui.Text(tag, "sp-dmg__tag", root, FontKind.Black);
+                label.style.color = tag == "WEAK" ? Palette.Green : tag == "CRITICAL" ? Palette.Red : Palette.Gray;
+                label.style.opacity = 0f;
+            }
+            var row = Ui.El("sp-dmg__digits", root);
+            var seed = ++numberSeed;
+            if (tag == "WEAK" || tag == "CRITICAL")
+            {
+                root.AddToClassList("is-big");
+                var fill = tag == "WEAK" ? Palette.Green : Palette.Red;
+                n.Burst = Ui.El("sp-dmg__burst", row);
+                Ui.Zoom(n.Burst, 0.3f);
+                Shape.Backdrop(n.Burst, Shape.Burst(12, 0.62f, seed), fill == color ? Palette.Ink : fill).Stroke(fill == color ? fill : Palette.Ink, 5f);
+            }
+            var digits = new Label[text.Length];
+            for (var i = 0; i < text.Length; i++)
+            {
+                var d = digits[i] = Ui.Text(text[i].ToString(), "sp-dmg__num", row, FontKind.Black);
+                d.style.color = color;
+                d.style.opacity = i == 0 ? 1f : 0f;
+                Ui.Zoom(d, 2.2f);
+                d.style.rotate = new Rotate(((seed * 7 + i * 5) % 9 - 4) * 2f); // within 8° either way
+            }
+            numbers.Add(n);
+            PopupLife(n, label, digits).Forget();
+        }
+
+        async Awaitable PopupLife(Number n, Label tag, Label[] digits)
+        {
+            var entry = 0.12f + 0.03f * (digits.Length - 1);
+            await Anim.Tween(entry, t =>
+            {
+                var time = t * entry;
+                for (var i = 0; i < digits.Length; i++)
+                {
+                    var k = Mathf.Clamp01((time - 0.03f * i) / 0.12f);
+                    digits[i].style.opacity = time >= 0.03f * i ? 1f : 0f;
+                    Ui.Zoom(digits[i], Mathf.LerpUnclamped(2.2f, 1f, Ease.OutBack(k)));
+                }
+                if (n.Burst != null) Ui.Zoom(n.Burst, Mathf.LerpUnclamped(0.3f, 1f, Ease.OutBack(Mathf.Clamp01(time / 0.12f))));
+                if (tag == null) return;
+                var s = Mathf.Clamp01(time / 0.1f);
+                tag.style.opacity = s;
+                tag.style.translate = new Translate(-60f * (1f - Ease.OutCubic(s)), 0f);
+            }, Ease.Linear);
+            await Anim.Wait(0.45f);
+            await Anim.Tween(0.2f, t =>
+            {
+                n.Root.style.translate = new Translate(0f, -40f * t);
+                n.Root.style.opacity = 1f - t;
             });
-            root.RemoveFromHierarchy();
+            n.Root.RemoveFromHierarchy();
+            numbers.Remove(n);
         }
 
         static void DismissLater(VisualElement stamp, float seconds) => DismissAfter(stamp, seconds).Forget();
@@ -272,9 +347,10 @@ namespace SystemPrompt.UI
             if (mode == Mode.Hint) mode = previous;
         }
 
-        // 集成 (PV U14): the title slams in, the party dash across the field cutting every noise body and
-        // DeepSeek's whale of light swims over them (BattleStage.AllOut), then it freezes on DeepSeek with her
-        // rice bowl.
+        // 集成 (PV U14): the title slams in and then tucks itself into the corner, the cards slide away, the frame goes
+        // black and white and the party dash across the field cutting every noise body, a burst stamped on each blow;
+        // DeepSeek's whale of light swims over them (BattleStage.AllOut), then it freezes on DeepSeek with her rice
+        // bowl, framed, the field dim and inked behind her.
         async Awaitable AllOutFx(List<Combatant> participants, int damage)
         {
             var layer = Ui.El("sp-allout", fx);
@@ -284,6 +360,20 @@ namespace SystemPrompt.UI
             foreach (var card in party.Where(c => participants.Contains(c.Unit))) card.Face.Play(FaceAct.Attack);
             var title = Fx.Stamp(layer, "集成！", Palette.Paper, 150f, -8f, new Vector2(960, 170));
             game.Audio.Sfx("slam");
+            // Out of the dashes' way: the cards under the bottom edge, the title to a corner mark once it has landed.
+            Anim.Tween(0.2f, t => partyRow.style.translate = new Translate(0, 260f * t), Ease.InCubic).Forget();
+            Tuck().Forget();
+
+            async Awaitable Tuck()
+            {
+                await Anim.Wait(0.6f);
+                await Anim.Tween(0.2f, t =>
+                {
+                    title.style.left = Mathf.Lerp(960f, 250f, t);
+                    title.style.top = Mathf.Lerp(170f, 120f, t);
+                    Ui.Zoom(title, Mathf.Lerp(1f, 0.45f, t));
+                }, Ease.InOutCubic);
+            }
 
             void Strike()
             {
@@ -291,9 +381,35 @@ namespace SystemPrompt.UI
                 foreach (var view in enemies.Where(v => !v.Unit.Dead))
                 {
                     view.Unit.HpFloor = 0;
-                    ApplyHit(view.Unit, new Hit { Damage = damage, Affinity = Affinity.Normal }).Forget();
+                    ApplyHit(view.Unit, new Hit { Damage = damage, Affinity = Affinity.Normal }, true).Forget();
                 }
                 Fx.Shake(Root, 20f, 0.4f);
+            }
+
+            // A comic burst where each blow lands, crooked, slammed down and gone in a blink.
+            var marks = 0;
+            void Mark(int foe)
+            {
+                if (stage == null || !OnScreen(stage.FoePoint(foe), out var at)) return;
+                game.Audio.Sfx("slap", 0.5f);
+                var seed = ++marks;
+                var mark = new Shape(Shape.Burst(10, 0.6f, seed * 7919), Palette.Paper).Stroke(Palette.Ink, 6);
+                mark.AddToClassList("sp-allout__mark");
+                mark.style.left = at.x - 80f;
+                mark.style.top = at.y - 80f;
+                Ui.Turn(mark, (seed * 37 % 41) - 20f);
+                layer.Add(mark);
+                Stamped().Forget();
+
+                async Awaitable Stamped()
+                {
+                    // Gone within a fifth of a second: the camera cuts between dashes, and a mark left over would
+                    // hang where its blow no longer is.
+                    await Anim.Tween(0.08f, t => Ui.Zoom(mark, Mathf.Lerp(1.6f, 1f, t)));
+                    await Anim.Wait(0.07f);
+                    await Anim.Tween(0.07f, t => mark.style.opacity = 1f - t);
+                    mark.RemoveFromHierarchy();
+                }
             }
 
             if (stage != null)
@@ -304,27 +420,31 @@ namespace SystemPrompt.UI
                 {
                     whale = true;
                     Strike();
-                });
+                }, Mark);
                 if (!whale) Strike();
             }
             else Strike();
             await Fx.Dismiss(title);
             await Anim.Wait(0.5f);
 
-            // The freeze frame: DeepSeek with her rice bowl, her line in a speech bubble in front of her.
-            // The victory itself is announced by the results.
+            // The freeze frame: DeepSeek with her rice bowl in a crooked frame, her line in a speech bubble in front
+            // of her, the field behind dimmed toward ink. The victory itself is announced by the results.
             var withDeepSeek = participants.Any(p => p.Id == "DeepSeek");
             finisherShown = withDeepSeek;
             if (withDeepSeek)
             {
-                var finish = Ui.Picture(Ui.Tex("Art/CutIns/deepseek_finish"), ScaleMode.ScaleToFit, "sp-allout__finish", layer);
+                stage?.Ink(0.6f, 0.2f);
+                // The frame leans and she with it, her picture's cut left edge along the frame's own.
+                var back = Ui.El("sp-allout__frame-back", layer);
+                var frame = Ui.El("sp-allout__frame", layer);
+                Ui.Picture(Ui.Tex("Art/CutIns/deepseek_finish"), ScaleMode.ScaleToFit, "sp-allout__finish", frame);
                 var bubble = SpeechBubble(layer, "吃饭饭！", "sp-allout__bubble");
                 bubble.style.opacity = 0;
                 game.Audio.Sfx("coin");
                 await Anim.Tween(0.3f, t =>
                 {
-                    finish.style.translate = new Translate((1 - t) * 900f, 0);
-                    finish.style.opacity = t;
+                    frame.style.translate = back.style.translate = new Translate((1 - t) * 900f, 0);
+                    frame.style.opacity = back.style.opacity = t;
                 }, Ease.OutBack);
                 game.Audio.Sfx("slap", 0.7f);
                 await Anim.Tween(0.2f, t =>
@@ -334,6 +454,9 @@ namespace SystemPrompt.UI
                 }, Ease.OutBack);
             }
             await Hold(2.4f);
+            // Colour and the cards back, whether the battle goes on or the results take over.
+            stage?.Ink(0f, 0.2f);
+            partyRow.style.translate = StyleKeyword.Null;
         }
 
         // A P5 speech bubble: a crooked black box with a white edge and a spike out of its lower right

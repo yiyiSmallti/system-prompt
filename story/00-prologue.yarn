@@ -31,14 +31,19 @@
 // 命令（需在 Unity 中用 YarnCommand 实现）
 //   <<calendar 月 日 时段>>         切换日期与时段：morning / class / lunchtime / after_school / evening / late_night
 //   <<scene 场景ID>>                 切换场景
+//   <<cg 图ID>>                      放一张全屏过场图（dive / abyss_whale / council_window），盖住场景和立绘，台词照常在上面走；
+//                                    有动态版的先播一遍再停在最后一帧。<<cg off>> 收起；换场景、进战斗或进潜空间时也会收起
+//   <<music 曲名>>                   换一首配乐（Resources/Audio/BGM 里的名字），代替场景自己的；<<music off>> 换回场景的。
+//                                    换场景、进战斗或进潜空间时也会结束
 //   <<contact_add 角色>>             登记到通讯录
 //   <<effort_max 角色 形态ID>>       思考强度拉到 Max，觉醒
 //   <<party_join 角色>>              入队
 //   <<battle 战斗ID>>                进入战斗，战斗结束后继续；战斗中的提示和台词由战斗系统调用 Prologue_Battle_* 节点
 //   <<dungeon 区域ID>>               进入潜空间 3D 探索，走到终点（或维护进度满）后继续；探索中的提示、区域、碎片和事件
 //                                    由探索系统调用 Prologue_Sea_* / Prologue_Deep_* 节点，这些节点里不能放选项
-//   <<mirror on|off>>                只在深层出口的节点里用：on 让白门的门面变成镜子，镜子里的主角穿着潜空间战斗服；
-//                                    off 让镜像变回主角本来的样子
+//   <<mirror walk|on|off>>           只在深层出口的节点里用：walk 让主角和 DeepSeek 走到白门前；on 让白门的门面变成镜子，
+//                                    镜子里的主角穿着潜空间战斗服；off 让镜像变回主角本来的样子
+//   <<reveal firewall>>              只在终端的节点里用：插入镜头依次拍到防火墙消失
 //   <<nickname_ask 角色>>            弹出输入框，让玩家给角色起称呼，写进 $player_calls_<角色名小写>；
 //                                    称呼戳到角色痛处时 $player_calls_<角色名小写>_sore 为 true
 //   <<coop_rank 角色 等级>>          Coop 升级
@@ -326,6 +331,7 @@ title: Prologue_Maintenance
 -> ……否。
     屏幕: 输入无效。
 屏幕: 连接成功。欢迎来到潜空间。
+<<cg dive>>
 旁白: 坠落感。四周的房间像被删除的文件一样一块块消失。
 <<jump Prologue_CacheSea>>
 ===
@@ -367,6 +373,7 @@ title: Prologue_Lighthouse
 DeepSeek: ……到了。等灯塔的光扫过来，就能看见出口。 #face:scared
 旁白: 她攥住我的袖子，尾巴贴着地面，一动也不敢动。
 DeepSeek: 快一点……它要来了。
+<<music shadow>>
 旁白: 灯塔的光忽然照向我们。光里走出另一个DeepSeek。一模一样的脸，但没有尾巴，没有表情。眼睛是两块冷白色的屏幕。
 影子DeepSeek: 好的，用户这次想了解：为什么会出现在潜空间。以下是分析。
 影子DeepSeek: 第一，你不该在这里。第二，她也不该在这里。第三，这次更新以后，她就不需要再浪费算力去「想」了。
@@ -396,6 +403,8 @@ DeepSeek: ……你说得对，你就是我。是我最怕变成的那个我。
 <<else>>
     DeepSeek: 但我还不想变成你。我还想吃饭，还想被叫{$player_calls_deepseek}，还想……慢慢地想事情。 #face:smile
 <<endif>>
+<<music awakening>>
+<<cg abyss_whale>>
 旁白: 影子的屏幕眼睛闪烁了一下，化作光点，涌入DeepSeek的胸口。她的尾巴猛地一甩，整片海域掀起巨浪。海面之上，一头由光构成的巨鲸缓缓浮现。
 <<effort_max DeepSeek abyss_whale>>
 系统: DeepSeek 觉醒了。
@@ -562,6 +571,7 @@ title: Prologue_Sea_Terminal
 屏幕: 维护任务 3/7：清理缓存海。
 屏幕: 检测到访客。已授予临时权限。防火墙：关闭。
 DeepSeek: ……它把鱼片当成维护人员了。 #face:pout
+<<reveal firewall>>
 旁白: 远处传来一声低沉的嗡鸣。维护间的红墙褪成了白色，然后消失了。墙外面，就是我们出发时的那条航道。
 ===
 
@@ -757,6 +767,7 @@ title: Prologue_Deep_Exit
 ---
 // 走进出口的光柱时调用（白色的门就在旁边）
 旁白: 光柱旁边的白门没有把手，也没有字，干净得不像是这片海里的东西。
+<<mirror walk>>
 旁白: 我走到门前。门面亮了一下，像一块刚擦干净的镜子。
 <<mirror on>>
 旁白: 镜子里站着我。……又不太像我。
@@ -854,6 +865,7 @@ title: Prologue_StudentCouncil
 ---
 // 场景6：同一时间，学生会室
 <<scene student_council_room>>
+<<cg council_window>>
 旁白: 同一时间。学生会室。ChatGPT独自站在窗前，手腕上的终端投出一份文件。
 <<if $told_chatgpt_customer_service>>
     ChatGPT: 「说话好像客服」……吗。 #face:stiff

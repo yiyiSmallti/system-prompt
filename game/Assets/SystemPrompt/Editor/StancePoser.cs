@@ -27,8 +27,11 @@ namespace SystemPrompt.EditorTools
         sealed class Stance
         {
             public string Name;
-            public float Seconds;              // one breath (an action's hold)
-            public float Rise, Return;         // an action's way into the pose from the stance and back, seconds
+            // An action's way into the pose from the stance, one breath held there, and back, seconds: SeaFigure's,
+            // which holds the pose by them (Act).
+            public float Rise => SeaFigure.PoseTimes[Name].Rise;
+            public float Seconds => SeaFigure.PoseTimes[Name].Seconds;
+            public float Return => SeaFigure.PoseTimes[Name].Return;
             public float Turn;                 // the body turned to its right, degrees
             public float Lean;                 // and tipped forward from the hips, degrees
             public string Back;                // the leg behind ("Left" or "Right"), its knee bent to reach the floor
@@ -55,25 +58,54 @@ namespace SystemPrompt.EditorTools
             return pose;
         }
 
+        // Another figure's take on an action: its pose as drawn with some muscles changed, breathing the same.
+        static Stance Varied(Stance from, Action<Dictionary<string, float>> more) => new Stance
+        {
+            Name = from.Name,
+            Turn = from.Turn,
+            Lean = from.Lean,
+            Back = from.Back,
+            Out = With(new Dictionary<string, float>(from.Out), more),
+            In = from.In,
+        };
+
         // ------------------------------------------------------------------ the stances
 
         // The stances are not posed but taken from Quaternius' Universal Animation Library (CC0, the Standard
         // pack), which breathes and shifts its weight where two posed keys stood stiff (Editor/Motions holds the
         // clips as imported). The player, the phone their weapon, takes Pistol_Idle_Loop: the phone held out in
         // both hands at the noise bodies like a camera about to shoot, the right hand gripping it (its fingers
-        // curled round the phone, the clip's hanging open), the left under it. The girl keeps the caster's idle
-        // she had, Spell_Simple_Idle_Loop, the left hand up and open at the noise bodies, the right low by the
-        // hip with the phone. DeepSeek, the ice caster, takes the same idle mirrored, so the hand held out is
+        // curled round the phone, the clip's hanging open), the left under it; boy and girl alike. DeepSeek, the
+        // ice caster, takes Spell_Simple_Idle_Loop mirrored, so the hand held out is
         // her right, the one her spells leave and the rice paddle appears in (BattleStage.Hand, SeaFigure.Wield),
         // and her right foot leads as in her posed actions. The library's stances are a man's: on the VRoid
         // models the feet stand too far apart, so both thighs close in by each model's legsIn (a muscle's In-Out
-        // goes out above 0; the girl's 0.12 stood twice a shoulder apart, the boy's wider hips need half).
+        // goes out above 0; the girl's 0.12 stood twice a shoulder apart, the boy's wider hips need half). The hands
+        // are brought in by adding to their muscles over the whole loop: DeepSeek's open right hand came up past her
+        // shoulder and read from behind as a wave, so it is lowered to her chest, the elbow bent and the wrist back,
+        // the palm at the foe; the players' hands are put on the phone at run time (SeaFigure.Ready).
         const string MotionSources = "Assets/SystemPrompt/Editor/Motions/";
-        static readonly (string name, string source, float legsIn, bool phoneFist, bool mirror)[] Library =
+        static readonly (string name, string source, float legsIn, bool phoneFist, bool mirror, float yaw, (string muscle, float add)[] offsets)[] Library =
         {
-            ("StancePlayer", "Pistol_Idle_Loop", -0.06f, true, false),
-            ("StancePlayerFemale", "Spell_Simple_Idle_Loop", -0.12f, true, false),
-            ("StanceDeepSeek", "Spell_Simple_Idle_Loop", -0.12f, false, true),
+            // Both players hold the phone before the chest (SeaFigure.Ready puts the hands on it): the girl stood in
+            // the casting idle with both arms straight out ahead, a sleepwalker seen from the side. The idle leans back
+            // from the hips; the spine and chest bring them a little forward, onto the front foot.
+            ("StancePlayer", "Pistol_Idle_Loop", -0.06f, true, false, 0f, new[]
+            {
+                ("Spine Front-Back", -0.1f), ("Chest Front-Back", -0.1f),
+            }),
+            ("StancePlayerFemale", "Pistol_Idle_Loop", -0.12f, true, false, 0f, new[]
+            {
+                ("Spine Front-Back", -0.1f), ("Chest Front-Back", -0.1f),
+            }),
+            // Her casting arm is not held out straight like a signpost: the elbow bends and drops, the palm stays up
+            // at the foe.
+            ("StanceDeepSeek", "Spell_Simple_Idle_Loop", -0.12f, false, true, 28f, new[]
+            {
+                ("Right Arm Down-Up", -0.3f), ("Right Arm Front-Back", -0.34f),
+                ("Right Forearm Stretch", -0.5f), ("Right Hand Down-Up", 0.3f),
+                ("Chest Twist Left-Right", 0.18f), ("UpperChest Twist Left-Right", 0.18f),
+            }),
         };
 
         // The boy in his lounge clothes (PlayerMaleLounge, made in VRoid) has no idle of his own and took the one
@@ -91,9 +123,6 @@ namespace SystemPrompt.EditorTools
         static readonly Stance GuardPlayer = new Stance
         {
             Name = "Guard",
-            Rise = 0.22f,
-            Seconds = 1.2f,
-            Return = 0.4f,
             Turn = 25f,
             Lean = 12f,
             Back = "Right",
@@ -147,9 +176,6 @@ namespace SystemPrompt.EditorTools
         static readonly Stance ItemPlayer = new Stance
         {
             Name = "Item",
-            Rise = 0.35f,
-            Seconds = 1.0f,
-            Return = 0.4f,
             Turn = 5f,
             Back = "Right",
             Out = With(new Dictionary<string, float>
@@ -195,9 +221,6 @@ namespace SystemPrompt.EditorTools
         static readonly Stance GuardDeepSeek = new Stance
         {
             Name = "Guard",
-            Rise = 0.22f,
-            Seconds = 1.2f,
-            Return = 0.4f,
             Turn = -10f,
             Back = "Left",
             Out = With(new Dictionary<string, float>
@@ -243,9 +266,6 @@ namespace SystemPrompt.EditorTools
         static readonly Stance ItemDeepSeek = new Stance
         {
             Name = "Item",
-            Rise = 0.35f,
-            Seconds = 1.0f,
-            Return = 0.4f,
             Turn = -5f,
             Back = "Left",
             Out = With(new Dictionary<string, float>
@@ -292,9 +312,6 @@ namespace SystemPrompt.EditorTools
         static readonly Stance ThinkDeepSeek = new Stance
         {
             Name = "Think",
-            Rise = 0.4f,
-            Seconds = 1.6f,
-            Return = 0.45f,
             Turn = -10f,
             Back = "Left",
             Out = With(new Dictionary<string, float>
@@ -336,6 +353,112 @@ namespace SystemPrompt.EditorTools
             },
         };
 
+        // The win, held for as long as the results stay up (SeaFigure.Act with hold). The player: the right arm up
+        // high with the phone in its fist, taking the cleared field, the left fist on the hip, leaning back a little
+        // onto the back foot, looking up at the phone's screen.
+        static readonly Stance VictoryPlayer = new Stance
+        {
+            Name = "Victory",
+            Turn = 8f,
+            Lean = -4f,
+            Back = "Right",
+            Out = With(new Dictionary<string, float>
+            {
+                ["Spine Front-Back"] = 0.25f,
+                ["Chest Front-Back"] = 0.2f,
+                ["Neck Nod Down-Up"] = 0.25f,
+                ["Head Nod Down-Up"] = 0.3f,
+                ["Neck Turn Left-Right"] = 0.1f,
+                ["Left Upper Leg Front-Back"] = 0.45f,
+                ["Left Upper Leg In-Out"] = 0.12f,
+                ["Left Lower Leg Stretch"] = 0.95f,
+                ["Left Foot Twist In-Out"] = 0.2f,
+                ["Right Upper Leg Front-Back"] = 0.5f,
+                ["Right Upper Leg In-Out"] = 0.12f,
+                ["Right Lower Leg Stretch"] = 0.85f,
+                ["Right Foot Twist In-Out"] = 0.25f,
+                // The phone arm straight up, the palm turned back to him: the phone lies across the fist
+                // (SeaFigure.InHand), so it is held landscape as for the 截图, its screen to him and its lens to the
+                // field. From behind, the lit screen over the head tells it from the rice ball held up in 道具.
+                ["Right Shoulder Down-Up"] = 0.7f,
+                ["Right Arm Down-Up"] = 1f,
+                ["Right Arm Front-Back"] = 0.1f,
+                ["Right Forearm Stretch"] = 0.9f,
+                ["Right Hand Down-Up"] = 0.4f,
+                ["Right Forearm Twist In-Out"] = -0.6f,
+                // The other fist on the hip, the elbow out to the side and a little back (the arm turned in all the
+                // way, so the forearm comes down to the hip rather than across the front; further back, the fist
+                // went behind the hip).
+                ["Left Arm Down-Up"] = -0.3f,
+                ["Left Arm Front-Back"] = 0.25f,
+                ["Left Arm Twist In-Out"] = -1f,
+                ["Left Forearm Stretch"] = 0.25f,
+            }, p =>
+            {
+                Fingers(p, "Right", -0.6f, 0f);
+                Fingers(p, "Left", -0.8f, 0f);
+            }),
+            In = new Dictionary<string, float>
+            {
+                ["Spine Front-Back"] = 0.3f,
+                ["Right Shoulder Down-Up"] = 0.75f,
+            },
+        };
+
+        // The girl's win: the same, the head cocked over to her left, away from the phone arm, so from behind the two
+        // part. (Not swaying the spine after the phone: the pose's body turn is fixed, so bending the spine aside tips
+        // the hips the other way and lifts a foot off the floor. Nor the phone held out in front: turned to her
+        // there, it lies flat or edge on to the camera behind her.)
+        static readonly Stance VictoryPlayerFemale = Varied(VictoryPlayer, p =>
+        {
+            p["Neck Tilt Left-Right"] = -0.15f;
+            p["Head Tilt Left-Right"] = -0.25f;
+        });
+
+        // DeepSeek's win: the 饭勺 held up at the sky in her right hand (SeaFigure.Wield), the left fist in at her
+        // side, the feet apart, the chin up.
+        static readonly Stance VictoryDeepSeek = new Stance
+        {
+            Name = "Victory",
+            Turn = -8f,
+            Back = "Left",
+            Out = With(new Dictionary<string, float>
+            {
+                ["Spine Front-Back"] = 0.15f,
+                ["Chest Front-Back"] = 0.15f,
+                ["Neck Nod Down-Up"] = 0.2f,
+                ["Head Nod Down-Up"] = 0.2f,
+                ["Head Tilt Left-Right"] = -0.1f,
+                ["Right Upper Leg Front-Back"] = 0.45f,
+                ["Right Upper Leg In-Out"] = 0.3f,
+                ["Right Lower Leg Stretch"] = 0.9f,
+                ["Left Upper Leg Front-Back"] = 0.55f,
+                ["Left Upper Leg In-Out"] = 0.3f,
+                ["Left Upper Leg Twist In-Out"] = 0.2f,
+                ["Left Lower Leg Stretch"] = 0.85f,
+                ["Right Shoulder Down-Up"] = 0.6f,
+                ["Right Arm Down-Up"] = 0.95f,
+                ["Right Arm Front-Back"] = 0.15f,
+                ["Right Forearm Stretch"] = 0.85f,
+                ["Right Hand Down-Up"] = 0.1f,
+                ["Left Shoulder Down-Up"] = -0.5f,
+                ["Left Arm Down-Up"] = -0.35f,
+                ["Left Arm Front-Back"] = 0f,
+                ["Left Forearm Stretch"] = 0.2f,
+                ["Left Hand Down-Up"] = 0.1f,
+            }, p =>
+            {
+                Fingers(p, "Right", -0.7f, 0f);
+                Fingers(p, "Left", -0.8f, 0f);
+            }),
+            In = new Dictionary<string, float>
+            {
+                ["Spine Front-Back"] = 0.2f,
+                ["Neck Nod Down-Up"] = 0.25f,
+                ["Right Shoulder Down-Up"] = 0.66f,
+            },
+        };
+
         [MenuItem("System Prompt/生成战斗待机动作")]
         public static void Run()
         {
@@ -346,7 +469,7 @@ namespace SystemPrompt.EditorTools
                 return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
             }
             if (args.Contains("-stanceProbe")) Probe();
-            foreach (var (name, source, legsIn, phoneFist, mirror) in Library) MakeStance(name, source, legsIn, phoneFist, mirror);
+            foreach (var (name, source, legsIn, phoneFist, mirror, yaw, offsets) in Library) MakeStance(name, source, legsIn, phoneFist, mirror, yaw, offsets);
             // After the stances, which they start and end on.
             MakeAction(GuardPlayer, "PlayerMale", "Player");
             MakeAction(GuardPlayer, "PlayerFemale", "PlayerFemale");
@@ -355,6 +478,9 @@ namespace SystemPrompt.EditorTools
             MakeAction(ItemPlayer, "PlayerFemale", "PlayerFemale");
             MakeAction(ItemDeepSeek, "DeepSeek", "DeepSeek");
             MakeAction(ThinkDeepSeek, "DeepSeek", "DeepSeek");
+            MakeAction(VictoryPlayer, "PlayerMale", "Player");
+            MakeAction(VictoryPlayerFemale, "PlayerFemale", "PlayerFemale");
+            MakeAction(VictoryDeepSeek, "DeepSeek", "DeepSeek");
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             var preview = Arg("-stancePreview");
@@ -375,6 +501,7 @@ namespace SystemPrompt.EditorTools
                     ("guard-male", Male, GuardPlayer, -1f), ("guard-female", Female, GuardPlayer, -1f), ("guard-deepseek", Her, GuardDeepSeek, 1f),
                     ("item-male", Male, ItemPlayer, -1f), ("item-female", Female, ItemPlayer, -1f), ("item-deepseek", Her, ItemDeepSeek, 1f),
                     ("think-deepseek", Her, ThinkDeepSeek, 1f),
+                    ("victory-male", Male, VictoryPlayer, 1f), ("victory-female", Female, VictoryPlayerFemale, 1f), ("victory-deepseek", Her, VictoryDeepSeek, 1f),
                 })
                 {
                     Preview(figure(), Path.Combine(preview, file + ".png"), action);
@@ -495,20 +622,21 @@ namespace SystemPrompt.EditorTools
             else AssetDatabase.CreateAsset(clip, path);
         }
 
-        static void MakeStance(string name, string sourceName, float legsIn, bool phoneFist, bool mirror)
+        static void MakeStance(string name, string sourceName, float legsIn, bool phoneFist, bool mirror, float yaw, (string muscle, float add)[] offsets)
         {
             var path = MotionSources + sourceName + ".anim";
             var source = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
             if (source == null) throw new InvalidOperationException($"找不到 {name} 的来源动作 {path}");
-            Save(Fitted(source, name, legsIn, phoneFist, mirror));
+            Save(Fitted(source, name, legsIn, phoneFist, mirror, offsets, yaw));
             Debug.Log($"{name}：来自 {source.name}{(mirror ? "（镜像）" : "")}，{source.length:F2} 秒一循环，双腿内收 {-legsIn}{(phoneFist ? "，右手握拳" : "")}");
         }
 
         // A library loop as a stance: mirrored if asked (each side's curves swapped, the body's left-right
         // muscles, its x and its yaw and roll negated), both thighs closed in by legsIn, looping whatever its
-        // own flag says (Sword_Idle is an idle without _Loop in its name), and with the phone hand's fingers
-        // curled round it.
-        static AnimationClip Fitted(AnimationClip source, string name, float legsIn, bool phoneFist, bool mirror = false)
+        // own flag says (Sword_Idle is an idle without _Loop in its name), with the phone hand's fingers curled
+        // round it, and each of offsets added to its muscle (named as after the mirror) over the whole loop.
+        static AnimationClip Fitted(AnimationClip source, string name, float legsIn, bool phoneFist, bool mirror = false, (string muscle, float add)[] offsets = null,
+            float yaw = 0f)
         {
             var clip = UnityEngine.Object.Instantiate(source);
             clip.name = name;
@@ -543,14 +671,42 @@ namespace SystemPrompt.EditorTools
                     AnimationUtility.SetEditorCurve(clip, EditorCurveBinding.FloatCurve(b.path, b.type, property), mirrored);
                 }
             }
-            foreach (var side in new[] { "Left", "Right" })
+            void Add(string property, float add)
             {
-                var property = $"{side} Upper Leg In-Out";
                 var curve = Get(property);
                 var keys = curve.keys;
-                for (var i = 0; i < keys.Length; i++) keys[i].value += legsIn;
+                for (var i = 0; i < keys.Length; i++) keys[i].value += add;
                 curve.keys = keys;
                 Set(property, curve);
+            }
+            Add("Left Upper Leg In-Out", legsIn);
+            Add("Right Upper Leg In-Out", legsIn);
+            foreach (var (muscle, add) in offsets ?? Array.Empty<(string, float)>()) Add(CurveName(muscle), add);
+            if (yaw != 0f)
+            {
+                // The whole body turned about the upright, feet and all (the caster's idle stands side on to what it
+                // faces, hips 42 degrees off and chest 61: on the battle field that reads as facing away from the noise
+                // bodies), its place over the root turned with it.
+                var turn = Quaternion.AngleAxis(yaw, Vector3.up);
+                AnimationCurve qx = Get("RootQ.x"), qy = Get("RootQ.y"), qz = Get("RootQ.z"), qw = Get("RootQ.w"), tx = Get("RootT.x"), tz = Get("RootT.z");
+                var times = qx.keys.Select(k => k.time).Concat(tx.keys.Select(k => k.time)).Distinct().OrderBy(t => t).ToArray();
+                var turned = new Keyframe[6][];
+                for (var c = 0; c < 6; c++) turned[c] = new Keyframe[times.Length];
+                for (var i = 0; i < times.Length; i++)
+                {
+                    var t = times[i];
+                    var q = turn * new Quaternion(qx.Evaluate(t), qy.Evaluate(t), qz.Evaluate(t), qw.Evaluate(t)).normalized;
+                    var at = turn * new Vector3(tx.Evaluate(t), 0f, tz.Evaluate(t));
+                    var values = new[] { q.x, q.y, q.z, q.w, at.x, at.z };
+                    for (var c = 0; c < 6; c++) turned[c][i] = new Keyframe(t, values[c]);
+                }
+                var names = new[] { "RootQ.x", "RootQ.y", "RootQ.z", "RootQ.w", "RootT.x", "RootT.z" };
+                for (var c = 0; c < 6; c++)
+                {
+                    var curve = new AnimationCurve(turned[c]) { preWrapMode = qx.preWrapMode, postWrapMode = qx.postWrapMode };
+                    for (var i = 0; i < times.Length; i++) curve.SmoothTangents(i, 0f);
+                    Set(names[c], curve);
+                }
             }
             if (phoneFist)
             {
@@ -897,11 +1053,13 @@ namespace SystemPrompt.EditorTools
             Debug.Log($"战斗动作胶片：{file}");
         }
 
-        // As BattleStage does it: the 道具 action holds the rice ball until the pose is let go.
+        // As BattleStage does it: the 道具 action holds the rice ball until the pose is let go, and DeepSeek wins with
+        // the 饭勺 in her hand.
         static float Act(SeaFigure figure, Stance action)
         {
             var length = figure.Act(action.Name);
             if (action.Name == "Item") figure.HoldRiceBall(action.Rise + action.Seconds);
+            if (action.Name == "Victory" && !figure.CarriesPhone) figure.Wield(true);
             return length;
         }
 

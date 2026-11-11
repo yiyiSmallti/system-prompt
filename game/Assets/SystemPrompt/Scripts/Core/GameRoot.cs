@@ -52,6 +52,10 @@ namespace SystemPrompt
         public bool InStory => story != null;
         public bool InBattle { get; private set; }
         public bool InDungeon { get; private set; }
+        string battleMusic = "battle"; // the battle's own track (BattleDef.Music)
+        string dungeonMusic = "sea";   // the area's (DungeonDef.Music)
+        string storyMusic;             // <<music 曲名>>: instead of the scene's, until the scene changes or a battle or the maze starts
+        bool resultsUp;                // the battle is won and its results are on screen
         public StoryController StoryRunner => story;
         public bool CanSave => story?.Checkpoint != null && !InBattle && !InDungeon;
 
@@ -66,6 +70,7 @@ namespace SystemPrompt
             Audio.Init(Settings);
             Fonts.Init();
             global::SystemPrompt.Dungeon.SeaArt.WarmText();
+            global::SystemPrompt.Dungeon.SeaArt.WarmCaustics();
             BuildUi();
             EnterTitle();
             Transitions.Boot().Forget();
@@ -266,6 +271,8 @@ namespace SystemPrompt
             InBattle = false;
             Dungeon.Abort();
             InDungeon = false;
+            storyMusic = null;
+            resultsUp = false;
             story?.Stop();
             story = null;
         }
@@ -276,13 +283,29 @@ namespace SystemPrompt
             ShowTitle(Wipe.Shutdown);
         }
 
-        // Battles, the maze, or else the story's current scene (StoryScreen calls this when the scene changes).
+        // Battles (their own track, then the results'), the maze (the area's), a track the story asked for, or
+        // else the story's current scene (StoryScreen calls this when the scene changes).
         public void UpdateMusic()
         {
-            if (InBattle) Audio.PlayMusic("battle");
-            else if (InDungeon) Audio.PlayMusic("sea");
+            if (InBattle) Audio.PlayMusic(resultsUp ? "results" : battleMusic);
+            else if (InDungeon) Audio.PlayMusic(dungeonMusic);
+            else if (storyMusic != null) Audio.PlayMusic(storyMusic);
             else if (GameData.Scenes.TryGetValue(State.scene ?? "", out var def)) Audio.PlayMusic(def.Music);
             else Audio.StopMusic();
+        }
+
+        // <<music 曲名>> and <<music off>>; a scene change also ends it (null).
+        public void StoryMusic(string name)
+        {
+            storyMusic = name;
+            UpdateMusic();
+        }
+
+        // The battle's results coming up: its music gives way to the results'.
+        public void ResultsMusic()
+        {
+            resultsUp = true;
+            UpdateMusic();
         }
 
         // <<battle>>, or a noise body met in the maze: the caller waits here until the results screen
@@ -304,6 +327,9 @@ namespace SystemPrompt
             var run = story;
             var back = screen;
             InBattle = true;
+            battleMusic = def.Music;
+            storyMusic = null;
+            resultsUp = false;
             Awaitable battle = null;
             await Transitions.Cover(Wipe.Battle);
             try
@@ -326,6 +352,7 @@ namespace SystemPrompt
             finally
             {
                 if (run == story) InBattle = false;
+                resultsUp = false;
             }
             if (run != story) return;
             await Transitions.Play(Wipe.Slash, () =>
@@ -343,6 +370,8 @@ namespace SystemPrompt
             InDungeon = true;
             Awaitable explore = null;
             var area = global::SystemPrompt.Dungeon.Dungeons.Get(id);
+            dungeonMusic = area?.Music ?? "sea";
+            storyMusic = null;
             // The area is built while the dive plays, a piece a frame, and the dive holds on DIVE until it is.
             var building = area != null ? global::SystemPrompt.Dungeon.DungeonWorld.Create(area, State.playerGender, State.FormOf("DeepSeek") != null) : null;
             await Transitions.Cover(Wipe.Dive, area != null ? $"{area.Area} · {area.Layer}" : null);

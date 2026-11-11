@@ -52,10 +52,13 @@ namespace SystemPrompt.UI
         readonly Label promptVerb;
         readonly VisualElement talkBox, talkPlate;
         readonly Label talkName, talkText;
-        readonly VisualElement fx, flash;
+        readonly VisualElement fx, flash, edge;
+        readonly VisualElement barTop, barBottom; // a cutaway's letterbox
+        readonly VisualElement[] chrome;          // the HUD a cutaway takes off the screen
         readonly NavCall nav;
         readonly Dictionary<SeaNoise, Label> alertMarks = new Dictionary<SeaNoise, Label>();
         readonly Dictionary<SeaNoise, Label> phraseMarks = new Dictionary<SeaNoise, Label>();
+        readonly Dictionary<SeaNoise, float> markSince = new Dictionary<SeaNoise, float>(); // when its alert mark last changed
 
         Session session = new Session { Over = true };
         AwaitableCompletionSource done;
@@ -72,6 +75,8 @@ namespace SystemPrompt.UI
         ZoneDef zone;
         readonly HashSet<ZoneDef> visited = new HashSet<ZoneDef>();
         int bannerShown;
+        float bannerUntil; // unscaled time the zone banner is gone by
+        bool cutting, departing, chromeHidden; // the HUD is away through a cutaway and from a departure to the wipe
 
         // What the end-to-end run checks.
         public bool Exploring => mode == Mode.Explore && world != null;
@@ -93,6 +98,10 @@ namespace SystemPrompt.UI
         public ZoneDef Zone => zone;
         public int ZonesVisited => visited.Count;
         public NavCall Nav => nav;
+        // A cutaway under way (Cutaway): the shot's name and how far through it it is.
+        public bool Cutting => cutting;
+        public string Cut { get; private set; }
+        public float CutProgress { get; private set; }
 
         public DungeonScreen(GameRoot game, VisualElement parent)
         {
@@ -145,7 +154,7 @@ namespace SystemPrompt.UI
             meterFill = Ui.El("sp-dungeon__meter-fill", track);
 
             // Left of the map; a line waits while the screen is away (a battle) or the text box is up.
-            nav = new NavCall(game, Root, () => !shown || world == null || mode == Mode.Talk);
+            nav = new NavCall(game, Root, () => !shown || world == null || mode == Mode.Talk || cutting);
 
             partyRow = Ui.El("sp-dungeon__party", Root);
 
@@ -166,6 +175,16 @@ namespace SystemPrompt.UI
             talkName = Ui.Text("", "sp-dungeon__talk-name", talkPlate, FontKind.Black);
             talkText = Ui.Text("", "sp-dungeon__talk-text", talkBox, FontKind.Regular);
 
+            chrome = new[] { area, goal, mapBox, meterBox, nav.Root, partyRow, keys, prompt, marks };
+            barTop = LetterBar(true);
+            barBottom = LetterBar(false);
+
+            edge = Ui.El("sp-dungeon__edge", Root);
+            Ui.Fill(edge);
+            edge.pickingMode = PickingMode.Ignore;
+            edge.style.backgroundImage = new StyleBackground(EdgeShade);
+            edge.style.unityBackgroundImageTintColor = new Color(1f, 0.2f, 0.2f);
+            edge.style.opacity = 0f;
             fx = Ui.El("sp-dungeon__fx", Root);
             Ui.Fill(fx);
             fx.pickingMode = PickingMode.Ignore;
@@ -247,6 +266,7 @@ namespace SystemPrompt.UI
             marks.Clear();
             alertMarks.Clear();
             phraseMarks.Clear();
+            markSince.Clear();
             foreach (var e in world.Enemies)
             {
                 alertMarks[e] = Ui.Text("", "sp-dungeon__alert", marks, FontKind.Black);
@@ -269,11 +289,39 @@ namespace SystemPrompt.UI
             if (world != null) await world.Mirror(on);
         }
 
+        // <<mirror walk>>: the two go up to the white door with the text box out of the way; confirm or cancel after the
+        // first 0.2 s hurries them, as in a cutaway.
+        public async Awaitable MirrorWalk()
+        {
+            var w = world;
+            if (w == null) return;
+            var s = session;
+            var was = mode;
+            mode = Mode.Busy;
+            var talking = was == Mode.Talk && talkBox.style.display != DisplayStyle.None;
+            Ui.Show(talkBox, false);
+            var started = Time.unscaledTime;
+            var hurried = false;
+            try
+            {
+                await w.MirrorWalk(() => hurried || (hurried = HurryAsked(started)), () => s.Over);
+            }
+            finally
+            {
+                if (!s.Over && mode == Mode.Busy && done != null)
+                {
+                    mode = was;
+                    if (talking) Ui.Show(talkBox, true);
+                }
+            }
+        }
+
         // After the cover of the way out: the area goes away.
         public void Leave()
         {
             mode = Mode.Off;
             Lock(false);
+            departing = false;
             nav.Clear();
             nav.Companion = null;
             if (world != null) world.Drop();
@@ -395,7 +443,7 @@ namespace SystemPrompt.UI
             if (enemy != null)
             {
                 var opening = enemy.Alerted ? BattleOpening.Normal : BattleOpening.Preemptive;
-                Act(s => Engage(enemy, opening, s));
+                Act(s => Engage(enemy, opening, true, s));
                 return;
             }
             var block = world.BlockInReach(out var direction);
@@ -499,18 +547,186 @@ namespace SystemPrompt.UI
             if (world.Puzzles.Solved && !wasSolved) GateOpened(session).Forget();
         }
 
-        // The gate goes dark and DeepSeek calls it out from the top right; the player keeps going.
+        // The gate breaks up (where the player can see it, or in a cutaway once the block has seated) and DeepSeek
+        // calls it out from the top right once the controls are back; the player keeps going. With the controls taken
+        // by something else meanwhile (a talk, a fight), it waits for them to come back, so the opening is still seen.
         async Awaitable GateOpened(Session s)
         {
             game.Audio.Sfx("rise");
+            world.Companion?.Wag();
+            await Anim.Wait(0.35f, () => s.Over);
+            await Anim.Until(() => mode == Mode.Explore || s.Over);
+            if (s.Over) return;
+            var gate = world.Puzzles.GatePosition;
+            if (gate is Vector3 at && !world.InView(at + Vector3.up * 2f))
+                await Cutaway(s, new Shot("gate", at, 1.6f, world.OpenGateVisual));
+            else world.OpenGateVisual();
+            if (s.Over) return;
             await Call(def.GateNode, s);
         }
 
-        // The light on the goal: the exit shows where it lands, and DeepSeek calls it out.
+        // <<reveal firewall>> in the terminal's node: the firewalls shown going, nearest first, the second from the
+        // side that has the lighthouse behind it. Each is left for the story to show (DungeonWorld.OpenFirewall).
+        public async Awaitable Reveal(string what)
+        {
+            if (world == null || what != "firewall")
+            {
+                Debug.LogError($"<<reveal {what}>>：只能在潜空间里揭示 firewall");
+                return;
+            }
+            var s = session;
+            var walls = new List<Firewall>(world.Firewalls);
+            walls.RemoveAll(f => f.Opened);
+            var player = world.PlayerPosition;
+            walls.Sort((a, b) => Vector3.Distance(a.Position, player).CompareTo(Vector3.Distance(b.Position, player)));
+            if (walls.Count == 0) return;
+            var lamp = world.Map.World(def.LighthouseCell.x, def.LighthouseCell.y);
+            var shots = new Shot[Mathf.Min(2, walls.Count)];
+            for (var i = 0; i < shots.Length; i++)
+            {
+                var wall = walls[i];
+                shots[i] = i == 0
+                    ? new Shot("firewall-1", wall.Position, 1.5f, () => world.DissolveFirewall(wall))
+                    // Low and looking up, so the lighthouse's lamp, 33 m up behind it, comes into the top of the picture.
+                    : new Shot("firewall-2", wall.Position, 1.6f, () => world.DissolveFirewall(wall), lamp - wall.Position, 4.6f, 1.2f);
+            }
+            game.Audio.Sfx("rise", 0.5f);
+            await Cutaway(s, shots);
+        }
+
+        // ------------------------------------------------------------------ cutaways
+
+        // One shot of a cutaway: what it shows (looked at from the side `Prefer` points away from, if it can), for
+        // how long, how far over the ground the lens stands and aims, and what it sets going as it cuts in.
+        readonly struct Shot
+        {
+            public readonly string Name;
+            public readonly Vector3 Focus;
+            public readonly Vector3? Prefer;
+            public readonly float Seconds, LookUp, Height;
+            public readonly Action Start;
+
+            public Shot(string name, Vector3 focus, float seconds, Action start, Vector3? prefer = null, float lookUp = 2f, float height = 3.5f)
+            {
+                Name = name;
+                Focus = focus;
+                Seconds = seconds;
+                Start = start;
+                Prefer = prefer;
+                LookUp = lookUp;
+                Height = height;
+            }
+        }
+
+        // The camera taken off the player to show something happen out of their sight (the gate, the firewalls, the
+        // exit), behind a letterbox, with hard cuts in and out and the HUD away. Confirm or cancel after the first 0.2 s
+        // plays the rest three times as fast, the maze's clock with it. Each shot's effect starts whether or not
+        // somewhere to look from is found; with nowhere for any of them, nothing is taken over. In a talk (a story
+        // command) the text box steps aside and comes back.
+        async Awaitable Cutaway(Session s, params Shot[] shots)
+        {
+            var w = world;
+            if (w == null || s.Over) return;
+            var eyes = new Vector3[shots.Length];
+            var looks = new Quaternion[shots.Length];
+            var found = new bool[shots.Length];
+            var any = false;
+            for (var i = 0; i < shots.Length; i++)
+                any |= found[i] = w.FindShot(shots[i].Focus, out eyes[i], out looks[i], shots[i].Prefer, shots[i].Height, shots[i].LookUp);
+            if (!any)
+            {
+                foreach (var shot in shots) shot.Start?.Invoke();
+                return;
+            }
+            var was = mode;
+            mode = Mode.Busy;
+            Lock(false);
+            var talking = was == Mode.Talk && talkBox.style.display != DisplayStyle.None;
+            Ui.Show(talkBox, false);
+            cutting = true;
+            w.BeginCut();
+            var started = Time.unscaledTime;
+            var hurried = false;
+            var total = 0f; // the shots' seconds, the letterbox's slides inside them (the controls gone no longer)
+            for (var i = 0; i < shots.Length; i++)
+                if (found[i]) total += shots[i].Seconds;
+            var into = 0f;
+            try
+            {
+                for (var i = 0; i < shots.Length && !s.Over; i++)
+                {
+                    var shot = shots[i];
+                    shot.Start?.Invoke();
+                    if (!found[i]) continue;
+                    Cut = shot.Name;
+                    for (var t = 0f; t < shot.Seconds && !s.Over;)
+                    {
+                        if (!hurried && HurryAsked(started))
+                        {
+                            hurried = true;
+                            w.Hurry(true);
+                        }
+                        CutProgress = Mathf.Clamp01(t / shot.Seconds);
+                        w.HoldShot(eyes[i], looks[i], shot.Focus, CutProgress);
+                        // The letterbox in (to 9 % of the height top and bottom) over the cut's first 0.18 s, out over its
+                        // last 0.15.
+                        var bars = Mathf.Min(Ease.OutCubic(Mathf.Clamp01(into / 0.18f)), 1f - Ease.OutCubic(Mathf.Clamp01(1f - (total - into) / 0.15f)));
+                        barTop.style.height = barBottom.style.height = Length.Percent(9f * bars);
+                        await Awaitable.NextFrameAsync();
+                        var step = Time.unscaledDeltaTime * (hurried ? 3f : 1f);
+                        t += step;
+                        into += step;
+                    }
+                }
+            }
+            finally
+            {
+                cutting = false;
+                Cut = null;
+                CutProgress = 0f;
+                barTop.style.height = barBottom.style.height = Length.Percent(0f);
+                if (w != null) w.EndCut();
+                if (!s.Over && mode == Mode.Busy && done != null)
+                {
+                    mode = was;
+                    if (talking) Ui.Show(talkBox, true);
+                }
+            }
+        }
+
+        // Confirm or cancel after a scene's first 0.2 s, or the text skip held, plays the rest three times as fast
+        // (cutaways, the mirror walk, departures).
+        static bool HurryAsked(float started) =>
+            Time.unscaledTime - started > 0.2f && (GameInput.SkipHeld || GameInput.Consume(Btn.Confirm) || GameInput.Consume(Btn.Cancel));
+
+        VisualElement LetterBar(bool top)
+        {
+            var bar = Ui.El("sp-dungeon__letterbox", Root);
+            bar.pickingMode = PickingMode.Ignore;
+            bar.style.position = Position.Absolute;
+            bar.style.left = 0f;
+            bar.style.right = 0f;
+            if (top) bar.style.top = 0f;
+            else bar.style.bottom = 0f;
+            bar.style.height = Length.Percent(0f);
+            Ui.Bg(bar, Palette.Ink);
+            return bar;
+        }
+
+        // The light on the goal: once it has run all the way there (SeaPuzzles.LightArrived, under a second and a half),
+        // a cutaway to the exit coming up out of the seabed (DungeonWorld.RiseExit), then DeepSeek calls it out. When the
+        // controls are taken by something else by then, it waits for them to come back first.
         async Awaitable LightFound(Session s)
         {
+            var w = world;
+            var until = Time.unscaledTime + 3f;
+            await Anim.Until(() => w.Puzzles.LightArrived || s.Over || Time.unscaledTime > until);
+            await Anim.Until(() => mode == Mode.Explore || s.Over);
+            if (s.Over) return;
             game.Audio.Sfx("rise");
-            await Flash(Palette.Paper, 0.5f, s);
+            w.Companion?.Wag();
+            await Cutaway(s, new Shot("exit", w.ExitPosition, 1.8f, w.RiseExit));
+            if (s.Over) return;
             await Call(def.LightNode, s);
         }
 
@@ -558,12 +774,13 @@ namespace SystemPrompt.UI
         void OnTouched(SeaNoise e)
         {
             if (mode != Mode.Explore) return;
-            Act(s => Engage(e, e.Alerted ? BattleOpening.Ambush : BattleOpening.Normal, s));
+            Act(s => Engage(e, e.Alerted ? BattleOpening.Ambush : BattleOpening.Normal, false, s));
         }
 
         // ------------------------------------------------------------------ what happens
 
-        async Awaitable Engage(SeaNoise enemy, BattleOpening opening, Session s)
+        // byEnter: the player jumped it (先制攻击, or 迎击 on one already chasing) rather than it running into them.
+        async Awaitable Engage(SeaNoise enemy, BattleOpening opening, bool byEnter, Session s)
         {
             var first = Battles == 0;
             if (first && def.FirstBattleNode != null)
@@ -571,25 +788,10 @@ namespace SystemPrompt.UI
                 await Talk(def.FirstBattleNode, s);
                 if (s.Over) return;
             }
-            var text = opening == BattleOpening.Preemptive ? "先制攻击！" : opening == BattleOpening.Ambush ? "被偷袭！" : "遭遇！";
-            var color = opening == BattleOpening.Ambush ? Palette.Red : opening == BattleOpening.Preemptive ? Palette.Green : Palette.Paper;
-            game.Audio.Sfx(opening == BattleOpening.Ambush ? "glitch" : "slam");
-            var stamp = Fx.Stamp(fx, text, color, 130f, -5f, new Vector2(960, 440));
-            await Anim.Wait(0.75f);
-            Fx.Dismiss(stamp).Forget();
-            if (s.Over) return;
-            Battles++;
-            if (opening == BattleOpening.Preemptive) Preemptive++;
-            if (opening == BattleOpening.Ambush) Ambushed++;
             var fight = SystemPrompt.Battle.Battles.Get(enemy.Spawn.Battle ?? "sea_clickbait");
-            if (fight == null)
-            {
-                Debug.LogError($"噪声体 {enemy.Spawn.Mark} 的战斗 {enemy.Spawn.Battle} 不在 Battles 里");
-                return;
-            }
             // Noise bodies called over that have caught up join the fight, nearest first, while the field has room.
             var joined = new List<SeaNoise>();
-            while (fight.Enemies.Length < SystemPrompt.Battle.Battles.MaxFoes)
+            while (fight != null && fight.Enemies.Length < SystemPrompt.Battle.Battles.MaxFoes)
             {
                 SeaNoise near = null;
                 var best = JoinRange;
@@ -607,8 +809,51 @@ namespace SystemPrompt.UI
                 fight = BattleDef.Merge(fight, more);
                 joined.Add(near);
             }
+            var text = opening == BattleOpening.Preemptive ? "先制攻击！" : opening == BattleOpening.Ambush ? "被偷袭！" : "遭遇！";
+            var color = opening == BattleOpening.Ambush ? Palette.Red : opening == BattleOpening.Preemptive ? Palette.Green : Palette.Paper;
+            game.Audio.Sfx(opening == BattleOpening.Ambush ? "glitch" : "slam");
+            world.Strike(enemy, opening, byEnter, joined);
+            // Over the noise body as the strike's camera holds it once it has punched in: the stamp's lower edge a margin
+            // over the body's top, its own top on the screen, its middle no lower than the two of them's heads. Where
+            // there's no room for that, a fifth smaller, and failing that off to the body's open side.
+            float HalfHigh(float f) => 0.67f * f + 80f; // settled, burst and all (.fx-stamp)
+            float HalfWide(float f) => 0.5f * text.Length * f + 120f;
+            var size = 130f;
+            var at = new Vector2(960f, 300f);
+            if (Project(enemy.StruckTop, out var top, true) && Project(enemy.Position + Vector3.up * NoiseLook.Height, out var middle, true))
+            {
+                var y = top.y - 24f - HalfHigh(size);
+                if (y < 12f + HalfHigh(size))
+                {
+                    size = 104f;
+                    y = top.y - 24f - HalfHigh(size);
+                }
+                at.y = Mathf.Clamp(y, 12f + HalfHigh(size), 420f);
+                if (y < at.y)
+                {
+                    var side = top.x < 960f ? 1f : -1f;
+                    var off = 0.8f * (middle.y - top.y) + HalfWide(size) + 24f;
+                    at.x = Mathf.Clamp(top.x + side * off, 12f + HalfWide(size), 1908f - HalfWide(size));
+                }
+            }
+            var stamp = Fx.Stamp(fx, text, color, size, -5f, at);
+            if (opening == BattleOpening.Ambush) Alarm(s).Forget();
+            await Anim.Wait(0.75f);
+            Fx.Dismiss(stamp).Forget();
+            if (s.Over) return;
+            Battles++;
+            if (opening == BattleOpening.Preemptive) Preemptive++;
+            if (opening == BattleOpening.Ambush) Ambushed++;
+            if (fight == null)
+            {
+                Debug.LogError($"噪声体 {enemy.Spawn.Mark} 的战斗 {enemy.Spawn.Battle} 不在 Battles 里");
+                world.EndStrike(false);
+                return;
+            }
+            // The world hides the struck bodies when the battle takes the screen (DungeonWorld.Show).
             await game.RunBattle(fight, opening);
             if (s.Over) return;
+            world.EndStrike(true); // if the battle never took the screen
             enemy.Remove();
             foreach (var o in joined) o.Remove();
             foreach (var e in world.Enemies) e.Calm();
@@ -645,11 +890,14 @@ namespace SystemPrompt.UI
                         Debug.LogError($"迷宫 {def.Id} 的第 {prop.Index + 1} 个宝箱没有内容");
                         break;
                     }
+                    world.OpenChest(prop);
                     if (chest.Item != null) game.State.AddItem(chest.Item, chest.Count);
                     game.State.tokens += chest.Tokens;
                     if (chest.Delay > 0f) meter = Mathf.Max(0f, meter - chest.Delay);
                     game.Notice("获得：" + chest.Label);
                     await Anim.Wait(0.5f);
+                    // The controls back: the camera turns back over 0.25 s as the follow camera takes over.
+                    world.Glance(null);
                     break;
                 }
                 case PropKind.Console:
@@ -659,10 +907,14 @@ namespace SystemPrompt.UI
                     await Anim.Wait(0.3f);
                     break;
                 case PropKind.Terminal:
+                    // Open at once; the walls are shown going by the node's <<reveal firewall>>, or go after it.
                     game.Audio.Sfx("key");
-                    world.OpenFirewall();
+                    world.OpenFirewall(def.TerminalNode != null);
                     if (def.ObjectiveAfterTerminal != null) objective.text = def.ObjectiveAfterTerminal;
                     if (def.TerminalNode != null) await Talk(def.TerminalNode, s);
+                    if (s.Over) break;
+                    prop.Settle();
+                    world.SettleFirewalls();
                     break;
             }
         }
@@ -671,6 +923,7 @@ namespace SystemPrompt.UI
         async Awaitable RestAt(SeaProp beacon, Session s)
         {
             beacon.Use(world.Time);
+            world.LightBeacon(beacon);
             game.Audio.Sfx("rise", 0.7f);
             RestoreParty();
             BuildParty();
@@ -679,7 +932,18 @@ namespace SystemPrompt.UI
                 beaconTold = true;
                 await Talk(def.BeaconNode, s);
             }
-            else game.Notice("信标：HP 和 SP 已回满");
+            else NoticeAfterBanner("信标：HP 和 SP 已回满").Forget();
+        }
+
+        // A notice held back until the area's banner has gone, so the two don't sit on each other: the beacon at the
+        // maintenance room's door lights a step before the room's banner comes up, so it waits a second for one to
+        // start before waiting it out. The controls are not held for it.
+        async Awaitable NoticeAfterBanner(string text)
+        {
+            var s = session;
+            var from = Time.unscaledTime + 1f;
+            await Anim.Until(() => Time.unscaledTime > Mathf.Max(from, bannerUntil) || s.Over);
+            if (!s.Over) game.Notice(text);
         }
 
         void RestoreParty()
@@ -693,9 +957,17 @@ namespace SystemPrompt.UI
             }
         }
 
+        // At the goal: the area's last lines, then the way it sees the two off (DungeonDef.Departure: the shallows'
+        // lighthouse turns on them, the deep's column comes up under them) with the HUD away, then out. Confirm or cancel
+        // after the first 0.2 s hurries the departure, as in a cutaway.
         async Awaitable Goal(Session s)
         {
             if (def.GoalNode != null) await Talk(def.GoalNode, s);
+            if (s.Over) return;
+            var started = Time.unscaledTime;
+            var hurried = false;
+            departing = true; // till the area is left (Leave)
+            await world.Depart(() => hurried || (hurried = HurryAsked(started)), () => s.Over);
             if (s.Over) return;
             Finish();
         }
@@ -715,6 +987,8 @@ namespace SystemPrompt.UI
             Act(async s =>
             {
                 game.Audio.Sfx("glitch");
+                // The racks going out one by one and the sea running upward (Prologue_Deep_Timeout), under the lines.
+                world.Blackout(2.5f, () => s.Over).Forget();
                 if (def.TimeoutNode != null) await Talk(def.TimeoutNode, s);
                 if (!s.Over) await Bounce(s);
             });
@@ -733,7 +1007,15 @@ namespace SystemPrompt.UI
             foreach (var p in world.Props)
                 if (p.Kind == PropKind.Beacon && p.Used) beacon = p;
             var cell = beacon != null ? FloorBeside(beacon.Cell) : world.Map.Find('S')[0];
-            world.Place(cell, world.PlayerYaw);
+            // Facing the beacon, its light in front of them (来时那片光), not its roof across the lens behind them.
+            var yaw = world.PlayerYaw;
+            if (beacon != null)
+            {
+                var to = beacon.Position - world.Map.World(cell);
+                yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+            }
+            world.Place(cell, yaw);
+            world.Restore(0.8f).Forget(); // 再睁开眼，我们站在来时那片光里
             foreach (var e in world.Enemies) e.Revive();
             world.SafeUntil = world.Time + 3f;
             meter = BounceMeter;
@@ -767,6 +1049,7 @@ namespace SystemPrompt.UI
             }
             Ui.Show(talkBox, false);
             world?.Companion?.SetFace(null);
+            if (world != null) world.PlayerSpeaks = world.DeepSeekSpeaks = false;
             if (!s.Over && mode == Mode.Talk) mode = previous == Mode.Explore ? Mode.Busy : previous;
         }
 
@@ -785,6 +1068,7 @@ namespace SystemPrompt.UI
         async Awaitable Banner(ZoneDef z)
         {
             var serial = ++bannerShown;
+            bannerUntil = Time.unscaledTime + 2.5f; // in, locked, held, out
             bannerName.Text = z.Name;
             bannerTag.text = "AREA · " + z.Tag;
             Ui.Show(banner, true);
@@ -812,8 +1096,42 @@ namespace SystemPrompt.UI
         async Awaitable Flash(Color color, float seconds, Session s)
         {
             Ui.Bg(flash, color);
-            await Anim.Tween(seconds, t => flash.style.opacity = Mathf.Sin(t * Mathf.PI) * 0.8f, null, () => s.Over);
+            var peak = game.Settings.reduceFlash ? 0.25f : 0.8f;
+            await Anim.Tween(seconds, t => flash.style.opacity = Mathf.Sin(t * Mathf.PI) * peak, null, () => s.Over);
             flash.style.opacity = 0f;
+        }
+
+        // Jumped from behind: the edges of the screen run red under the stamp, up in a tenth of a second, held till the
+        // battle's wipe has taken the picture, then gone.
+        async Awaitable Alarm(Session s)
+        {
+            var peak = game.Settings.reduceFlash ? 0.2f : 0.45f;
+            await Anim.Tween(0.1f, t => edge.style.opacity = peak * t, Ease.Linear, () => s.Over);
+            await Anim.Wait(0.75f);
+            await Anim.Tween(0.25f, t => edge.style.opacity = peak * (1f - t), Ease.Linear, () => s.Over);
+            edge.style.opacity = 0f;
+        }
+
+        // Clear over the middle, white toward the edges and whitest in the corners (stretched over the screen).
+        static Texture2D edgeShade;
+        static Texture2D EdgeShade
+        {
+            get
+            {
+                if (edgeShade != null) return edgeShade;
+                const int S = 128;
+                edgeShade = new Texture2D(S, S, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontUnloadUnusedAsset };
+                var px = new Color32[S * S];
+                for (var y = 0; y < S; y++)
+                for (var x = 0; x < S; x++)
+                {
+                    var r = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f).magnitude / (S / 2f);
+                    px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1.25f, r)) * 255));
+                }
+                edgeShade.SetPixels32(px);
+                edgeShade.Apply();
+                return edgeShade;
+            }
         }
 
         // ------------------------------------------------------------------ lines (ILinePresenter)
@@ -849,6 +1167,12 @@ namespace SystemPrompt.UI
             var deepSeek = line.Speaker == "DeepSeek" ? world?.Companion : null;
             if (deepSeek != null && line.Face != null) deepSeek.SetFace(line.Face);
             if (deepSeek != null) deepSeek.Talking = line.Kind == LineKind.Speech;
+            if (world != null)
+            {
+                // The two look at whoever has the line (DungeonWorld.Looks).
+                world.PlayerSpeaks = line.Kind == LineKind.Player;
+                world.DeepSeekSpeaks = deepSeek != null && line.Kind == LineKind.Speech;
+            }
 
             var cps = game.Settings.CharsPerSecond;
             var shown = float.IsInfinity(cps) ? text.Length : 0f;
@@ -931,6 +1255,11 @@ namespace SystemPrompt.UI
 
             var exploring = mode == Mode.Explore;
             Lock(exploring && !game.ModalOpen && !game.Transitions.Busy && Application.isFocused);
+            if (chromeHidden != (cutting || departing))
+            {
+                chromeHidden = cutting || departing;
+                foreach (var e in chrome) e.style.visibility = chromeHidden ? Visibility.Hidden : Visibility.Visible;
+            }
             // Backspace's use where there is one: a plate in reach turns back, else a push can be taken back.
             keysText.text = !exploring ? Keys
                 : world.PlateInReach() != null ? Keys + "　Backspace 反转"
@@ -972,6 +1301,8 @@ namespace SystemPrompt.UI
                 prompt.EnableInClassList("is-attack", false);
                 promptAt = prop.Position + Vector3.up * (prop.Kind == PropKind.Fragment ? 3.2f : 2.4f);
             }
+            // What the two look at with nothing more pressing (DungeonWorld.Looks): the middle of the thing, not over it.
+            world.Interest = promptAt.HasValue ? promptAt.Value - Vector3.up * 1.6f : null;
             if (promptAt.HasValue && Project(promptAt.Value, out var pp))
             {
                 // Beside the point, clear of the alert mark above an enemy's head.
@@ -988,10 +1319,15 @@ namespace SystemPrompt.UI
                 var d = Vector3.Distance(e.Position, world.PlayerPosition);
                 var head = e.Position + Vector3.up * 2.5f;
                 var hp = Vector2.zero;
-                var onScreen = e.Active && d < 40f && Project(head, out hp);
+                // Not over one being struck (the stamp says it) or taken off into the battle.
+                var onScreen = e.Active && !e.Engaged && e.Root.gameObject.activeSelf && d < 40f && Project(head, out hp);
                 var mark = !e.Active ? "" : e.State == NoiseState.Chase ? "!" : e.State == NoiseState.Look ? "?" : e.State == NoiseState.Doze ? "z" : "";
                 Ui.Show(alert, onScreen && mark != "");
                 Ui.Show(phrase, onScreen && d < 16f && e.State != NoiseState.Chase && Mathf.Repeat(world.Time + e.Phrase.Length * 0.37f, 2.6f) < 1.7f);
+                // A new mark pops up out of a small one, overshooting a little.
+                if (alert.text != mark) markSince[e] = world.Time;
+                var popped = (world.Time - (markSince.TryGetValue(e, out var since) ? since : -1f)) / 0.25f;
+                if (popped < 1.5f) Ui.Zoom(alert, popped < 1f ? Mathf.LerpUnclamped(0.3f, 1f, Ease.OutBack(Mathf.Max(0f, popped))) : 1f);
                 if (!onScreen) continue;
                 alert.text = mark;
                 alert.EnableInClassList("is-chase", e.State == NoiseState.Chase);
@@ -1003,11 +1339,11 @@ namespace SystemPrompt.UI
             }
         }
 
-        // World point to this screen's 1920x1080 frame.
-        bool Project(Vector3 worldPoint, out Vector2 local)
+        // World point to this screen's 1920x1080 frame (punched: as a strike's camera will hold it, DungeonWorld.ToScreen).
+        bool Project(Vector3 worldPoint, out Vector2 local, bool punched = false)
         {
             local = default;
-            if (Root.panel == null || !world.ToScreen(worldPoint, out var screen)) return false;
+            if (Root.panel == null || !world.ToScreen(worldPoint, out var screen, punched)) return false;
             var top = Root.panel.visualTree.layout;
             var panelPoint = new Vector2(screen.x * top.width / Screen.width, screen.y * top.height / Screen.height);
             local = Root.WorldToLocal(panelPoint);

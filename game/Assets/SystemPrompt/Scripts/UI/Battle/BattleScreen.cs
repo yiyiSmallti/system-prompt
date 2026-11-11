@@ -54,6 +54,7 @@ namespace SystemPrompt.UI
         readonly VisualElement fx;
         VisualElement results;   // the results layer while it is up
         bool finisherShown;      // the 集成 ended on DeepSeek's line, so the results don't repeat it
+        bool hushed;             // the plates are put away (Quiet)
         readonly VisualElement tutorialBox;
         readonly Label tutorialText;
         readonly VisualElement speechBox;
@@ -93,6 +94,7 @@ namespace SystemPrompt.UI
         (string Id, int Count)[] dropped; // what the victory gave, the preemptive bonus included
         public IReadOnlyList<string> FoeKinds => enemies.Select(v => v.Unit.Kind).ToList();
         public int FoesStanding => enemies.Count(v => !v.Unit.Dead);
+        public bool FoeStands(string kind) => enemies.Any(v => !v.Unit.Dead && v.Unit.Kind == kind); // for the end-to-end run
         // A member's HP, max HP and SP in the battle going on, for the end-to-end run's choices.
         public (int Hp, int MaxHp, int Sp) Vital(string id)
         {
@@ -203,6 +205,8 @@ namespace SystemPrompt.UI
             summons = 0;
             calledLastTurn.Clear();
             lastTarget.Clear();
+            numbers.Clear();
+            hushed = false;
             Setup();
             await Intro();
             if (s.Over) return;
@@ -231,10 +235,12 @@ namespace SystemPrompt.UI
             }
         }
 
-        // Every noise body acts once. True when the battle ended there (lost, or abandoned).
+        // Every noise body acts once, after a beat for the party's last blow to play out (the throw, the number, the
+        // way back) and the band that says so. True when the battle ended there (lost, or abandoned).
         async Awaitable<bool> EnemyPhase(Session s)
         {
-            await Banner("敌人的回合");
+            await Anim.Wait(0.2f);
+            await Banner("敌人的回合", true);
             foreach (var view in enemies.Where(v => !v.Unit.Dead).ToList())
             {
                 if (s.Over) return true;
@@ -263,6 +269,7 @@ namespace SystemPrompt.UI
             var units = def.Enemies.Select(Battles.Spawn).ToList();
             DropStage();
             stage = BattleStage.Create(game.State.playerGender, game.State.party, units.Select(u => u.Kind).ToList());
+            SeaFloaters.Stage(stage.transform, stage.Camera); // its shafts and near motes (Dungeon/SeaFloaters.cs)
             foreach (var unit in units) AddEnemy(unit);
 
             var state = game.State;
@@ -286,6 +293,7 @@ namespace SystemPrompt.UI
         {
             unit.HpFloor = def.Tutorial ? 1 : 0;
             var view = new EnemyView(unit, enemyLayer);
+            view.SetQuiet(hushed);
             view.Root.RegisterCallback<PointerEnterEvent>(_ => HoverTarget(view.Unit));
             view.Root.RegisterCallback<ClickEvent>(e =>
             {
@@ -299,10 +307,19 @@ namespace SystemPrompt.UI
         bool AllEnemiesDead => enemies.All(v => v.Unit.Dead);
         bool AllEnemiesDown => enemies.Where(v => !v.Unit.Dead).All(v => v.Unit.Down);
 
+        // The plates are up while the party chooses and put away while anyone acts (EnemyView.SetQuiet); one called
+        // in mid-turn comes in as the others are.
+        void Quiet(bool quiet, bool hideDown = false)
+        {
+            hushed = quiet;
+            foreach (var v in enemies) v.SetQuiet(quiet, hideDown);
+        }
+
         EnemyView ViewOf(Combatant c) => enemies.Find(v => v.Unit == c);
         PartyCard CardOf(Combatant c) => party.Find(p => p.Unit == c);
 
-        // Every frame: the plates onto the noise bodies, wherever the camera has gone.
+        // Every frame: the plates onto the noise bodies and the numbers onto what they landed on, wherever the camera
+        // has gone (a number out of the picture with its body is hidden till it comes back).
         void Pin()
         {
             if (stage == null) return;
@@ -310,6 +327,16 @@ namespace SystemPrompt.UI
             {
                 var shown = OnScreen(stage.FoePoint(i), out var at);
                 enemies[i].Place(at, shown);
+            }
+            for (var i = 0; i < numbers.Count; i++)
+            {
+                var n = numbers[i];
+                if (n.Foe < 0 && n.World == null) continue;
+                var shown = OnScreen(n.Foe >= 0 ? stage.FoePoint(n.Foe) : n.World.Value, out var at);
+                n.Root.style.visibility = shown ? Visibility.Visible : Visibility.Hidden;
+                if (!shown) continue;
+                n.Root.style.left = at.x;
+                n.Root.style.top = at.y - n.Lift;
             }
         }
 
@@ -323,14 +350,22 @@ namespace SystemPrompt.UI
             return local.x > -200f && local.x < GameRoot.Width + 200f && local.y > -200f && local.y < GameRoot.Height + 200f;
         }
 
-        // Where what happens to a party member shows: over their model while the camera has it, else on their card.
-        Vector2 MemberAt(Combatant unit)
+        // Where what happens to someone shows, `at` now: on a noise body's middle on the field; over a party member's
+        // model while the camera has it, else on their card. The point on the field, if it is on one, for Pin.
+        Vector3? Anchor(Combatant c, out Vector2 at)
         {
-            var card = CardOf(unit);
+            var view = ViewOf(c);
+            if (view != null)
+            {
+                at = view.Center;
+                return stage != null ? stage.FoePoint(enemies.IndexOf(view)) : (Vector3?)null;
+            }
+            var card = CardOf(c);
             var i = party.IndexOf(card);
-            if (stage != null && i >= 0 && OnScreen(stage.MemberPoint(i), out var at) && at.x > 80f && at.x < GameRoot.Width - 80f && at.y > 80f && at.y < GameRoot.Height - 80f)
-                return at;
-            return card != null ? CenterOf(card.Root) : new Vector2(1500, 840);
+            if (stage != null && i >= 0 && OnScreen(stage.MemberPoint(i), out at) && at.x > 80f && at.x < GameRoot.Width - 80f && at.y > 80f && at.y < GameRoot.Height - 80f)
+                return stage.MemberPoint(i);
+            at = card != null ? CenterOf(card.Root) : new Vector2(1500, 840);
+            return null;
         }
 
         // 标题党型's weakness tag lies until a hit shows the truth (design/systems.md 假弱点): a hit on its true
@@ -339,6 +374,7 @@ namespace SystemPrompt.UI
         async Awaitable TurnBeats(int turn)
         {
             var s = session;
+            Quiet(false);
             if (turn == 2 && def.Tutorial) await Expose();
             if (!def.Tutorial || s.Over) return;
             var node = Tutorial.HintAtTurnStart(turn);
@@ -360,7 +396,11 @@ namespace SystemPrompt.UI
             if (liars.Count == 0) return;
             Exposures++;
             game.Audio.Sfx("crack");
-            foreach (var v in liars) v.Shatter().Forget();
+            foreach (var v in liars)
+            {
+                v.Peek(0.9f);
+                v.Shatter().Forget();
+            }
             await Anim.Wait(0.6f);
         }
 
@@ -371,6 +411,9 @@ namespace SystemPrompt.UI
             var unit = card.Unit;
             unit.Guarding = false;
             stage?.Unguard(party.IndexOf(card));
+            // Knocked down by a blow since their last turn, they get up now, and can be knocked down again.
+            unit.Down = false;
+            stage?.Rise(party.IndexOf(card));
             card.Refresh();
             var oneMore = false;
             try
@@ -380,6 +423,8 @@ namespace SystemPrompt.UI
                     foreach (var p in party) p.SetActive(p == card);
                     actor = party.IndexOf(card);
                     stage?.Move(stage.Behind(actor), 0.45f);
+                    stage?.Ready(actor, oneMore);
+                    stage?.Facing(actor);
                     var rule = def.Tutorial ? Tutorial.Rule(turn, unit.Id, oneMore) : null;
                     var action = await ChooseAction(unit, rule);
                     if (s.Over || action == null) return false;
@@ -392,7 +437,10 @@ namespace SystemPrompt.UI
                     oneMore = true;
                     game.Audio.Sfx("rise");
                     stage?.Punch(7f, 0.6f);
-                    var stamp = Fx.Stamp(fx, "ONE MORE!", Palette.Green, 120f, -8f, new Vector2(960, 380));
+                    // In the 对抗样本！'s place, clear of the bodies lying there and their DOWN.
+                    ClearWeakStamp();
+                    var spot = OneMoreSpot(out var zoom);
+                    var stamp = Fx.Stamp(fx, "ONE MORE!", Palette.Green, 120f, -8f, spot, zoomFrom: zoom);
                     await Anim.Wait(0.9f);
                     await Fx.Dismiss(stamp);
                     if (def.Tutorial && !oneMoreHintShown)
@@ -407,6 +455,7 @@ namespace SystemPrompt.UI
             {
                 card.SetActive(false);
                 actor = -1;
+                stage?.Ready(-1);
             }
         }
 
@@ -461,6 +510,7 @@ namespace SystemPrompt.UI
 
         void ShowCommands(Combatant unit, TurnRule rule)
         {
+            Quiet(false);
             commandBox.Clear();
             commands.Clear();
             commandIds.Clear();
@@ -556,6 +606,7 @@ namespace SystemPrompt.UI
         {
             var list = candidates.ToList();
             if (list.Count == 0) return null;
+            Quiet(false);
             targets = list;
             aiming = element;
             var who = actor >= 0 ? party[actor].Unit.Id : null;
@@ -588,8 +639,9 @@ namespace SystemPrompt.UI
             var current = targets.Count > 0 ? targets[targetIndex] : null;
             foreach (var v in enemies) v.SetTargeted(v.Unit == current, v.Unit == current ? Forecast(v.Unit) : null);
             foreach (var p in party) p.Root.EnableInClassList("is-targeted", p.Unit == current);
-            // The camera turns over the shoulder to the noise body under the cursor.
+            // The camera turns over the shoulder to the noise body under the cursor, which looks up, wary.
             var foe = enemies.FindIndex(v => v.Unit == current);
+            stage?.Pick(foe);
             if (foe >= 0 && actor >= 0) stage?.Move(stage.Behind(actor, foe), 0.3f);
         }
 
@@ -636,26 +688,30 @@ namespace SystemPrompt.UI
         {
             var card = CardOf(unit);
             var member = party.IndexOf(card);
+            Quiet(true);
             switch (action.Command)
             {
                 case "attack":
                 {
                     var view = ViewOf(action.Target);
-                    await SkillBar(unit, action.Skill.Name);
+                    SkillBar(unit, action.Skill.Name).Forget();
                     card?.Face.Play(FaceAct.Attack);
+                    // Known before the blow, so a miss isn't held; the hit lands on the frame the blow does.
+                    var hit = DamageCalc.Compute(unit, action.Target, action.Skill, def);
                     if (unit.Id == GameState.PlayerId)
                     {
-                        // The player shoots from where they stand, the phone up; DeepSeek runs in and strikes.
+                        // The player shoots from where they stand, the phone up; DeepSeek runs in and strikes, a
+                        // whoosh as each swing comes round.
                         stage?.Shoot(member, enemies.IndexOf(view));
-                        await ScreenshotFx(view, member);
+                        await ScreenshotFx(view, member, hit.Missed);
                     }
-                    else
+                    else if (stage != null)
                     {
-                        if (stage != null) await stage.Dash(member, enemies.IndexOf(view));
-                        await SlashFx(view);
+                        await stage.Dash(member, enemies.IndexOf(view), () => game.Audio.Sfx("whoosh", 0.8f), hit.Missed);
+                        stage.Slash(enemies.IndexOf(view), hit.Missed);
                     }
-                    var hit = DamageCalc.Compute(unit, action.Target, action.Skill, def);
-                    await ApplyHit(action.Target, hit);
+                    else game.Audio.Sfx("whoosh", 0.8f);
+                    await ApplyHit(action.Target, hit, false, true);
                     return hit.KnockedDown;
                 }
                 case "skill":
@@ -675,27 +731,24 @@ namespace SystemPrompt.UI
                         unit.Charged = false;
                         card?.Refresh();
                     }
-                    if (hits.Any(h => h.Item2.Affinity == Affinity.Weak))
-                    {
-                        game.Audio.Sfx("slam");
-                        var stamp = Fx.Stamp(fx, "对抗样本！", Palette.Paper, 110f, -10f, new Vector2(960, 230));
-                        DismissLater(stamp, 1.1f);
-                    }
+                    var stamped = hits.Any(h => h.Item2.Affinity == Affinity.Weak);
+                    if (stamped) WeakStamp(hits.Select(h => h.t), 0.16f);
                     var anyDown = false;
                     foreach (var (t, hit) in hits)
                     {
-                        ApplyHit(t, hit).Forget();
+                        ApplyHit(t, hit, stamped, true).Forget();
                         anyDown |= hit.KnockedDown;
                         await Anim.Wait(0.12f);
                     }
-                    await Anim.Wait(0.7f);
+                    if (!skill.AllTargets && hits[0].Item2.KnockedDown && !action.Target.Dead) stage?.Floored(enemies.IndexOf(ViewOf(action.Target)));
+                    await Aftermath(0.7f);
                     return anyDown;
                 }
                 // Struck where they stand on the field (BattleStage.Think, Guard, UseItem) under the skill bar.
                 case "think":
                 {
                     var posed = stage?.Think(member);
-                    await SkillBar(unit, "深度思考");
+                    SkillBar(unit, "深度思考").Forget();
                     unit.Charged = true;
                     card?.Refresh();
                     stage?.Charged(member, true);
@@ -707,8 +760,8 @@ namespace SystemPrompt.UI
                 {
                     unit.Guarding = true;
                     card?.Refresh();
-                    var posed = stage?.Guard(member);
-                    await SkillBar(unit, "防御");
+                    var posed = stage?.Guard(member, unit.Id == GameState.PlayerId); // the player's things are green
+                    SkillBar(unit, "防御").Forget();
                     if (posed != null) await posed;
                     return false;
                 }
@@ -719,13 +772,13 @@ namespace SystemPrompt.UI
                     if (item.Attacks) return await Throw(unit, item, action.Target);
                     var target = CardOf(action.Target);
                     var posed = stage?.UseItem(member, party.IndexOf(target));
-                    await SkillBar(unit, item.Name);
+                    SkillBar(unit, item.Name).Forget();
                     if (posed != null) await posed; // healed as the rice ball goes
                     var heal = action.Target.Id == "DeepSeek" ? item.HealHpForDeepSeek : item.HealHp;
                     action.Target.Hp = Mathf.Min(action.Target.MaxHp, action.Target.Hp + heal);
                     target?.Refresh();
                     game.Audio.Sfx("levelup", 0.6f);
-                    if (target != null) Popup(MemberAt(target.Unit), $"+{heal}", Palette.Green, null);
+                    if (target != null) Popup(target.Unit, $"+{heal}", Palette.Green, null);
                     await Anim.Wait(0.6f);
                     return false;
                 }
@@ -741,43 +794,174 @@ namespace SystemPrompt.UI
             var member = party.IndexOf(card);
             var view = ViewOf(target);
             var fire = item.Element == Element.Fire;
-            await SkillBar(unit, item.Name);
+            SkillBar(unit, item.Name).Forget();
             card?.Face.Play(FaceAct.Attack);
+            var hit = DamageCalc.Compute(unit, target, Skills.OfItem(item), def);
             if (stage != null)
             {
-                await stage.Toss(member, enemies.IndexOf(view), fire);
+                await stage.Toss(member, enemies.IndexOf(view), fire, hit.Missed);
                 game.Audio.Sfx(fire ? "whoosh" : "water", 0.8f);
             }
             game.Audio.Sfx("crack");
             if (view != null) Fx.Shake(view.Root, 16f, 0.25f);
-            var hit = DamageCalc.Compute(unit, target, Skills.OfItem(item), def);
-            if (hit.Affinity == Affinity.Weak)
-            {
-                game.Audio.Sfx("slam");
-                DismissLater(Fx.Stamp(fx, "对抗样本！", Palette.Paper, 110f, -10f, new Vector2(960, 230)), 1.1f);
-            }
-            await ApplyHit(target, hit);
-            await Anim.Wait(0.3f);
+            if (hit.Affinity == Affinity.Weak) WeakStamp(new[] { target }, 0.16f);
+            await ApplyHit(target, hit, hit.Affinity == Affinity.Weak, true);
+            await Aftermath(0.3f);
             return hit.KnockedDown;
         }
 
-        async Awaitable ApplyHit(Combatant target, Hit hit)
+        // A beat after an action for its numbers and bursts to be seen, but not after the one that won the battle:
+        // Victory waits for its last blow itself (BattleStage.Dying) and goes up while the cubes still fly.
+        Awaitable Aftermath(float seconds) => Anim.Wait(AllEnemiesDead && stage != null ? 0f : seconds);
+
+        // The 对抗样本！ over the blow being dealt, and where it is in the frame from the moment WeakStamp places it.
+        VisualElement weakStamp;
+        Rect? weakArea;
+        int weakStamps;
+
+        // About half a stamp's size at rest on its burst: 对抗样本！ at 110 px, ONE MORE! at 120.
+        static readonly Vector2 StampHalf = new Vector2(360f, 170f);
+        const float OneMoreHalf = 440f, OneMoreHigh = 170f;
+        // The heights ONE MORE! may go at: its own, then over and under it.
+        static readonly float[] OneMoreRows = { 380f, 220f, 560f };
+        // The 集成！ title's band over the middle of the top of the frame (AllOutFx).
+        static readonly Rect AllOutTitle = Rect.MinMaxRect(557f, 0f, 1363f, 367f);
+
+        // 对抗样本！ a beat after the blow (`delay`), so the hit is seen before the stamp: high on the side of the
+        // picture away from what was hit (StampSpot), dropping from less far than the other stamps, as it lands
+        // beside the action, not over it. Not waited for; it goes 1.1 s later, or when ONE MORE! takes its place.
+        void WeakStamp(IEnumerable<Combatant> hit, float delay)
+        {
+            var at = StampSpot(hit, 250f, StampHalf.x, out var angle);
+            var id = ++weakStamps;
+            weakArea = new Rect(at - StampHalf, StampHalf * 2f);
+            Go().Forget();
+
+            async Awaitable Go()
+            {
+                await Anim.Wait(delay);
+                if (id != weakStamps || fx.panel == null) return;
+                game.Audio.Sfx("slam");
+                weakStamp = Fx.Stamp(fx, "对抗样本！", Palette.Paper, 110f, angle, at, zoomFrom: 1.35f);
+                await DismissAfter(weakStamp, 1.1f);
+                if (id != weakStamps) return;
+                weakStamp = null;
+                weakArea = null;
+            }
+        }
+
+        void ClearWeakStamp()
+        {
+            weakStamps++;
+            Fx.Dismiss(weakStamp).Forget();
+            weakStamp = null;
+            weakArea = null;
+        }
+
+        // Where a stamp `half` wide either way goes over a blow, `y` down the frame: on the side of the picture away
+        // from the noise bodies `on`, clear of their plates, numbers and kill windows (all within about 140 px of
+        // their middles), and on the picture; on the side with more room, the right when even. `angle` leans it
+        // toward the middle.
+        Vector2 StampSpot(IEnumerable<Combatant> on, float y, float half, out float angle)
+        {
+            var xs = on.Select(ViewOf).Where(v => v != null).Select(v => v.Center.x).DefaultIfEmpty(GameRoot.Width / 2f).ToList();
+            const float Clear = 180f;
+            var left = Mathf.Max(half + 10f, Mathf.Min(110f + half, xs.Min() - Clear - half));
+            var right = Mathf.Min(GameRoot.Width - half - 10f, Mathf.Max(GameRoot.Width - 110f - half, xs.Max() + Clear + half));
+            var toRight = right - half - xs.Max() >= xs.Min() - left - half;
+            angle = toRight ? -10f : 8f;
+            return new Vector2(toRight ? right : left, y);
+        }
+
+        // Where ONE MORE! goes: where StampSpot puts it, unless that covers a noise body lying knocked down, its plate
+        // or its DOWN; a body lying in a close shot lies well beside its plate and can fill half the picture
+        // (BattleStage.FoeOnScreen). Then wherever across the picture, at that height or over or under it, covers
+        // least of them, the nearest to that first place of those about as clear. `zoomFrom`: how far it drops from,
+        // no more than its nearest edge leaves room for, so the frame never cuts it.
+        Vector2 OneMoreSpot(out float zoomFrom)
+        {
+            var downed = new List<int>();
+            for (var i = 0; i < enemies.Count; i++)
+                if (enemies[i].Unit.Down && !enemies[i].Unit.Dead) downed.Add(i);
+            var first = StampSpot(downed.Select(i => enemies[i].Unit), OneMoreRows[0], OneMoreHalf, out _);
+            var keep = new List<Rect>();
+            foreach (var i in downed)
+            {
+                var c = enemies[i].Center;
+                keep.Add(new Rect(c.x - 180f, c.y - 140f, 360f, 280f)); // its plate, numbers and DOWN
+                if (stage == null || Root.panel == null || !stage.FoeOnScreen(i, out var body)) continue;
+                var top = Root.panel.visualTree.layout;
+                var scale = new Vector2(top.width / Screen.width, top.height / Screen.height);
+                Vector2 a = Root.WorldToLocal(Vector2.Scale(body.min, scale)), b = Root.WorldToLocal(Vector2.Scale(body.max, scale));
+                keep.Add(Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y)));
+            }
+            var half = new Vector2(OneMoreHalf, OneMoreHigh);
+            var at = first;
+            if (Covered(first) > 0f)
+            {
+                var best = Mathf.Round(Covered(first) / 4000f) * 1e6f;
+                foreach (var y in OneMoreRows)
+                for (var col = 0; col <= 8; col++)
+                {
+                    var p = new Vector2(Mathf.Lerp(half.x + 10f, GameRoot.Width - half.x - 10f, col / 8f), y);
+                    // About as clear (to 4000 px²) counts as clear, then the nearest wins.
+                    var score = Mathf.Round(Covered(p) / 4000f) * 1e6f + (p - first).magnitude;
+                    if (score < best)
+                    {
+                        best = score;
+                        at = p;
+                    }
+                }
+            }
+            var room = Mathf.Min(Mathf.Min(at.x, GameRoot.Width - at.x) / half.x, Mathf.Min(at.y, GameRoot.Height - at.y) / half.y);
+            zoomFrom = Mathf.Clamp(room, 1f, 2.4f);
+            return at;
+
+            float Covered(Vector2 p)
+            {
+                var r = new Rect(p - half, half * 2f);
+                var sum = 0f;
+                foreach (var k in keep)
+                {
+                    float w = Mathf.Min(r.xMax, k.xMax) - Mathf.Max(r.xMin, k.xMin), h = Mathf.Min(r.yMax, k.yMax) - Mathf.Max(r.yMin, k.yMin);
+                    if (w > 0f && h > 0f) sum += w * h;
+                }
+                return sum;
+            }
+        }
+
+        // The stamp up over this blow in the viewport (y up), for a kill's window to keep clear of: the 对抗样本！
+        // where WeakStamp put it, else the 集成！ title.
+        Rect StampViewport()
+        {
+            var a = weakArea ?? AllOutTitle;
+            if (Root.panel == null) return Rect.MinMaxRect(a.xMin / GameRoot.Width, 1f - a.yMax / GameRoot.Height, a.xMax / GameRoot.Width, 1f - a.yMin / GameRoot.Height);
+            var top = Root.panel.visualTree.layout;
+            Vector2 lo = Root.LocalToWorld(new Vector2(a.xMin, a.yMax)), hi = Root.LocalToWorld(new Vector2(a.xMax, a.yMin));
+            return Rect.MinMaxRect(lo.x / top.width, 1f - lo.y / top.height, hi.x / top.width, 1f - hi.y / top.height);
+        }
+
+        // `stamped`: a stamp is up for this blow (StampViewport: BattleStage.Vanish keeps the kill's window clear of it).
+        // `finisher`: a party member's own blow (not the 集成's): its target's plate flashes up through the quiet, and
+        // it gets the kill shot when it leaves no noise body standing (BattleStage.Finish; of several falling to one
+        // skill, the last of them).
+        async Awaitable ApplyHit(Combatant target, Hit hit, bool stamped = false, bool finisher = false)
         {
             var view = ViewOf(target);
             var card = CardOf(target);
-            var at = view != null ? view.Center : card != null ? MemberAt(card.Unit) : new Vector2(960, 540);
             if (hit.Missed)
             {
-                Popup(at, "MISS", Palette.Gray, null);
+                Popup(target, "MISS", Palette.Gray, null);
                 return;
             }
             target.Hp = Mathf.Max(target.HpFloor, target.Hp - hit.Damage);
             var tag = hit.Critical ? "CRITICAL" : hit.Affinity switch { Affinity.Weak => "WEAK", Affinity.Resist => "RESIST", Affinity.Null => "BLOCK", _ => null };
-            Popup(at, hit.Damage.ToString(), Palette.Paper, tag);
+            Popup(target, hit.Damage.ToString(), view != null ? Palette.Paper : Palette.Red, tag);
             game.Audio.Sfx(hit.Affinity == Affinity.Weak || hit.Critical ? "crack" : "slap", 0.8f);
             if (view != null)
             {
                 var foe = enemies.IndexOf(view);
+                if (finisher) view.Peek(0.8f);
                 // What the hit showed stays on its plate (耐性), and one on the true weakness gives the lie away. One
                 // on the element the tag names that turns out resisted shows the tag lied, not what the truth is.
                 if (hit.Affinity != Affinity.Normal) target.Known.Add(hit.Element);
@@ -801,7 +985,9 @@ namespace SystemPrompt.UI
                 }
                 if (target.Dead)
                 {
-                    stage?.Vanish(foe).Forget();
+                    Rect? stamp = stamped ? StampViewport() : null;
+                    if (finisher && AllEnemiesDead) stage?.Finish(foe, actor, stamp).Forget();
+                    else stage?.Vanish(foe, stamp).Forget();
                     await view.Die();
                 }
             }
@@ -811,7 +997,7 @@ namespace SystemPrompt.UI
                 card.Refresh();
                 card.Shake();
                 card.Face.Play(FaceAct.Hit);
-                stage?.Recoil(member);
+                stage?.Recoil(member, hit.KnockedDown && !target.Dead);
                 if (target.Dead) stage?.Faint(member, true);
                 if (hit.KnockedDown) target.Down = true;
             }
@@ -822,6 +1008,7 @@ namespace SystemPrompt.UI
         {
             var e = view.Unit;
             var foe = enemies.IndexOf(view);
+            Quiet(true);
             if (e.Down)
             {
                 stage?.Move(stage.Watch(foe), 0.4f);
@@ -830,7 +1017,7 @@ namespace SystemPrompt.UI
                 view.SetDown(false);
                 stage?.Down(foe, false);
                 calledLastTurn.Remove(e);
-                await Anim.Wait(0.4f);
+                await Anim.Wait(0.55f);
                 return;
             }
             // 转发型 calls in a 标题党型 every other turn while the line has room (design/systems.md; never in the
@@ -849,6 +1036,7 @@ namespace SystemPrompt.UI
             // At one member: in behind them, the noise body over them; at the party: beside them, at it.
             if (victims.Count == 1) stage?.Move(stage.Threat(foe, party.IndexOf(victims[0])), 0.35f);
             else stage?.Move(stage.Watch(foe), 0.4f);
+            stage?.Brace(foe, victims.Count == 1 ? party.IndexOf(victims[0]) : -1); // winds up under its skill's name
             await EnemyBar(view, skill.Name);
             await StrikeFx(view, skill, victims);
             foreach (var card in victims)
@@ -864,6 +1052,7 @@ namespace SystemPrompt.UI
         {
             var from = enemies.IndexOf(caller);
             stage?.Move(stage.Watch(from), 0.4f);
+            stage?.Brace(from);
             await EnemyBar(caller, "转发到十个群");
             var unit = Battles.Spawn(Battles.Summoned);
             unit.Summoned = true;
@@ -883,12 +1072,18 @@ namespace SystemPrompt.UI
         {
             var s = session;
             game.Audio.Sfx("slam");
+            Quiet(false); // every DOWN in view for the hold-up
             stage?.Move(stage.HoldUp, 0.6f);
+            stage?.Cower(true);
             var stamp = Fx.Stamp(fx, "全员倒地！", Palette.Paper, 120f, -6f, new Vector2(960, 300));
             await Anim.Wait(1f);
             await Fx.Dismiss(stamp);
             if (def.Tutorial && !s.Over) await story.RunHint(Tutorial.AllOutHint, this);
-            if (s.Over) return false;
+            if (s.Over)
+            {
+                stage?.Cower(false);
+                return false;
+            }
 
             promptMenu.SetEnabled(1, !def.Tutorial);
             promptMenu.Select(0, false);
@@ -896,23 +1091,38 @@ namespace SystemPrompt.UI
             Anim.Tween(0.2f, t => Ui.Zoom(promptBox, Mathf.Lerp(1.4f, 1f, t)), Ease.OutBack).Forget();
             var choice = await WaitPick(Mode.Prompt);
             Ui.Show(promptBox, false);
+            stage?.Cower(false);
             if (s.Over || choice != 0) return false;
 
             var participants = party.Where(p => !p.Unit.Dead).Select(p => p.Unit).ToList();
+            foreach (var u in participants) u.Down = false; // up for it, knocked down or not (BattleStage.AllOut)
             var damage = participants.Sum(u => Mathf.RoundToInt(u.Str + u.Mag)) * 4;
+            Quiet(true, true);
             await AllOutFx(participants, damage);
+            if (!AllEnemiesDead) Quiet(false);
             return AllEnemiesDead;
         }
 
         async Awaitable Victory()
         {
             var s = session;
+            // The noise bodies burst first; the battle's last blow is seen a moment, its cubes still flying under the
+            // camera going up behind the party (BattleStage.Dying).
+            while (stage != null && stage.Dying && !s.Over) await Awaitable.NextFrameAsync();
             stage?.Move(stage.Victory, 1.2f); // up behind the party, under the results
-            stage?.Cheer();
+            var shutter = stage != null ? stage.Cheer() : -1f;
             foreach (var card in party.Where(c => !c.Unit.Dead)) card.Face.Play(FaceAct.Victory);
-            await Anim.Wait(1.2f); // the cards' faces win before the results cover them
+            // The cards' faces win before the results cover them; the player's phone takes the field on the way.
+            if (shutter >= 0f)
+            {
+                await Anim.Wait(shutter);
+                if (s.Over) return;
+                game.Audio.Sfx("shutter", 0.5f);
+            }
+            await Anim.Wait(1.2f - Mathf.Max(0f, shutter));
             if (s.Over) return;
             var rewards = ApplyRewards();
+            game.ResultsMusic();
             await ResultsFx(rewards);
             if (s.Over) return;
             picked = NoPick;

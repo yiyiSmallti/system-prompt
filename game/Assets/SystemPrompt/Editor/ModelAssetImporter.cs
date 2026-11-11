@@ -53,17 +53,15 @@ namespace SystemPrompt.EditorTools
             importer.importAnimation = true;
         }
 
-        // The battle's motions (Tripo presets and one AI motion on the battle coat, one per file, Dungeon/BattleStage.cs):
-        // the part of each take that is used, in seconds (to 0: up to the end), and whether it loops. The slash's
-        // and the cast's lead-in and settling back are cut, and the shot starts once she is down on one knee (the
-        // roll before it went two metres). Their travel across the floor is dropped, not baked into the pose, so
-        // each plays where the figure stands: taken from the body's centre of mass, since Tripo's rig carries it
-        // on the hips and leaves the root node where it was (from the root node, the shot ran four metres on).
+        // The battle's motions from Tripo (on the battle coat, one per file, Dungeon/BattleStage.cs): the part of each
+        // take that is used, in seconds (to 0: up to the end), and whether it loops. The cast's lead-in and settling
+        // back are cut: it starts from the gathering just before the palm goes out (at 2.85 s), so she is casting half
+        // a second in (BattleStage.CastLands). Its travel across the floor is dropped, not baked into the pose, so it
+        // plays where the figure stands: taken from the body's centre of mass, since Tripo's rig carries it on the
+        // hips and leaves the root node where it was.
         static readonly Dictionary<string, (float from, float to, bool loop)> Battle = new Dictionary<string, (float, float, bool)>
         {
-            ["Slash"] = (0.9f, 3.6f, false),
-            ["Cast"] = (0.8f, 4.4f, false),
-            ["Cheer"] = (0f, 0f, true),
+            ["Cast"] = (1.95f, 4.4f, false),
         };
 
         void OnPreprocessAnimation()

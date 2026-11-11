@@ -30,6 +30,10 @@ namespace SystemPrompt.Dungeon
     // low walls are made of, the kelp, and what lies around.
     public enum ZoneStyle { Channel, Reef, Coral, Graveyard, Ridge, Canyon, Plaza, Rift, Servers, RecycleBin, Context, WhiteHall }
 
+    // How the two leave an area at its goal (DungeonWorld.Depart): the lighthouse's light turned on them from the lamp
+    // over them (the shallows), or a column of light coming up under their feet (the deep).
+    public enum Departure { None, Lamp, Column }
+
     // A named part of an area. The first zone whose rectangle holds a cell owns it; entering one shows its
     // name, and the first time its story node (if any) runs.
     public sealed class ZoneDef
@@ -39,6 +43,7 @@ namespace SystemPrompt.Dungeon
         public RectInt Cells;   // map cells, x right and y down as in the map rows
         public ZoneStyle Style;
         public string Node;
+        public SeaAir? Air;     // its water, where it differs from the area's (SeaAtmos)
     }
 
     // One latent-space area (design/systems.md 潜空间探索). The map is read top row first; north is up.
@@ -63,10 +68,21 @@ namespace SystemPrompt.Dungeon
         public string[] Map;
         public ZoneDef[] Zones = new ZoneDef[0];
         public bool Meter;        // 维护进度 runs (100% ends the night)
+        public string Music = "sea"; // Resources/Audio/BGM
         public float MeterStart;
         public float ChaseSpeed = 5.1f; // the noise bodies' speed after the player, metres a second (SeaNoise)
         public Color Lighthouse;  // the lamp's colour: cold white while the shadow is there
         public Vector2 LighthouseCell; // may lie outside the map
+        // Degrees the lighthouse's two beams point down from level: tilted, they come down to the seabed and sweep
+        // over it and the racks (SeaCommon.cginc SeaBeam); 0, level over everything, lighting nothing.
+        public float BeamTilt;
+        public Departure Departure;
+        // Near the surface (the shallows): the sea's lost things drift thick at the height of the racks' tops and
+        // shafts of light come down round the lighthouse (DungeonWorld.BuildAmbience).
+        public bool NearSurface;
+        public Vector2[] Vents = new Vector2[0]; // cells (fractions toward a wall) a column of bubbles rises from
+        public float Caustics = 1f; // how much of the surface's light net reaches the seabed here (SeaCommon.cginc SeaCaustic)
+        public SeaAir Air = SeaAtmos.None; // its water: fog, mist, the lens's grade (SeaAtmos); a zone may have its own
         // The area's scenery modelled in Blender (assets/scenes/<id>/, Dungeon/SeaScene.cs): Resources path of
         // its FBX, with _outer and _drift beside it. Null: the racks and the zones' things are built in code.
         public string Scene;
@@ -146,17 +162,38 @@ namespace SystemPrompt.Dungeon
                 },
                 Zones = new[]
                 {
-                    new ZoneDef { Name = "气泡礁", Tag = "BUBBLE REEF", Cells = new RectInt(12, 18, 5, 5), Style = ZoneStyle.Reef },
+                    new ZoneDef { Name = "气泡礁", Tag = "BUBBLE REEF", Cells = new RectInt(12, 18, 5, 5), Style = ZoneStyle.Reef,
+                        Air = SeaAtmos.Shallows.With(fog: "#062026") },
                     new ZoneDef { Name = "主航道", Tag = "MAIN CHANNEL", Cells = new RectInt(10, 10, 8, 8), Style = ZoneStyle.Channel },
-                    new ZoneDef { Name = "灯塔广场", Tag = "LIGHTHOUSE", Cells = new RectInt(10, 2, 9, 8), Style = ZoneStyle.Plaza },
-                    new ZoneDef { Name = "灯塔背面", Tag = "BEHIND THE LIGHT", Cells = new RectInt(10, 0, 9, 2), Style = ZoneStyle.Ridge, Node = "Prologue_Sea_Zone_Ridge" },
-                    new ZoneDef { Name = "表情包珊瑚林", Tag = "EMOJI CORAL", Cells = new RectInt(0, 10, 10, 13), Style = ZoneStyle.Coral, Node = "Prologue_Sea_Zone_Coral" },
-                    new ZoneDef { Name = "删帖墓地", Tag = "DELETED POSTS", Cells = new RectInt(0, 0, 10, 10), Style = ZoneStyle.Graveyard, Node = "Prologue_Sea_Zone_Graveyard" },
-                    new ZoneDef { Name = "维护间", Tag = "MAINTENANCE", Cells = new RectInt(18, 11, 11, 7), Style = ZoneStyle.Canyon, Node = "Prologue_Sea_Zone_Maintenance" },
-                    new ZoneDef { Name = "机柜峡谷", Tag = "RACK CANYON", Cells = new RectInt(19, 0, 10, 11), Style = ZoneStyle.Canyon, Node = "Prologue_Sea_Zone_Canyon" },
+                    new ZoneDef { Name = "灯塔广场", Tag = "LIGHTHOUSE", Cells = new RectInt(10, 2, 9, 8), Style = ZoneStyle.Plaza,
+                        Air = SeaAtmos.Shallows.With(fog: "#0A1830", density: 0.015f) }, // clear round the lighthouse
+                    new ZoneDef { Name = "灯塔背面", Tag = "BEHIND THE LIGHT", Cells = new RectInt(10, 0, 9, 2), Style = ZoneStyle.Ridge, Node = "Prologue_Sea_Zone_Ridge",
+                        Air = SeaAtmos.Shallows.With(fog: "#0A0E22") },
+                    new ZoneDef { Name = "表情包珊瑚林", Tag = "EMOJI CORAL", Cells = new RectInt(0, 10, 10, 13), Style = ZoneStyle.Coral, Node = "Prologue_Sea_Zone_Coral",
+                        Air = SeaAtmos.Shallows.With(fog: "#160A1E") },
+                    new ZoneDef { Name = "删帖墓地", Tag = "DELETED POSTS", Cells = new RectInt(0, 0, 10, 10), Style = ZoneStyle.Graveyard, Node = "Prologue_Sea_Zone_Graveyard",
+                        Air = SeaAtmos.Shallows.With(fog: "#120810", mist: 0.9f, saturation: 0.85f, shadow: "#2A0A10", shadowAmount: 0.07f) },
+                    new ZoneDef { Name = "维护间", Tag = "MAINTENANCE", Cells = new RectInt(18, 11, 11, 7), Style = ZoneStyle.Canyon, Node = "Prologue_Sea_Zone_Maintenance",
+                        // Its own room in the canyon: steel-grey still water, clear and without the blue cast, so the orange
+                        // sockets and gate stay the warmest things in it and the beacon's blue and green still read; little of
+                        // the racks' cyan pools on its floor.
+                        Air = SeaAtmos.Shallows.With(fog: "#0A1418", surface: "#4A7E8E", density: 0.016f, mist: 0.2f, saturation: 1f, shadow: "#0E1A1C", shadowAmount: 0.06f,
+                            spill: 0.25f) },
+                    new ZoneDef { Name = "机柜峡谷", Tag = "RACK CANYON", Cells = new RectInt(19, 0, 10, 11), Style = ZoneStyle.Canyon, Node = "Prologue_Sea_Zone_Canyon",
+                        Air = SeaAtmos.Shallows.With(fog: "#04121E", density: 0.021f) },
                 },
                 Lighthouse = new Color(0.86f, 0.92f, 1f),
                 LighthouseCell = new Vector2(14f, 3.5f),
+                BeamTilt = 32f,
+                Departure = Departure.Lamp,
+                NearSurface = true,
+                Air = SeaAtmos.Shallows,
+                // Against the reef's walls, either side of the sunken phone and of the way up to the lighthouse.
+                Vents = new[]
+                {
+                    new Vector2(12.7f, 19.3f), new Vector2(15.3f, 19.6f), new Vector2(13.7f, 18.2f), new Vector2(15.3f, 20.4f),
+                    new Vector2(12f, 13f), new Vector2(16f, 13f), new Vector2(12f, 6f), new Vector2(16f, 6f),
+                },
                 Scene = "Scenes/CacheSeaShallows/cache_sea_shallows",
                 StartNode = "Prologue_Sea_Start",
                 SpottedNode = "Prologue_Sea_Spotted",
@@ -203,6 +240,9 @@ namespace SystemPrompt.Dungeon
             ["cache_sea_deep"] = new DungeonDef
             {
                 Id = "cache_sea_deep", Area = "缓存海", Layer = "深层", LayerTag = "DEEP",
+                Music = "deep", // colder, with a clock ticking in it: the maintenance is running out
+                Caustics = 0.45f,
+                Air = SeaAtmos.Deep,
                 Objective = "在维护结束前找到出口",
                 Map = new[]
                 {
@@ -234,17 +274,25 @@ namespace SystemPrompt.Dungeon
                 },
                 Zones = new[]
                 {
-                    new ZoneDef { Name = "裂缝", Tag = "THE RIFT", Cells = new RectInt(12, 19, 5, 6), Style = ZoneStyle.Rift },
-                    new ZoneDef { Name = "沉没机房", Tag = "SUNKEN SERVERS", Cells = new RectInt(8, 9, 13, 10), Style = ZoneStyle.Servers },
-                    new ZoneDef { Name = "长上下文回廊", Tag = "LONG CONTEXT", Cells = new RectInt(21, 2, 8, 21), Style = ZoneStyle.Context, Node = "Prologue_Deep_Zone_Context" },
-                    new ZoneDef { Name = "白门", Tag = "WHITE DOOR", Cells = new RectInt(8, 0, 13, 9), Style = ZoneStyle.WhiteHall, Node = "Prologue_Deep_Zone_WhiteDoor" },
-                    new ZoneDef { Name = "回收站", Tag = "RECYCLE BIN", Cells = new RectInt(0, 0, 8, 25), Style = ZoneStyle.RecycleBin, Node = "Prologue_Deep_Zone_Bin" },
+                    new ZoneDef { Name = "裂缝", Tag = "THE RIFT", Cells = new RectInt(12, 19, 5, 6), Style = ZoneStyle.Rift,
+                        Air = SeaAtmos.Deep.With(fog: "#181221", density: 0.019f, shadow: "#3A0A08", shadowAmount: 0.08f) },
+                    new ZoneDef { Name = "沉没机房", Tag = "SUNKEN SERVERS", Cells = new RectInt(8, 9, 13, 10), Style = ZoneStyle.Servers,
+                        Air = SeaAtmos.Deep.With(shadow: "#2A1A08", shadowAmount: 0.06f) },
+                    new ZoneDef { Name = "长上下文回廊", Tag = "LONG CONTEXT", Cells = new RectInt(21, 2, 8, 21), Style = ZoneStyle.Context, Node = "Prologue_Deep_Zone_Context",
+                        Air = SeaAtmos.Deep.With(fog: "#121436", surface: "#3A62B8") },
+                    new ZoneDef { Name = "白门", Tag = "WHITE DOOR", Cells = new RectInt(8, 0, 13, 9), Style = ZoneStyle.WhiteHall, Node = "Prologue_Deep_Zone_WhiteDoor",
+                        // 海水忽然变得很亮: the light from the door fills the water.
+                        Air = SeaAtmos.Deep.With(fog: "#1B3A66", surface: "#8CC4FF", density: 0.012f, lift: 1f, mist: 0.3f, saturation: 1f,
+                            shadow: "#1E3A60", shadowAmount: 0.1f, vignette: 0f, gain: Vector3.one) },
+                    new ZoneDef { Name = "回收站", Tag = "RECYCLE BIN", Cells = new RectInt(0, 0, 8, 25), Style = ZoneStyle.RecycleBin, Node = "Prologue_Deep_Zone_Bin",
+                        Air = SeaAtmos.Deep.With(fog: "#0E141C", surface: "#4A6A86", density: 0.02f, saturation: 0.75f) },
                 },
                 Meter = true,
                 MeterStart = 15f,
                 ChaseSpeed = 6.5f,
                 Lighthouse = new Color(0.45f, 0.72f, 1f),
                 LighthouseCell = new Vector2(14f, 29f),
+                Departure = Departure.Column,
                 Scene = "Scenes/CacheSeaDeep/cache_sea_deep",
                 Plates = "|/|\\",
                 StartNode = "Prologue_Deep_Start",

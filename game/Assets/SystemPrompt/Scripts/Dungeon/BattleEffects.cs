@@ -11,19 +11,22 @@ namespace SystemPrompt.Dungeon
     // splitting arrows; lines of light at a weakness; light trails behind whoever dashes, pillars of light, and
     // the whale of the 集成. Nearly all of it is additive light on the Glow shader (the whale on Holo, the ice on
     // Ice, the can and the windows solid on Toon), made in code and gone once played. The field is drawn in HDR
-    // and glows (BattleGlow): the hot middles of the effects go past white and bloom, their bodies stay under
+    // and glows (SeaLens): the hot middles of the effects go past white and bloom, their bodies stay under
     // it. Smoke is drawn over what is behind it, to stand the flames out against. The flares light the noise
-    // bodies, the figures and the seabed round them (Light, SeaFlash in Shaders/SeaCommon.cginc).
+    // bodies, the figures and the seabed round them (Light, SeaFlash in Shaders/SeaCommon.cginc). Glow multiplies
+    // its colour by its own alpha, so a colour times k shines k² as bright: Hot sets brightness and fading apart.
     sealed class BattleEffects
     {
         readonly Transform parent;
         readonly Camera camera;
-        readonly Material white, ring, beam, bubble, glint, flake; // shared; arcs and lances fade by vertex colour
-        readonly Material spark, trail, glare, wave, flame, smoke; // the HDR ones; glare, wave, smoke copied for each use
+        readonly Material white, ring, bubble, glint, spikes, flake; // shared; arcs and lances fade by vertex colour
+        readonly Material spark, trail, glare, glareCore, wave, flame, flameSheet, fog, smoke; // the HDR ones; glares, wave, smoke copied for each use
         readonly Mesh quad; // the rings' and flashes'
         // Made the first time they are wanted.
         Mesh lance, ice, shard, frame, arrow, can, rim, strip, adChrome, adPage, adBar, cardFace, cardStripe;
-        Material canLook, rimLook, stripLook, chrome, page, bar, cardLook, cardInk;
+        Material canLook, rimLook, stripLook, chrome, page, bar, cardLook, cardInk, shardLook, swipeLook, mote;
+        MaterialPropertyBlock gain; // the thoughts' words lit past white (Text.shader _Gain)
+        static readonly int GainId = Shader.PropertyToID("_Gain");
         GameObject whale;
 
         public BattleEffects(Transform parent, Camera camera)
@@ -32,15 +35,18 @@ namespace SystemPrompt.Dungeon
             this.camera = camera;
             white = SeaArt.Glow(SeaArt.White, Color.white);
             ring = SeaArt.Glow(SeaArt.Ring, Color.white);
-            beam = SeaArt.Glow(SeaArt.Beam, Color.white);
             bubble = SeaArt.Glow(SeaArt.Bubble, Color.white);
             glint = SeaArt.Glow(SeaArt.Flare, Color.white);
+            spikes = SeaArt.Glow(SeaArt.Spikes, Color.white);
             flake = SeaArt.Glow(SeaArt.Snow, Color.white * 1.4f);
             spark = SeaArt.Glow(SeaArt.Spark, Color.white * 2.2f);
             trail = SeaArt.Glow(SeaArt.Across, Color.white * 1.2f);
             glare = SeaArt.Glow(SeaArt.Glare, Color.white);
+            glareCore = SeaArt.Glow(SeaArt.GlareCore, Color.white);
             wave = SeaArt.Glow(SeaArt.Wave, Color.white);
             flame = SeaArt.Glow(SeaArt.Puff, Color.white * 1.8f);
+            flameSheet = SeaArt.Glow(SeaArt.PuffSheet, Color.white * 1.8f); // made here, not when the 辣条 lands: it takes a moment
+            fog = SeaArt.Glow(SeaArt.Puff, Color.white * 0.8f); // a glow of mist that stays under the glow's threshold, however thick
             smoke = SeaArt.Glow(SeaArt.Puff, Color.white);
             smoke.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             smoke.renderQueue = 2990; // under the light drawn with it
@@ -51,9 +57,9 @@ namespace SystemPrompt.Dungeon
         // goes with the field, and so does its light.
         public void Dispose()
         {
-            foreach (var o in new Object[] { white, ring, beam, bubble, glint, flake, spark, trail, glare, wave, flame, smoke, quad, lance, ice, shard,
+            foreach (var o in new Object[] { white, ring, bubble, glint, spikes, flake, spark, trail, glare, glareCore, wave, flame, flameSheet, fog, smoke, quad, lance, ice, shard,
                          frame, arrow, can, rim, strip, adChrome, adPage, adBar, cardFace, cardStripe, canLook, rimLook, stripLook, chrome, page, bar,
-                         cardLook, cardInk })
+                         cardLook, cardInk, shardLook, swipeLook, mote })
                 if (o != null) Object.Destroy(o);
             glims.Clear();
             Shader.SetGlobalColor("_SeaFlashColor", Color.clear);
@@ -71,6 +77,12 @@ namespace SystemPrompt.Dungeon
 
         readonly List<Glim> glims = new List<Glim>();
         const float MaxLight = 0.8f;
+
+        // 减弱闪光 in the settings (「降低命中、转场时闪白的亮度」), read at every flash so a change mid-battle holds at
+        // once: the glares, glints and shock waves dimmed (a Flash's heat 0.55, which the glow shader squares to
+        // about a third, like the 2D Fx.Flash's 0.25 against 0.9) and kept short of burning past white, and the light
+        // they throw on the field kept to half.
+        internal static bool Calm => GameRoot.Instance != null && GameRoot.Instance.Settings.reduceFlash;
 
         // A flare of light at `at` (its colour past 1 for a bright one), reaching `radius` metres: there at
         // once and dying away over `seconds`.
@@ -120,12 +132,133 @@ namespace SystemPrompt.Dungeon
                 radius /= weight;
             }
             Shader.SetGlobalVector("_SeaFlashPos", new Vector4(at.x, at.y, at.z, Mathf.Max(radius, 0.01f)));
-            var over = sum.maxColorComponent / MaxLight;
+            var over = sum.maxColorComponent / (Calm ? MaxLight * 0.5f : MaxLight);
             if (over > 1f) sum /= over;
             Shader.SetGlobalColor("_SeaFlashColor", new Color(sum.r, sum.g, sum.b, 0f));
         }
 
         // ------------------------------------------------------------------ slash
+
+        // The 饭勺's blade of water (BattleStage.Dash): a ribbon swept along the path the spoon swings through, from
+        // its bowl (`inner`) out past its tip (`outer`) by `reach`, the freshest of it bright and its outer edge the
+        // brightest, streaked along the swing. Kept in the space of the one swinging it (`body`) and laid only while
+        // the spoon moves fast in that space: a run, a turn or a jump carries the ribbon along instead of smearing it
+        // out behind her as a white sheet, and draws none of its own. Each part of it is gone 0.14 s after it was
+        // swept, by `clock` (the field's, so a hit-stop holds it). Once released it ends as the last of it ages out.
+        public Held Swipe(Transform inner, Transform outer, Transform body, Color color, System.Func<float> clock, float reach = 0.6f)
+        {
+            const int Samples = 24, Steps = 3; // Steps: rows per pair of samples, two of them curved in between
+            // A sample kept once per Gap of the clock, whatever the frame rate, so Samples always reach past Life.
+            const float Life = 0.14f, Gap = Life / (Samples - 3);
+            // A spoon come apart or renamed would otherwise just draw nothing.
+            if (inner == null || outer == null || body == null) Debug.LogError("Swipe: no bowl, tip or body to sweep with");
+            swipeLook ??= SeaArt.Glow(SeaArt.Swipe, Color.white * 1.6f); // its outer edge past the threshold while fresh
+            var held = new Held();
+            var mesh = new Mesh { name = "Swipe" };
+            mesh.MarkDynamic();
+            var shape = Parts.Shape("Swipe", parent, mesh, swipeLook);
+            var rim = new Vector3[Samples];
+            var edge = new Vector3[Samples];
+            var born = new float[Samples];
+            var power = new float[Samples];
+            var rows = (Samples - 1) * Steps + 1;
+            var vertices = new Vector3[rows * 2];
+            var colors = new Color[rows * 2];
+            var uvs = new Vector2[rows * 2];
+            var triangles = new int[(rows - 1) * 6];
+            var fresh = Color.Lerp(color, Color.white, 0.4f);
+            var old = color * 0.8f;
+            Sweep().Forget();
+            return held;
+
+            async Awaitable Sweep()
+            {
+                int head = 0, count = 0;
+                var last = clock();
+                var kept = 0f;
+                Vector3 lastEdge = default;
+                var started = false;
+                while (shape != null && inner != null && outer != null && body != null)
+                {
+                    var now = clock();
+                    var dt = now - last;
+                    if (!held.Released && dt > 0f)
+                    {
+                        var a = body.InverseTransformPoint(inner.position);
+                        var b = body.InverseTransformPoint(outer.position + (outer.position - inner.position).normalized * reach);
+                        var speed = started ? (b - lastEdge).magnitude / dt : 0f;
+                        started = true;
+                        lastEdge = b;
+                        // A new sample once Gap has gone by since the last was kept; till then the newest follows the
+                        // spoon, so the ribbon still reaches it every frame.
+                        if (count == 0 || now - kept >= Gap)
+                        {
+                            kept = now;
+                            head = (head + 1) % Samples;
+                            count = Mathf.Min(count + 1, Samples);
+                        }
+                        var i = (head - 1 + Samples) % Samples;
+                        rim[i] = a;
+                        edge[i] = b;
+                        born[i] = now;
+                        power[i] = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3f, 9f, speed));
+                    }
+                    last = now;
+                    // The samples still alive, newest back; they age in order.
+                    var alive = 0;
+                    while (alive < count && now - born[(head - 1 - alive + Samples * 2) % Samples] < Life) alive++;
+                    if (held.Released && alive == 0) break;
+                    Lay(alive, head, now);
+                    await Awaitable.NextFrameAsync();
+                }
+                if (shape != null) Object.Destroy(shape.gameObject);
+                Object.Destroy(mesh);
+            }
+
+            // The ribbon through the `alive` newest samples, oldest first, curved through them (Catmull-Rom).
+            void Lay(int alive, int head, float now)
+            {
+                mesh.Clear();
+                if (alive < 2) return;
+                int Index(int k) => (head - alive + Mathf.Clamp(k, 0, alive - 1) + Samples * 2) % Samples;
+                var n = 0;
+                for (var k = 0; k < alive; k++)
+                for (var q = 0; q < (k == alive - 1 ? 1 : Steps); q++)
+                {
+                    var t = (float)q / Steps;
+                    int i0 = Index(k - 1), i1 = Index(k), i2 = Index(k + 1), i3 = Index(k + 2);
+                    var a = Curve(rim[i0], rim[i1], rim[i2], rim[i3], t);
+                    var b = Curve(edge[i0], edge[i1], edge[i2], edge[i3], t);
+                    var age = Mathf.Clamp01((now - Mathf.Lerp(born[i1], born[i2], t)) / Life);
+                    var c = Color.Lerp(fresh, old, age);
+                    c.a = Mathf.Lerp(power[i1], power[i2], t) * Mathf.Pow(1f - age, 1.5f);
+                    vertices[n * 2] = parent.InverseTransformPoint(body.TransformPoint(a));
+                    vertices[n * 2 + 1] = parent.InverseTransformPoint(body.TransformPoint(b));
+                    colors[n * 2] = colors[n * 2 + 1] = c;
+                    uvs[n * 2] = new Vector2(age, 0f);
+                    uvs[n * 2 + 1] = new Vector2(age, 1f);
+                    if (n > 0)
+                    {
+                        var j = (n - 1) * 6;
+                        int p = (n - 1) * 2;
+                        triangles[j] = p;
+                        triangles[j + 1] = p + 2;
+                        triangles[j + 2] = p + 3;
+                        triangles[j + 3] = p;
+                        triangles[j + 4] = p + 3;
+                        triangles[j + 5] = p + 1;
+                    }
+                    n++;
+                }
+                mesh.SetVertices(vertices, 0, n * 2);
+                mesh.SetColors(colors, 0, n * 2);
+                mesh.SetUVs(0, uvs, 0, n * 2);
+                mesh.SetTriangles(triangles, 0, (n - 1) * 6, 0);
+            }
+
+            static Vector3 Curve(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) =>
+                0.5f * (2f * p1 + (p2 - p0) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * (t * t) + (3f * p1 - p0 - 3f * p2 + p3) * (t * t * t));
+        }
 
         // A crescent swept across `at` in the plane facing the camera, rolled by `roll` degrees: the light runs
         // along it from one end to the other in a tenth of a second and fades from its tail. Across it, from the
@@ -150,7 +283,7 @@ namespace SystemPrompt.Dungeon
                 var u = (float)i / Steps;
                 var dir = Dir(u);
                 // Sin(π) comes out a hair below 0 in floats, and a negative to the power 0.7 is NaN.
-                var width = size * 0.34f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(u * Mathf.PI)), 0.7f);
+                var width = size * 0.42f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(u * Mathf.PI)), 0.7f);
                 vertices[i * Rows] = dir * (size - width);
                 vertices[i * Rows + 1] = dir * (size - width * 0.45f);
                 vertices[i * Rows + 2] = dir * (size - width * 0.06f);
@@ -172,7 +305,7 @@ namespace SystemPrompt.Dungeon
             var thrown = Spray(Color.Lerp(color, Color.white, 0.4f), seconds);
             Run(shape.gameObject, seconds, t =>
             {
-                var head = Mathf.Clamp01(t / 0.32f) * 1.3f;
+                var head = Mathf.Clamp01(t / 0.26f) * 1.3f;
                 var fade = 1f - Mathf.Clamp01((t - 0.55f) / 0.45f);
                 for (var i = 0; i <= Steps; i++)
                 {
@@ -262,6 +395,59 @@ namespace SystemPrompt.Dungeon
             ps.Play();
         }
 
+        // A noise body deleted at `at` (BattleStage.Vanish): its pixels (colours a and b) thrown out in a burst
+        // with white ones among them, a flash and a glint, a shock wave and the field lit in its colour.
+        public void Crash(Vector3 at, Color a, Color b)
+        {
+            Pixels(at, a, b, 48, 6f);
+            Pixels(at, Color.white, Color.white, 14, 6f);
+            Flash(at, Color.Lerp(a, Color.white, 0.5f), 1.3f, 0.18f, 1.6f);
+            Star(at, Color.white, 2f, 0.2f, 0f, 2f);
+            Ring(at, (camera.transform.position - at).normalized, a, 1.6f, 0.35f);
+            Light(at, a * 2.5f, 6f, 0.4f);
+        }
+
+        // What became of a noise body (「已删除」), on a pop-up window turned to the camera over it (above its plate,
+        // the damage and its tag in the 2D layer): springing open, held a moment, closed like a window. Its parts are
+        // the pop-ups' own, made once for all of them. `stamp`: where a stamp is up over the blow (Aside).
+        public void Notice(Vector3 at, string words, Rect? stamp)
+        {
+            if (parent == null) return;
+            var window = Parts.Node("Notice", parent);
+            Window(window, words);
+            at += Vector3.up * 0.9f;
+            if (stamp is Rect area) at += camera.transform.right * Aside(at, area);
+            const float Open = 0.12f, Held = 0.3f, Shut = 0.1f, Seconds = Open + Held + Shut;
+            Run(window.gameObject, Seconds, t =>
+            {
+                var s = t * Seconds;
+                var size = 1.25f * (s < Open ? Ease.OutBack(s / Open) : 1f);
+                var shut = s > Open + Held ? Mathf.Clamp01((s - Open - Held) / Shut) : 0f;
+                window.SetPositionAndRotation(at, camera.transform.rotation);
+                window.localScale = new Vector3(size, size * (1f - shut), size);
+            });
+        }
+
+        // How far along the camera's right a Notice opening at `at` slides to keep out from under the stamp over the
+        // blow (对抗样本！ beside the body it hit, 集成！ over the middle of the top; `stamp` in the viewport), 0 when
+        // it is clear: just past the stamp's near edge on the side it is on, or past its far edge when that side
+        // has no room, and on the picture either way.
+        float Aside(Vector3 at, Rect stamp)
+        {
+            const float Half = 0.44f, HalfHigh = 0.3f; // the window's, in metres (0.7 × 0.48 at 1.25)
+            var right = camera.transform.right;
+            var p = camera.WorldToViewportPoint(at);
+            if (p.z <= 0f) return 0f;
+            var wide = camera.WorldToViewportPoint(at + right * Half).x - p.x;
+            var high = wide * camera.aspect * HalfHigh / Half;
+            if (wide <= 0f || p.y + high < stamp.yMin || p.y - high > stamp.yMax || p.x + wide < stamp.xMin || p.x - wide > stamp.xMax) return 0f;
+            float before = stamp.xMin - wide - 0.01f, after = stamp.xMax + wide + 0.01f;
+            bool roomBefore = before >= wide + 0.02f, roomAfter = after <= 1f - wide - 0.02f;
+            var x = p.x < stamp.center.x ? (roomBefore || !roomAfter ? before : after) : (roomAfter || !roomBefore ? after : before);
+            x = Mathf.Clamp(x, wide + 0.02f, 1f - wide - 0.02f);
+            return (x - p.x) / wide * Half;
+        }
+
         ParticleSystem Burst(string name, Vector3 at, int count, float minLife, float maxLife, float speed, float size, Material material)
         {
             var go = new GameObject(name);
@@ -303,42 +489,58 @@ namespace SystemPrompt.Dungeon
         // front with a fading wake inside it, thinning as it goes.
         public void Ring(Vector3 at, Vector3 normal, Color color, float radius, float seconds = 0.45f, float heat = 1.5f)
         {
+            if (Calm) heat = Mathf.Min(heat * 0.75f, 1f);
             var shape = Parts.Shape("Ring", parent, quad, new Material(wave) { color = color });
             shape.transform.SetPositionAndRotation(at, Quaternion.LookRotation(normal));
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
             {
                 shape.transform.localScale = Vector3.one * (radius * 2f * Mathf.Lerp(0.12f, 1f, Ease.OutCubic(t)));
-                material.color = color * (heat * (1f - t) * (1f - t));
+                material.color = Hot(color, heat * heat, Mathf.Pow(1f - t, 1.6f)); // still there as it reaches its edge
             }, () => Object.Destroy(material));
         }
 
-        // A round flash at `at`, turned to the camera: a glare with a hot middle, past white by `heat`.
+        // A round flash at `at`, turned to the camera: a glare with a hot middle, past white by `heat`. From 2 m
+        // across it is a hot core with only a breath of glare round it: a wide glare over the deep blue reads as a
+        // grey disc washing the field out. One filling the view from up close (wider than twice its distance from
+        // the lens) stays soft, so it covers the view to its edges.
         public void Flash(Vector3 at, Color color, float size, float seconds = 0.28f, float heat = 1.5f)
         {
-            var shape = Parts.Shape("Flash", parent, quad, new Material(glare) { color = color });
+            var core = size >= 2f && size < 2f * Vector3.Distance(at, camera.transform.position);
+            if (Calm)
+            {
+                heat = Mathf.Min(heat * 0.55f, 0.8f);
+                size *= 0.8f;
+            }
+            var shape = Parts.Shape("Flash", parent, quad, new Material(core ? glareCore : glare) { color = color });
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
             {
                 shape.transform.SetPositionAndRotation(at, camera.transform.rotation);
                 shape.transform.localScale = Vector3.one * (size * Mathf.Lerp(0.6f, 1.15f, Ease.OutCubic(t)));
-                material.color = color * (heat * (1f - t) * (1f - t));
+                material.color = Hot(color, heat * heat, Mathf.Pow(1f - t, 3f));
             }, () => Object.Destroy(material));
         }
 
         // A four-pointed star of light at `at` turned to the camera and rolled by `roll`, its rays shrinking
-        // back into it as it fades: the glint of a blow landing.
-        public void Star(Vector3 at, Color color, float size, float seconds = 0.25f, float roll = 0f, float heat = 2.4f)
+        // back into it as it fades: the glint of a blow landing. `needles`: eight needle rays with no glow between
+        // them (SeaArt.Spikes), for a big one that must stay a shape and not become a disc.
+        public void Star(Vector3 at, Color color, float size, float seconds = 0.25f, float roll = 0f, float heat = 2.4f, bool needles = false)
         {
-            var shape = Parts.Shape("Star", parent, quad, new Material(glint) { color = color });
+            if (Calm) heat = Mathf.Min(heat * 0.55f, 0.9f);
+            var shape = Parts.Shape("Star", parent, quad, new Material(needles ? spikes : glint) { color = color });
             var material = shape.sharedMaterial;
             Run(shape.gameObject, seconds, t =>
             {
                 shape.transform.SetPositionAndRotation(at, camera.transform.rotation * Quaternion.Euler(0f, 0f, roll + 25f * t));
                 shape.transform.localScale = Vector3.one * (size * Mathf.Lerp(1f, 0.35f, Ease.InCubic(t)) * Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(t * 8f)));
-                material.color = color * (heat * (1f - t));
+                material.color = Hot(color, heat * heat, (1f - t) * (1f - t)); // steep: a glint, gone at once
             }, () => Object.Destroy(material));
         }
+
+        // A colour `gain` times as bright, `fade` of it shown: Glow multiplies the colour by its alpha, so a plain
+        // colour times k would be k² as bright and fade twice as fast as meant.
+        static Color Hot(Color c, float gain, float fade) => new Color(c.r * gain, c.g * gain, c.b * gain, c.a * fade);
 
         // Soft puffs at `at` drifting up and spreading, `alpha` thick: smoke drawn over what is behind, or
         // (`lit`) a glow of mist.
@@ -378,86 +580,105 @@ namespace SystemPrompt.Dungeon
             Mist(at, color, 5, 1.1f, 0.18f, true);
         }
 
-        // A blow on a weakness or a critical, in layers: the field lit up in its colour, a white-hot flash in a
-        // wider glare of the colour, a star, lines of light flung out all round, embers left hanging and two shock
-        // waves; for a critical, two cuts crossing over it and a third wave after.
+        // A blow on a weakness or a critical, in layers: the field lit up in its colour; a small white-hot core in a
+        // tight glow of the colour; a big star of needle rays in the colour, a small white one turned half a point
+        // inside it; thin lines of light flung out all round, embers left hanging and two thin shock waves; for a
+        // critical, two cuts crossing over it and a third wave after. Its shape, not its size, tells it from a plain
+        // hit: spikes and thin rings round a small core, the body and its damage seen through it. Calm (减弱闪光) keeps
+        // only what is coloured: no white star, white wave or white lines, and fewer, finer lines.
         public void Impact(Vector3 at, Color color, bool critical)
         {
             var facing = (camera.transform.position - at).normalized;
             var hot = Color.Lerp(color, Color.white, 0.6f);
+            var calm = Calm;
+            var star = critical ? 5.2f : 4.2f;
+            var roll = Random.Range(0f, 90f);
             Light(at, color * (critical ? 3.5f : 2.6f), 7f, 0.45f);
-            Flash(at, Color.white, 1.2f, 0.12f, 2.1f);
+            Flash(at, calm ? hot : Color.white, 0.9f, 0.12f, 2.1f);
             Flash(at, color, 2.4f, 0.3f, 0.8f);
-            Star(at, hot, critical ? 4.4f : 3.4f, 0.26f, Random.Range(0f, 90f));
-            var lines = Burst("Impact", at, 28, 0.12f, 0.26f, 28f, 0.18f, spark);
+            Star(at, color, star, 0.3f, roll, 1.6f, true); // white only near the middle, even for the pale ice
+            if (!calm) Star(at, Color.white, star * 0.35f, 0.18f, roll + 45f, 1.5f, true);
+            var lines = Burst("Impact", at, calm ? 14 : 28, 0.12f, 0.26f, 28f, calm ? 0.08f : 0.12f, spark);
             var main = lines.main;
-            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
+            // Calm: under a quarter of the spark's light, so not even the green of a 弱点 goes white.
+            main.startColor = calm ? new ParticleSystem.MinMaxGradient(color.WithAlpha(0.22f)) : new ParticleSystem.MinMaxGradient(color, Color.white);
             Stretch(lines, 0.05f, 2f);
             Dying(lines);
             lines.Play();
-            Embers(at, hot, 22, 7f);
-            Ring(at, facing, color, 2.8f, 0.34f);
-            Ring(at, facing, Color.white, 1.6f, 0.22f, 2f);
+            Embers(at, hot, calm ? 12 : 22, 7f);
+            // The wide wave stays its colour (white-hot round its whole edge it would be a white circle the size of the
+            // body); a small white one inside it.
+            Ring(at, facing, color, 2.8f, 0.34f, 1.2f);
+            if (!calm) Ring(at, facing, Color.white, 1.1f, 0.2f, 1.5f);
             if (!critical) return;
-            Slash(at, Color.white, 1.5f, 40f, 0.3f);
-            Slash(at, new Color(1f, 0.35f, 0.4f), 1.5f, -40f, 0.3f);
+            // Pale, not white, and 1.3 m (the crescent grew wider and quicker for the 饭勺): only the thin hot edge
+            // goes white, so the cuts over a body flashing near-white (a kill) do not join it into one white blot.
+            Slash(at, Color.Lerp(color, Color.white, 0.7f), 1.3f, 40f, 0.3f);
+            Slash(at, new Color(1f, 0.35f, 0.4f), 1.3f, -40f, 0.3f);
             Ring(at, facing, new Color(1f, 0.35f, 0.4f), 4f, 0.5f, 0.9f);
         }
 
-        // A column of light standing up out of the seabed at `at`, a hotter core inside it, lighting what is round.
+        // A column of light standing up out of the seabed at `at`: a soft-edged band of the colour turned to the
+        // camera round its own axis (Shaft), a white-hot thread up its middle and streaks running up it, fading in
+        // off the seabed and soft at the top; a shock wave on the seabed at its foot, and what is round lit up.
         public void Pillar(Vector3 at, Color color, float radius, float height, float seconds = 0.8f)
         {
             var foot = new Vector3(at.x, 0f, at.z);
-            var tube = SeaArt.Tube(radius, radius * 0.6f, 1f, 24);
-            var shape = Parts.Shape("Pillar", parent, tube, new Material(beam) { color = color });
+            var ribbon = SeaArt.Ribbon(radius * 2.8f, 12);
+            var look = SeaArt.Shaft(color.WithAlpha(1f), Color.white, 0.16f, 7f, 0.75f, 1.3f, 0.2f);
+            var shape = Parts.Shape("Pillar", parent, ribbon, look);
             shape.transform.position = foot;
-            var material = shape.sharedMaterial;
-            var coreTube = SeaArt.Tube(radius * 0.32f, radius * 0.2f, 1f, 16);
-            var core = Parts.Shape("Core", shape.transform, coreTube, new Material(beam) { color = Color.white });
-            var coreLook = core.sharedMaterial;
             var hot = Color.Lerp(color, Color.white, 0.6f);
             Light(foot + Vector3.up * 1.2f, color * 2f, radius * 6f + 2f, seconds * 0.8f);
+            Ring(foot + Vector3.up * 0.05f, Vector3.up, color, radius * 2.4f, seconds * 0.6f);
             Run(shape.gameObject, seconds, t =>
             {
-                var rise = Ease.OutCubic(Mathf.Clamp01(t / 0.3f));
+                var rise = Ease.OutCubic(Mathf.Clamp01(t / 0.25f));
                 var fade = 1f - Mathf.Clamp01((t - 0.35f) / 0.65f);
-                shape.transform.localScale = new Vector3(1f + t * 0.4f, height * rise, 1f + t * 0.4f);
-                material.color = color * (0.7f * fade);
-                coreLook.color = hot * (1.3f * fade * fade);
+                shape.transform.localScale = new Vector3(1f, height * rise, 1f);
+                look.SetColor("_Color", (color * 1.3f).WithAlpha(fade)); // its middle past the glow's threshold
+                look.SetColor("_CoreColor", hot.WithAlpha(fade * fade));
             }, () =>
             {
-                Object.Destroy(material);
-                Object.Destroy(coreLook);
-                Object.Destroy(tube);
-                Object.Destroy(coreTube);
+                Object.Destroy(look);
+                Object.Destroy(ribbon);
             });
         }
 
-        // ------------------------------------------------------------------ ice
-
-        // An ice lance thrown from `from` to `to`, a cold trail behind it; done when it lands.
-        public async Awaitable Lance(Vector3 from, Vector3 to, Color color, float delay, float seconds = 0.3f)
+        // Water thrown up round the feet of a blow driven down into the seabed (饭勺·跃劈): a crown of big drops flung
+        // up and out off a ring round the column of light and falling back, bubbles rising out of it. A beat after
+        // the blow, once its flash is going, and in the water's own blue, under white: it shows beside the column,
+        // not lost in its light.
+        public void WaterCrown(Vector3 feet, Color color)
         {
-            await Anim.Wait(delay);
-            if (parent == null) return;
-            var shape = Parts.Shape("Lance", parent, Lance(), white);
-            var go = shape.gameObject;
-            go.transform.position = from;
-            Trail(go, color, 0.09f, 0.16f);
-            // A little sideways on the way, so a volley spreads out and closes in.
-            var side = Vector3.Cross(to - from, Vector3.up).normalized * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(0.2f, 0.9f);
-            var spin = Random.Range(-720f, 720f);
-            Vector3 At(float t) => Vector3.Lerp(from, to, t) + side * Mathf.Sin(t * Mathf.PI) * 0.6f;
-            await Anim.Tween(seconds, t =>
-            {
-                if (go == null) return;
-                var p = At(t);
-                var ahead = At(Mathf.Min(1f, t + 0.05f)) - p;
-                go.transform.SetPositionAndRotation(p, Quaternion.LookRotation(ahead.sqrMagnitude > 1e-6f ? ahead : to - from) * Quaternion.Euler(0f, 0f, spin * t));
-                go.transform.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, t);
-            }, Ease.InCubic, () => go == null);
-            if (go != null) Object.Destroy(go);
+            const float After = 0.07f;
+            var drops = Burst("Crown", feet + Vector3.up * 0.05f, 30, 0.55f, 0.85f, 7f, 0.4f, spark);
+            drops.emission.SetBursts(new[] { new ParticleSystem.Burst(After, (short)30) });
+            var main = drops.main;
+            // A third of the spark's light: bright blue, its red and green never past white.
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(color.r, color.g, color.b, 0.32f), new Color(0.2f, 0.55f, 1f, 0.42f));
+            main.startSpeed = new ParticleSystem.MinMaxCurve(5f, 7f);
+            main.gravityModifier = 1.6f;
+            var shape = drops.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 24f;
+            shape.radius = 0.85f;
+            shape.radiusThickness = 0f; // off its rim, round the column
+            shape.rotation = new Vector3(-90f, 0f, 0f);
+            Stretch(drops, 0.05f, 1f);
+            Dying(drops);
+            drops.Play();
+            var bubbles = Burst("Crown", feet + Vector3.up * 0.1f, 10, 0.6f, 1.1f, 1.5f, 0.24f, bubble);
+            bubbles.emission.SetBursts(new[] { new ParticleSystem.Burst(After, (short)10) });
+            var rise = bubbles.main;
+            rise.startColor = new Color(0.75f, 0.95f, 1f, 0.8f);
+            rise.gravityModifier = -0.3f;
+            var ring = bubbles.shape;
+            ring.radius = 0.6f;
+            bubbles.Play();
         }
+
+        // ------------------------------------------------------------------ ice
 
         // Ice bursting out of the seabed round `at`, shattering a moment later.
         public async Awaitable Frost(Vector3 at, Color color, float size)
@@ -614,9 +835,12 @@ namespace SystemPrompt.Dungeon
             if (parent == null) return;
             var root = Parts.Node("Stream", parent);
             root.position = from;
-            // The head: a small hot middle, the colour of ice rather than white, in a wide soft cloud of the cold.
-            var headLook = new Material(glare) { color = Color.Lerp(color, Color.white, 0.3f) * 1.5f };
-            var haloLook = new Material(glare) { color = color * 0.55f };
+            // The head: a small hot middle in a wide soft cloud of the cold, ice-cyan rather than white. The battle's
+            // lens turns white whatever is past white in all three channels, so its red is held down: where the head,
+            // its cloud and the strand down the middle pile up, only green and blue go past, but for a pin-point.
+            var ice = new Color(color.r * 0.4f, color.g, color.b);
+            var headLook = new Material(glareCore) { color = ice * 1.15f };
+            var haloLook = new Material(glare) { color = color * 0.45f };
             var head = Parts.Shape("Head", root, quad, headLook).transform;
             var halo = Parts.Shape("Halo", root, quad, haloLook).transform;
             var lamp = Lamp(from, color * 1.8f, 5f);
@@ -624,11 +848,14 @@ namespace SystemPrompt.Dungeon
             for (var i = 0; i < strands.Length; i++)
             {
                 strands[i] = Parts.Node("Strand", root);
-                Trail(strands[i].gameObject, i == 0 ? Color.Lerp(color, Color.white, 0.35f) : color, width * (i == 0 ? 0.45f : 0.3f), 0.24f);
+                // Ice-blue, not white, their red held down like the head's, so where they wind over one another only
+                // the head's middle goes white (at 0.85 the middle one drew a white thread the length of the current).
+                Trail(strands[i].gameObject, (ice * (i == 0 ? 0.7f : 0.6f)).WithAlpha(1f), width * (i == 0 ? 0.45f : 0.3f), 0.24f);
             }
-            // Snowflakes glinting along the way, and a mist of cold hanging behind it.
-            var crystals = Shed(root, color, 50f, flake, 1.3f);
-            var mist = Shed(root, new Color(color.r, color.g, color.b, 0.3f), 16f, flame, 3.2f, false);
+            // Snowflakes glinting along the way, and a mist of cold hanging behind it. The flakes in the ice-cyan too:
+            // white ones, as thick as they fall, ran together into a white tube the length of the current.
+            var crystals = Shed(root, ice, 30f, flake, 1.3f, false);
+            var mist = Shed(root, new Color(color.r, color.g, color.b, 0.16f), 10f, fog, 2.6f, false);
             var run = to - from;
             var side = Vector3.Cross(run, Vector3.up).normalized;
             var up = Vector3.Cross(side, run.normalized);
@@ -639,8 +866,8 @@ namespace SystemPrompt.Dungeon
                 head.SetPositionAndRotation(p, camera.transform.rotation);
                 head.localScale = Vector3.one * (width * (1.7f + 0.3f * Mathf.Sin(t * 47f)));
                 halo.SetPositionAndRotation(p, camera.transform.rotation);
-                halo.localScale = Vector3.one * (width * (4.5f + 0.6f * Mathf.Sin(t * 29f)));
-                haloLook.color = color * (0.5f + 0.12f * Mathf.Sin(t * 53f));
+                halo.localScale = Vector3.one * (width * (3.6f + 0.5f * Mathf.Sin(t * 29f)));
+                haloLook.color = color * (0.42f + 0.1f * Mathf.Sin(t * 53f));
                 crystals.transform.position = mist.transform.position = p;
                 lamp.At = p;
                 for (var i = 0; i < strands.Length; i++)
@@ -692,28 +919,34 @@ namespace SystemPrompt.Dungeon
             var look = shell.GetComponent<MeshRenderer>().sharedMaterial;
             Object.Destroy(shell.gameObject);
             Object.Destroy(look);
-            Shards(at, color, Mathf.RoundToInt(36f * size), 7.5f * size);
+            Shards(at, Mathf.RoundToInt(36f * size), 7.5f * size);
             Sparks(at, Color.white, 22, 9f, 0.08f);
             Embers(at, color, 18, 5f, 0.25f);
-            Flash(at, Color.white, size * 1.1f, 0.14f, 1.8f);
-            Flash(at, color, size * 2.8f, 0.3f, 1.1f);
-            Star(at, Color.Lerp(color, Color.white, 0.6f), size * 3f, 0.25f, Random.Range(0f, 90f));
-            Ring(at, (camera.transform.position - at).normalized, color, size * 2.2f, 0.4f);
+            // The body inside flashes white as it breaks, and the blow's own Impact lands with it: this keeps to a
+            // small white heart, its colour round it and needles that go white only near the middle.
+            Flash(at, Color.white, size * 0.8f, 0.14f, 1.6f);
+            Flash(at, color, size * 2.8f, 0.3f, 0.9f);
+            Star(at, color, size * 3f, 0.25f, Random.Range(0f, 90f), 1.6f, true);
+            Ring(at, (camera.transform.position - at).normalized, color, size * 2.2f, 0.4f, 1.2f);
             Light(at, color * 2.6f, 7f, 0.4f);
         }
 
-        // Splinters of ice flung out of `at`, turning over as they fall.
-        void Shards(Vector3 at, Color color, int count, float speed)
+        // Splinters of the ice itself flung out of `at` (clear, catching the light facet by facet; the sparks with
+        // them are the glints), turning over as they fall and shrinking away at the end.
+        void Shards(Vector3 at, int count, float speed)
         {
-            var ps = Burst("Shards", at, count, 0.5f, 1f, speed, 0.9f, white);
+            shardLook ??= SeaArt.Ice(new Color(0.55f, 0.9f, 1f, 0.9f));
+            var ps = Burst("Shards", at, count, 0.6f, 1.1f, speed, 0.9f, shardLook);
             var main = ps.main;
-            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
             main.startRotation3D = true;
             var any = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
             main.startRotationX = any;
             main.startRotationY = any;
             main.startRotationZ = any;
-            main.gravityModifier = 1.2f;
+            main.gravityModifier = 1.6f;
+            var shrink = ps.sizeOverLifetime;
+            shrink.enabled = true;
+            shrink.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.7f, 1f), new Keyframe(1f, 0f)));
             var spin = ps.rotationOverLifetime;
             spin.enabled = true;
             spin.separateAxes = true;
@@ -732,9 +965,12 @@ namespace SystemPrompt.Dungeon
         Mesh Shard()
         {
             if (shard != null) return shard;
-            var vertices = new List<Vector3> { new Vector3(0f, 0.18f, 0f), new Vector3(-0.06f, -0.08f, 0f), new Vector3(0.07f, -0.12f, 0f), new Vector3(0f, -0.02f, 0.04f) };
-            var colors = new List<Color> { Color.white, new Color(1f, 1f, 1f, 0.5f), new Color(1f, 1f, 1f, 0.5f), new Color(1f, 1f, 1f, 0.8f) };
-            return shard = Build("Shard", vertices, colors, new List<int> { 0, 1, 2, 0, 2, 3, 0, 3, 1, 1, 3, 2 });
+            // Each face its own three corners, so each is lit flat and catches the light on its own.
+            Vector3 a = new Vector3(0f, 0.18f, 0f), b = new Vector3(-0.06f, -0.08f, 0f), c = new Vector3(0.07f, -0.12f, 0f), d = new Vector3(0f, -0.02f, 0.04f);
+            var vertices = new List<Vector3> { a, b, c, a, c, d, a, d, b, b, d, c };
+            var triangles = new List<int>();
+            for (var i = 0; i < vertices.Count; i++) triangles.Add(i);
+            return shard = Build("Shard", vertices, null, triangles);
         }
 
         // A lump of ice a metre and a half across with flat facets: a ball knocked about, each point pushed in or
@@ -816,8 +1052,8 @@ namespace SystemPrompt.Dungeon
             {
                 crystals.Stop();
                 bubbles.Stop();
-                Flash(centre + Vector3.up * 1.4f, Color.white, radius * 1.4f, 0.25f, 2.4f);
-                Flash(centre + Vector3.up * 1.4f, color, radius * 2.6f, 0.45f, 1.2f);
+                Flash(centre + Vector3.up * 1.4f, Color.white, radius * 0.9f, 0.25f, 2.4f);
+                Flash(centre + Vector3.up * 1.4f, color, radius * 1.6f, 0.45f, 1.2f);
                 Ring(root.position, Vector3.up, Color.white, radius * 1.6f, 0.5f);
                 Light(centre + Vector3.up * 1.4f, color * 3f, radius * 2.5f, 0.6f);
             }
@@ -990,25 +1226,30 @@ namespace SystemPrompt.Dungeon
         // What she says to herself as she thinks it through, DeepSeek's way (嗯……、等等、所以).
         static readonly string[] Musings = { "嗯……", "等等", "所以", "假设", "→", "？", "也就是说", "∴", "再想想", "0", "1", "如果" };
 
-        // 深度思考: words of her reasoning in cold light going round `head` and up and fading, one after another
-        // for `seconds`.
+        // 深度思考: words of her reasoning in cold light round `head`, one after another for `seconds`, each coming up
+        // in its own place on either side of her (in the picture's plane, so none is hidden behind another), rising
+        // a little and fading; lit past the glow's threshold, so they shine.
         public void Thoughts(Vector3 head, Color color, float seconds)
         {
-            const float Life = 0.9f;
+            const float Life = 0.7f;
             const int Count = 12;
             var root = Parts.Node("Thought", parent, head);
             var words = new TextMesh[Count];
             var first = Random.Range(0, Musings.Length);
-            var turn = Random.Range(0f, Mathf.PI * 2f);
             var tint = Color.Lerp(color, Color.white, 0.4f);
+            gain ??= new MaterialPropertyBlock();
+            gain.SetFloat(GainId, 1.7f);
             for (var i = 0; i < Count; i++)
             {
-                words[i] = SeaArt.Text("Word", root, Musings[(first + i * 5) % Musings.Length], 0.16f, Color.clear);
+                words[i] = SeaArt.Text("Word", root, Musings[(first + i * 5) % Musings.Length], 0.2f, Color.clear);
                 words[i].gameObject.AddComponent<Billboard>();
+                words[i].GetComponent<MeshRenderer>().SetPropertyBlock(gain);
             }
             Run(root.gameObject, seconds + Life, t =>
             {
                 var now = t * (seconds + Life);
+                var right = camera.transform.right;
+                var up = camera.transform.up;
                 for (var i = 0; i < Count; i++)
                 {
                     var k = (now - i * seconds / Count) / Life;
@@ -1017,21 +1258,32 @@ namespace SystemPrompt.Dungeon
                         words[i].color = Color.clear;
                         continue;
                     }
-                    var a = turn + i * 2.4f + k * Life * 2.2f;
-                    words[i].transform.localPosition = new Vector3(Mathf.Cos(a) * 0.6f, -0.15f + k * 0.8f, Mathf.Sin(a) * 0.6f);
+                    var spot = ThoughtSpots[i % ThoughtSpots.Length];
+                    words[i].transform.position = root.position + right * spot.x + up * (spot.y + k * 0.2f);
                     words[i].color = new Color(tint.r, tint.g, tint.b, Mathf.Sin(k * Mathf.PI));
                 }
             });
         }
 
-        // The charge of 深度思考 held until her next skill: a dial of cold light turning slowly under `follow`'s
-        // feet and motes rising round them. Gone once released.
+        // Where the thoughts come up round her (metres across and up the picture from over her head): one side, then
+        // the other, from her head down to her waist, as many as are up at once (Life over the gap between them),
+        // each clear of the others as they rise, none over her face or above the thinking shot's frame.
+        static readonly Vector2[] ThoughtSpots =
+        {
+            new Vector2(0.8f, -0.1f), new Vector2(-0.85f, -0.3f), new Vector2(0.95f, -0.5f),
+            new Vector2(-1f, -0.7f), new Vector2(0.8f, -0.9f), new Vector2(-0.85f, -1.1f),
+        };
+
+        // The charge of 深度思考 held until her next skill: two dials of cold light turning slowly either way under
+        // `follow`'s feet, their marks past the glow's threshold, and motes rising round them. Gone once released.
         public Held Aura(Transform follow, Color color)
         {
             var root = Parts.Node("Charge", follow, new Vector3(0f, 0.06f, 0f));
             var look = SeaArt.Glow(SeaArt.Dial, color);
             var dial = Parts.Shape("Dial", root, quad, look).transform;
-            dial.localScale = Vector3.one * 2f;
+            dial.localScale = Vector3.one * 2.4f;
+            var inner = Parts.Shape("Dial", root, quad, look).transform;
+            inner.localScale = Vector3.one * 1.3f;
             var motes = Rising(root, color);
             var held = new Held();
             Hold().Forget();
@@ -1044,7 +1296,8 @@ namespace SystemPrompt.Dungeon
                 {
                     t += Time.unscaledDeltaTime;
                     dial.localRotation = Quaternion.Euler(90f, 0f, t * 30f);
-                    look.color = color * ((0.55f + 0.2f * Mathf.Sin(t * 3f)) * Mathf.Clamp01(t * 4f));
+                    inner.localRotation = Quaternion.Euler(90f, 0f, -t * 45f);
+                    look.color = color * ((1.15f + 0.2f * Mathf.Sin(t * 3f)) * Mathf.Clamp01(t * 4f));
                     await Awaitable.NextFrameAsync();
                 }
                 if (root != null)
@@ -1053,8 +1306,9 @@ namespace SystemPrompt.Dungeon
                     await Anim.Tween(0.3f, k =>
                     {
                         if (root == null) return;
-                        dial.localScale = Vector3.one * (2f + k);
-                        look.color = color * (0.55f * (1f - k));
+                        dial.localScale = Vector3.one * (2.4f + k);
+                        inner.localScale = Vector3.one * (1.3f + k);
+                        look.color = color * (1.15f * (1f - k));
                     });
                     if (root != null) Object.Destroy(root.gameObject);
                 }
@@ -1072,13 +1326,13 @@ namespace SystemPrompt.Dungeon
             var main = ps.main;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.9f, 1.5f);
             main.startSpeed = 0f;
-            main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.2f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.24f);
             main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
-            main.maxParticles = 80;
+            main.maxParticles = 140;
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
             main.useUnscaledTime = true;
             var emission = ps.emission;
-            emission.rateOverTime = 20f;
+            emission.rateOverTime = 34f;
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Circle;
             shape.radius = 0.6f;
@@ -1092,7 +1346,7 @@ namespace SystemPrompt.Dungeon
             flow.z = new ParticleSystem.MinMaxCurve(0f, 0f);
             Fading(ps);
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = glint;
+            renderer.sharedMaterial = mote ??= SeaArt.Glow(SeaArt.Flare, Color.white * 1.5f);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             ps.Play();
@@ -1133,7 +1387,7 @@ namespace SystemPrompt.Dungeon
                     t += dt;
                     flare = Mathf.MoveTowards(flare, 0f, dt * 2.5f);
                     root.localScale = Vector3.one * Ease.OutBack(Mathf.Clamp01(t / 0.25f));
-                    look.color = color * (0.85f + 0.1f * Mathf.Sin(t * 5f) + flare);
+                    look.color = color * (1.2f + 0.1f * Mathf.Sin(t * 5f) + flare); // its lines' hearts past the glow's threshold
                     await Awaitable.NextFrameAsync();
                 }
                 if (root != null)
@@ -1142,7 +1396,7 @@ namespace SystemPrompt.Dungeon
                     {
                         if (root == null) return;
                         root.localScale = Vector3.one * (1f + 0.15f * k);
-                        look.color = color * (0.85f * (1f - k));
+                        look.color = color * (1.2f * (1f - k));
                     });
                     if (root != null) Object.Destroy(root.gameObject);
                 }
@@ -1196,28 +1450,32 @@ namespace SystemPrompt.Dungeon
 
         // ------------------------------------------------------------------ thrown things
 
-        // A thrown 冰镇汽水 (or 辣条, alight) arcing from `from` to `to`, turning over as it goes, foam (or embers)
-        // trailing it. Done when it lands, for the burst there (Fizz, Blaze).
-        public async Awaitable Toss(bool fire, Vector3 from, Vector3 to, Color color, float seconds)
+        // A 冰镇汽水 (or 辣条, alight) in the thrower's `hand` for `hold` seconds, held out along the forearm, then
+        // thrown: arcing from there to `to`, turning over as it goes, foam (or embers) trailing it, growing as it
+        // leaves the hand big enough to read across the field. Named for what it is (Can, Strip) only once thrown.
+        // Done when it lands, for the burst there (Fizz, Blaze).
+        public async Awaitable Toss(bool fire, Transform hand, float hold, Vector3 to, Color color, float seconds)
         {
             if (parent == null) return;
-            var thing = Parts.Node(fire ? "Strip" : "Can", parent);
-            thing.position = from;
+            var thing = Parts.Node("Held", parent);
             var body = Parts.Node("Body", thing);
-            body.localScale = Vector3.one * 1.6f; // big enough to read across the field
+            Vector3 Along() => (hand.position - hand.parent.position).normalized;
+            Vector3 InHand() => hand.position + Along() * 0.07f;
+            thing.position = InHand();
             Material flame = null;
+            Transform tail = null;
             Glim lamp = null;
             if (fire)
             {
                 strip ??= SeaArt.Box(new Vector3(0.1f, 0.03f, 0.36f), 0.012f);
                 stripLook ??= SeaArt.Toon(Palette.Hex("#E2421B"), Palette.Hex("#8A1E0A"), new Color(1f, 0.6f, 0.2f, 0.8f), Palette.Hex("#401000"), 0.01f);
-                Parts.Shape("Strip", body, strip, stripLook);
-                flame = new Material(glare) { color = color };
-                Parts.Shape("Flame", thing, quad, flame).gameObject.AddComponent<Billboard>().transform.localScale = Vector3.one * 1.1f;
-                var embers = Shed(thing, color, 30f, spark);
-                var rise = embers.main;
-                rise.gravityModifier = -0.4f;
-                lamp = Lamp(from, color * 1.4f, 4.5f);
+                Parts.Shape("Stick", body, strip, stripLook);
+                // A flame behind it as it flies, small enough for the strip to show in front of it; in the hand a
+                // small dim one, so the thrower isn't lost in its glare and light while winding up.
+                flame = new Material(glare) { color = color * 0.6f };
+                tail = Parts.Shape("Flame", thing, quad, flame).transform;
+                tail.gameObject.AddComponent<Billboard>();
+                tail.localScale = Vector3.one * 0.25f;
             }
             else
             {
@@ -1225,23 +1483,51 @@ namespace SystemPrompt.Dungeon
                 rim ??= SeaArt.Cylinder(0.068f, 0.068f, 0.014f, 16);
                 canLook ??= SeaArt.Toon(Palette.Hex("#6FD3FF"), Palette.Hex("#2A7FBF"), new Color(1f, 1f, 1f, 0.6f), Palette.Hex("#103050"), 0.01f);
                 rimLook ??= SeaArt.Toon(Palette.Hex("#E8EEF5"), Palette.Hex("#9AA6B6"), new Color(1f, 1f, 1f, 0.6f), default, 0.01f);
-                Parts.Shape("Can", body, can, canLook, new Vector3(0f, -0.12f, 0f));
+                Parts.Shape("Tin", body, can, canLook, new Vector3(0f, -0.12f, 0f));
                 Parts.Shape("Top", body, rim, rimLook, new Vector3(0f, 0.12f, 0f));
-                Shed(thing, new Color(0.8f, 0.97f, 1f, 0.9f), 30f, bubble);
             }
-            Trail(thing.gameObject, color, 0.14f, 0.2f);
-            var run = to - from;
-            var axis = Vector3.Cross(run, Vector3.up).normalized;
-            // A lob low enough to stay in the frame from down beside the thrower.
-            var height = 0.45f + run.magnitude * 0.07f;
-            await Anim.Tween(seconds, t =>
+            // In the hand as the arm winds back and comes over: upright across the fist, the strip along the forearm.
+            await Anim.Tween(hold, t =>
             {
-                if (thing == null) return;
-                thing.position = Vector3.Lerp(from, to, t) + Vector3.up * (height * 4f * t * (1f - t));
-                body.localRotation = Quaternion.AngleAxis(t * 1080f, axis);
-                if (flame != null) flame.color = color * (1.8f + 0.5f * Mathf.Sin(t * 60f));
-                if (lamp != null) lamp.At = thing.position;
-            }, Ease.Linear, () => thing == null);
+                if (thing == null || hand == null) return;
+                thing.position = InHand();
+                body.rotation = Quaternion.LookRotation(Along());
+                if (tail != null) tail.position = thing.position - Along() * 0.12f;
+            }, Ease.Linear, () => thing == null || hand == null);
+            if (thing != null && hand != null)
+            {
+                // Out of the hand: the flame (or foam) takes hold, embers and light with it.
+                thing.name = fire ? "Strip" : "Can";
+                if (fire)
+                {
+                    tail.localScale = Vector3.one * 0.55f;
+                    var rise = Shed(thing, color, 30f, spark).main;
+                    rise.gravityModifier = -0.4f;
+                    lamp = Lamp(thing.position, color * 1.4f, 4.5f);
+                }
+                else Shed(thing, new Color(0.8f, 0.97f, 1f, 0.9f), 30f, bubble);
+                Trail(thing.gameObject, color, 0.14f, 0.2f);
+                var from = thing.position;
+                var held = body.rotation;
+                var run = to - from;
+                var axis = Vector3.Cross(run, Vector3.up).normalized;
+                // A lob low enough to stay in the frame from down beside the thrower.
+                var height = 0.45f + run.magnitude * 0.07f;
+                await Anim.Tween(seconds, t =>
+                {
+                    if (thing == null) return;
+                    thing.position = Vector3.Lerp(from, to, t) + Vector3.up * (height * 4f * t * (1f - t));
+                    body.rotation = Quaternion.AngleAxis(t * 1080f, axis) * held;
+                    body.localScale = Vector3.one * Mathf.Lerp(1f, 1.6f, Mathf.Clamp01(t / 0.15f));
+                    if (flame != null)
+                    {
+                        var going = run + Vector3.up * (height * 4f * (1f - 2f * t)); // the arc's way at t
+                        tail.position = thing.position - going.normalized * 0.22f;
+                        flame.color = color * (1.15f + 0.25f * Mathf.Sin(t * 60f));
+                    }
+                    if (lamp != null) lamp.At = thing.position;
+                }, Ease.Linear, () => thing == null);
+            }
             if (lamp != null) Out(lamp);
             if (thing != null) Object.Destroy(thing.gameObject);
             if (flame != null) Object.Destroy(flame);
@@ -1262,19 +1548,19 @@ namespace SystemPrompt.Dungeon
             foam.Play();
             Sparks(at, Color.white, 26, 6f, 0.07f);
             Flash(at, Color.white, 1.4f, 0.16f, 2.6f);
-            Flash(at, color, 3.6f, 0.5f, 1.2f);
+            Flash(at, color, 2.4f, 0.4f, 1.2f);
             Mist(at, new Color(0.85f, 0.97f, 1f), 10, 1.6f, 0.35f);
             Ring(at, (camera.transform.position - at).normalized, color, 1.8f, 0.35f);
             Light(at, color * 2.4f, 6f, 0.55f);
             Frost(at, color, 0.6f).Forget();
         }
 
-        // The 辣条 bursting into a ball of flame where it hits: a white-hot flash, billows of flame rolling up and
-        // out from yellow through orange to deep red, dark smoke rising behind them, embers going up, a ring of heat
-        // across the seabed, and the field lit orange.
+        // The 辣条 bursting into a ball of flame where it hits: a white-hot flash, billows of flame rolling over
+        // (SeaArt.PuffSheet) up and out from yellow through orange to deep red, dark smoke rising behind them,
+        // embers going up, a ring of heat across the seabed, and the field lit orange.
         public void Blaze(Vector3 at, Color color)
         {
-            var fire = Burst("Blaze", at, 42, 0.35f, 0.8f, 3.2f, 1.1f, flame);
+            var fire = Burst("Blaze", at, 34, 0.35f, 0.8f, 3.2f, 1.3f, flameSheet);
             var main = fire.main;
             main.startColor = Color.white;
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
@@ -1293,6 +1579,12 @@ namespace SystemPrompt.Dungeon
                     new GradientColorKey(color, 0.5f), new GradientColorKey(new Color(0.6f, 0.08f, 0.04f), 1f) },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.9f, 0.45f), new GradientAlphaKey(0f, 1f) });
             shade.color = new ParticleSystem.MinMaxGradient(burn);
+            var roll = fire.textureSheetAnimation;
+            roll.enabled = true;
+            roll.numTilesX = 4;
+            roll.numTilesY = 4;
+            roll.frameOverTime = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0f, 1f, 0.99f));
+            roll.cycleCount = 1;
             fire.Play();
             var soot = Burst("Smoke", at + Vector3.up * 0.3f, 14, 0.9f, 1.6f, 2f, 1.5f, smoke);
             var dark = soot.main;
@@ -1304,7 +1596,7 @@ namespace SystemPrompt.Dungeon
             Fading(soot);
             soot.Play();
             Flash(at, new Color(1f, 0.92f, 0.7f), 2f, 0.18f, 3f);
-            Flash(at, color, 5f, 0.45f, 1.3f);
+            Flash(at, color, 3.4f, 0.4f, 1.3f);
             Sparks(at, new Color(1f, 0.75f, 0.35f), 30, 7f, 0.07f);
             Embers(at, new Color(1f, 0.6f, 0.2f), 26, 3.5f, -0.5f);
             Ring(new Vector3(at.x, 0.05f, at.z), Vector3.up, color, 2.6f, 0.55f);
@@ -1316,32 +1608,40 @@ namespace SystemPrompt.Dungeon
 
         static readonly string[] Bait = { "震惊！", "点击领取", "恭喜中奖", "限时免费" };
 
-        // 标题党型's 震惊！: pop-up windows flung from `from` at `to` one after another, growing and turning as they
-        // come, each bursting into the noise body's pixels (colours a and b) where it hits. Done as the last hits.
-        public async Awaitable Popups(Vector3 from, Vector3 to, int count, Color a, Color b)
+        // 标题党型's 震惊！: pop-up windows flung at `to` one after another off the noise body, each from where `leave`
+        // has it come off as it goes (its own pop-ups, NoiseLook.Throw), carried along with the body a moment before
+        // it breaks away, then growing and tumbling as it comes, bursting into the noise body's pixels (colours a and
+        // b) where it hits. Done as the last hits.
+        public async Awaitable Popups(System.Func<int, NoiseLook.Thrown> leave, Vector3 to, int count, Color a, Color b)
         {
             var flights = new List<Awaitable>();
-            for (var i = 0; i < count; i++) flights.Add(Popup(from, to + Random.insideUnitSphere * 0.35f, i * 0.1f, Bait[i % Bait.Length], a, b));
+            for (var i = 0; i < count; i++) flights.Add(Popup(leave, i, to + Random.insideUnitSphere * 0.35f, i * 0.1f, a, b));
             foreach (var flight in flights) await flight;
         }
 
-        async Awaitable Popup(Vector3 from, Vector3 to, float delay, string words, Color a, Color b)
+        async Awaitable Popup(System.Func<int, NoiseLook.Thrown> leave, int k, Vector3 to, float delay, Color a, Color b)
         {
             await Anim.Wait(delay);
             if (parent == null) return;
+            var start = leave(k);
+            var from = start.Position;
             var window = Parts.Node("Popup", parent);
-            window.position = from;
-            Window(window, words);
+            window.SetPositionAndRotation(from, start.Rotation);
+            window.localScale = Vector3.one * start.Scale;
+            Window(window, start.Words ?? Bait[k % Bait.Length]);
             var tilt = Random.Range(-25f, 25f);
             var spin = Random.Range(-160f, 160f);
             var lift = Random.Range(0.2f, 0.7f);
             await Anim.Tween(0.32f, t =>
             {
                 if (window == null) return;
-                window.SetPositionAndRotation(Vector3.Lerp(from, to, t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * lift),
-                    camera.transform.rotation * Quaternion.Euler(0f, 0f, tilt + spin * t));
-                window.localScale = Vector3.one * Mathf.Lerp(0.5f, 1.6f, t);
-            }, Ease.InCubic, () => window == null);
+                if (start.Anchor != null) from = start.Position;
+                var p = t * t * t; // slow off the body, fast at the member
+                var tumble = camera.transform.rotation * Quaternion.Euler(0f, 0f, tilt + spin * p);
+                window.SetPositionAndRotation(Vector3.Lerp(from, to, p) + Vector3.up * (Mathf.Sin(p * Mathf.PI) * lift),
+                    Quaternion.Slerp(start.Rotation, tumble, Mathf.Clamp01(t / 0.3f)));
+                window.localScale = Vector3.one * Mathf.Lerp(start.Scale, 1.6f, p);
+            }, Ease.Linear, () => window == null);
             if (window == null) return;
             Object.Destroy(window.gameObject);
             Pixels(to, a, b, 22, 4.5f);
@@ -1368,31 +1668,37 @@ namespace SystemPrompt.Dungeon
 
         static readonly string[] Facts = { "99.7%", "据统计", "你知道吗", "第 3 条" };
 
-        // 冷知识型's 你知道吗？: fact cards dealt from `from` at `to` one after another, spinning flat as they come,
-        // each bursting into the noise body's pixels (colours a and b) where it hits. Done as the last hits.
-        public async Awaitable Cards(Vector3 from, Vector3 to, int count, Color a, Color b)
+        // 冷知识型's 你知道吗？: fact cards dealt at `to` one after another off the noise body's stack (`leave`, as
+        // Popups), carried along a moment, then spinning flat as they come, each bursting into the noise body's
+        // pixels (colours a and b) where it hits. Done as the last hits.
+        public async Awaitable Cards(System.Func<int, NoiseLook.Thrown> leave, Vector3 to, int count, Color a, Color b)
         {
             var flights = new List<Awaitable>();
-            for (var i = 0; i < count; i++) flights.Add(CardFlight(from, to + Random.insideUnitSphere * 0.3f, i * 0.12f, Facts[i % Facts.Length], a, b));
+            for (var i = 0; i < count; i++) flights.Add(CardFlight(leave, i, to + Random.insideUnitSphere * 0.3f, i * 0.12f, Facts[i % Facts.Length], a, b));
             foreach (var flight in flights) await flight;
         }
 
-        async Awaitable CardFlight(Vector3 from, Vector3 to, float delay, string words, Color a, Color b)
+        async Awaitable CardFlight(System.Func<int, NoiseLook.Thrown> leave, int k, Vector3 to, float delay, string words, Color a, Color b)
         {
             await Anim.Wait(delay);
             if (parent == null) return;
+            var start = leave(k);
+            var from = start.Position;
             var card = Parts.Node("Card", parent);
-            card.position = from;
+            card.SetPositionAndRotation(from, start.Rotation);
+            card.localScale = Vector3.one * start.Scale;
             Card(card, words);
             var spin = Random.Range(400f, 720f) * (Random.value < 0.5f ? -1f : 1f);
             var lift = Random.Range(0.3f, 0.8f);
             await Anim.Tween(0.3f, t =>
             {
                 if (card == null) return;
-                card.SetPositionAndRotation(Vector3.Lerp(from, to, t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * lift),
-                    camera.transform.rotation * Quaternion.Euler(0f, 0f, spin * t));
-                card.localScale = Vector3.one * Mathf.Lerp(0.6f, 1.4f, t);
-            }, Ease.InCubic, () => card == null);
+                if (start.Anchor != null) from = start.Position;
+                var p = t * t * t;
+                card.SetPositionAndRotation(Vector3.Lerp(from, to, p) + Vector3.up * (Mathf.Sin(p * Mathf.PI) * lift),
+                    Quaternion.Slerp(start.Rotation, camera.transform.rotation * Quaternion.Euler(0f, 0f, spin * p), Mathf.Clamp01(t / 0.3f)));
+                card.localScale = Vector3.one * Mathf.Lerp(start.Scale, 1.4f, p);
+            }, Ease.Linear, () => card == null);
             if (card == null) return;
             Object.Destroy(card.gameObject);
             Pixels(to, a, b, 18, 4f);
@@ -1413,9 +1719,11 @@ namespace SystemPrompt.Dungeon
             SeaArt.Text("Words", holder, words, 0.13f, Palette.Hex("#1E2A44"), new Vector3(0f, -0.04f, -0.03f));
         }
 
-        // 转发型's 转发保平安: forked arrows shot up out of `from` that each split in three at the top of their
-        // flight, the copies coming down on `targets` (and the floor round them). Done when all have landed.
-        public async Awaitable Forward(Vector3 from, IList<Vector3> targets, Color color)
+        // 转发型's 转发保平安: three of its own forked arrows shot off it one after another (`leave` gives each as it
+        // goes, NoiseLook.Throw), out along the way it pointed and bent up over the field from `from` (the noise body)
+        // toward `targets`, each splitting in three at the top of its flight, the copies coming down on them (and the
+        // floor round them). Done when all have landed.
+        public async Awaitable Forward(Vector3 from, System.Func<int, NoiseLook.Thrown> leave, IList<Vector3> targets, Color color)
         {
             if (parent == null || targets.Count == 0) return;
             var look = new Material(white) { color = Color.Lerp(color, Color.white, 0.25f) };
@@ -1427,19 +1735,35 @@ namespace SystemPrompt.Dungeon
             for (var i = 0; i < 3; i++)
             {
                 var apex = Vector3.Lerp(from, middle, 0.45f) + Vector3.up * (3f + 0.4f * i) + across * ((i - 1) * 1.4f);
-                volleys.Add(Volley(from, apex, targets, i, color, look, i * 0.08f));
+                volleys.Add(Volley(leave, apex, targets, i, color, look, i * 0.08f));
             }
             foreach (var volley in volleys) await volley;
             Object.Destroy(look);
         }
 
-        // One arrow up to `apex`, where it flashes and splits into three that come down.
-        async Awaitable Volley(Vector3 from, Vector3 apex, IList<Vector3> targets, int k, Color color, Material look, float delay)
+        // One arrow off the noise body, a moment straight on the way it pointed, then up to `apex`, where it flashes
+        // and splits into three that come down.
+        async Awaitable Volley(System.Func<int, NoiseLook.Thrown> leave, Vector3 apex, IList<Vector3> targets, int k, Color color, Material look, float delay)
         {
             await Anim.Wait(delay);
             if (parent == null) return;
-            await Arrow(from, apex, look, color, 0.3f, Ease.OutCubic, false);
-            if (parent == null) return;
+            var start = leave(k);
+            var from = start.Position;
+            var lead = from + start.Rotation * Vector3.up * 0.6f;
+            var go = Parts.Shape("Forward", parent, arrow ??= NoiseLook.ForkedArrow(-0.28f), look).gameObject;
+            go.transform.SetPositionAndRotation(from, start.Rotation);
+            Trail(go, color, 0.12f, 0.14f);
+            var up = Quaternion.FromToRotation(Vector3.up, apex - lead);
+            await Anim.Tween(0.38f, t =>
+            {
+                if (go == null) return;
+                const float Out = 0.08f / 0.38f;
+                var s = Mathf.Clamp01((t - Out) / (1f - Out));
+                go.transform.SetPositionAndRotation(t < Out ? Vector3.Lerp(from, lead, t / Out) : Vector3.Lerp(lead, apex, Ease.OutCubic(s)),
+                    Quaternion.Slerp(start.Rotation, up, Mathf.Clamp01(s * 3f)));
+            }, Ease.Linear, () => go == null);
+            if (go == null) return;
+            Object.Destroy(go);
             Flash(apex, color, 1.2f, 0.2f);
             Ring(apex, (camera.transform.position - apex).normalized, color, 0.7f, 0.25f);
             var copies = new List<Awaitable>();
@@ -1468,6 +1792,47 @@ namespace SystemPrompt.Dungeon
             Flash(to, color, 1.1f, 0.2f);
             Sparks(to, color, 8, 4f);
             Light(to, color * 1.2f, 3.5f, 0.25f);
+        }
+
+        // 转发型's 转发到十个群: `count` of its forked arrows shot off it one after another (`leave` gives each as it
+        // goes, NoiseLook.Throw), half the size of 转发保平安's, each in a 1.5 m arc over to somewhere within 0.6 m of
+        // `to` (where the new noise body comes together), trailing its colour, sparks where it gets there: a new one
+        // forwarded into ten groups. Done when the last has got there.
+        public async Awaitable Relay(System.Func<int, NoiseLook.Thrown> leave, Vector3 to, int count, Color color)
+        {
+            if (parent == null) return;
+            var look = new Material(white) { color = Color.Lerp(color, Color.white, 0.25f) };
+            var hops = new List<Awaitable>();
+            for (var k = 0; k < count; k++)
+            {
+                // Spread evenly round it on a golden-angle spiral, a little up and down.
+                var a = k * 2.39996f;
+                var r = 0.6f * Mathf.Sqrt((k + 0.5f) / count);
+                hops.Add(Hop(leave, k, to + new Vector3(Mathf.Cos(a) * r, ((k * 7) % 5 - 2) * 0.12f, Mathf.Sin(a) * r), color, look, k * 0.03f));
+            }
+            foreach (var hop in hops) await hop;
+            Object.Destroy(look);
+        }
+
+        async Awaitable Hop(System.Func<int, NoiseLook.Thrown> leave, int k, Vector3 to, Color color, Material look, float delay)
+        {
+            await Anim.Wait(delay);
+            if (parent == null) return;
+            var from = leave(k).Position;
+            var go = Parts.Shape("Relay", parent, arrow ??= NoiseLook.ForkedArrow(-0.28f), look).gameObject;
+            go.transform.localScale = Vector3.one * 0.5f;
+            Vector3 At(float u) => Vector3.Lerp(from, to, u) + Vector3.up * (1.5f * Mathf.Sin(Mathf.PI * u));
+            go.transform.SetPositionAndRotation(from, Quaternion.FromToRotation(Vector3.up, At(0.05f) - from));
+            Trail(go, color, 0.06f, 0.14f);
+            await Anim.Tween(0.4f, u =>
+            {
+                if (go == null) return;
+                var p = At(u);
+                go.transform.SetPositionAndRotation(p, Quaternion.FromToRotation(Vector3.up, At(Mathf.Min(1f, u + 0.05f)) - At(Mathf.Max(0f, u - 0.05f))));
+            }, Ease.Linear, () => go == null);
+            if (go == null) return;
+            Object.Destroy(go);
+            Sparks(to, color, 6, 3f);
         }
 
         // ------------------------------------------------------------------ trails and the whale

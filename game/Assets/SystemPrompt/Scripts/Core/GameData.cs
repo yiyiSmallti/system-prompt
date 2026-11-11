@@ -92,6 +92,18 @@ namespace SystemPrompt
         public string Music => Latent || Ambient == Ambient.Night ? "sea" : "story"; // the night before the dive already sounds underwater
     }
 
+    // A full-screen cutscene picture (<<cg 图ID>>): Resources/Art/CG/<Id>_motion.mp4 and its last frame <Id>.png,
+    // both made by Tools/cg_clips.py.
+    public sealed class CgDef
+    {
+        public readonly string Id;
+        public readonly Vector2 Focus; // what the slow push-in closes on, 0–1 across and down the picture
+        public readonly string Sfx;
+        public CgDef(string id, Vector2 focus, string sfx) { Id = id; Focus = focus; Sfx = sfx; }
+        public string PictureKey => $"Art/CG/{Id}";
+        public string MotionKey => $"Art/CG/{Id}_motion";
+    }
+
     public sealed class AbilityDef
     {
         public readonly string Id;
@@ -273,6 +285,14 @@ namespace SystemPrompt
             ["player_room"] = new SceneDef("player_room", "我的房间", Ambient.Night),
             ["cache_sea"] = new SceneDef("cache_sea", "潜空间·缓存海", Ambient.Latent, latent: true),
             ["student_council_room"] = new SceneDef("student_council_room", "学生会室", Ambient.Motes),
+        };
+
+        // 潜入 (the room deleted around the falling player), DeepSeek's awakening and the chapter's last scene.
+        public static readonly Dictionary<string, CgDef> Cgs = new Dictionary<string, CgDef>
+        {
+            ["dive"] = new CgDef("dive", new Vector2(0.53f, 0.38f), "glitch"),
+            ["abyss_whale"] = new CgDef("abyss_whale", new Vector2(0.47f, 0.3f), "rise"),
+            ["council_window"] = new CgDef("council_window", new Vector2(0.69f, 0.26f), null),
         };
 
         // Time slots from design/systems.md; the Yarn script uses morning, lunchtime and late_night so far.

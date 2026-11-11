@@ -10,6 +10,10 @@ given length apart, whose 8 beats either side sound most alike in timbre (log-ba
 a song, so a loop's last 2 bars come out 1.5–2 dB louder than its first 2; the gain is tilted across the loop
 (linear in dB) to bring them level, otherwise every wrap is a step down in volume.
 
+A track marked as having a lead-in also gets <name>_intro.wav, the song from its first sample up to where the
+loop starts: the game plays that once and goes on into the loop (the results' fanfare, the awakening theme's
+build-up).
+
 Each loop is then played twice in memory and the sample step and spectral flux at the wrap are printed next to
 the same measures over the rest of the file: a good seam has an ordinary step and about the flux its start bar
 line has in the song.
@@ -29,11 +33,15 @@ HOP = 480  # 10 ms analysis frames
 NFFT = 2048
 SEAM = int(0.03 * SR)
 
-# name: (instrumental in game/Music, tempo the style prompt asked for, shortest loop in seconds)
+# name: (instrumental in game/Music, tempo the style prompt asked for, shortest loop in seconds[, has a lead-in])
 LOOPS = {
     "story": ("story-2a16f8c3.wav", 128, 90),
     "sea": ("sea-b984126f.wav", 80, 60),
     "battle": ("battle-64c1c962.wav", 165, 90),
+    "deep": ("deep-f5d66962.wav", 96, 60),
+    "awakening": ("awakening-24893ddb.wav", 172, 90, True),
+    "results": ("results-8f46a63a.wav", 112, 30, True),
+    "shadow": ("shadow-e4bc3700.wav", 72, 60),
 }
 
 
@@ -148,7 +156,7 @@ def seam_report(loop, bar_lines, source_start):
 
 
 def main():
-    for name, (source, bpm, shortest) in LOOPS.items():
+    for name, (source, bpm, shortest, *lead_in) in LOOPS.items():
         audio = read(MUSIC / source)
         mono = audio.mean(axis=1)
         bands = spectrum(mono)
@@ -166,6 +174,8 @@ def main():
         follow = audio[b:b + SEAM] * 10 ** (tilt / 20)  # what follows the end, at the end's gain, fades into the start
         loop[:SEAM] = loop[:SEAM] * np.sin(t) + follow * np.cos(t)
         write(OUT / f"{name}.wav", loop)
+        if lead_in and lead_in[0]:
+            write(OUT / f"{name}_intro.wav", audio[:a])
         tempo = 60 * SR / HOP * (len(beats) - 1) / (beats[-1] - beats[0])
         print(f"{name}: {source} at {tempo:.1f} BPM, loop {a / SR:.2f}–{b / SR:.2f} s ({(j - i) // 4} bars, "
               f"timbre {t_score:.3f}, harmony {h_score:.3f}), {len(loop) / SR:.1f} s, tilted {tilt:+.1f} dB")

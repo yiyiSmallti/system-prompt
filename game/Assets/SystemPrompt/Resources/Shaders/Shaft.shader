@@ -1,6 +1,7 @@
 // A shaft of light (SeaArt.Shaft's ribbon): turned about its own axis to face the camera wherever it is seen
 // from, a bright core in a soft glow, with streaks running along it. The ribbon runs along the object's y
-// from 0 to 1 (scaled to its length); its width is in the mesh, in metres. Additive, like Glow.
+// from 0 to 1 (scaled to its length); its width is in the mesh, in metres. Additive, like Glow, and like it fading
+// out near the lens in the maze.
 Shader "SystemPrompt/Shaft"
 {
     Properties
@@ -12,6 +13,7 @@ Shader "SystemPrompt/Shaft"
         _Streaks ("Streak strength", Float) = 0.6
         _Fade ("Fade toward the far end (power, 0 none)", Float) = 0
         _Base ("Fade in from the near end, metres", Float) = 0
+        _FogReach ("How far into the zone's fog it carries (1 as what it lights; SeaCommon.cginc SeaReach)", Float) = 1
     }
     SubShader
     {
@@ -27,7 +29,7 @@ Shader "SystemPrompt/Shaft"
             #include "SeaCommon.cginc"
 
             float4 _Color, _CoreColor;
-            float _Core, _Flow, _Streaks, _Fade, _Base;
+            float _Core, _Flow, _Streaks, _Fade, _Base, _FogReach;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float3 uv : TEXCOORD0; float3 world : TEXCOORD1; };
@@ -64,7 +66,7 @@ Shader "SystemPrompt/Shaft"
                 float shine = (1.0 + _Streaks * (band - 0.35)) * threads;
                 float ends = pow(saturate(1.0 - i.uv.y), _Fade) * saturate(metres / max(_Base, 1e-3));
                 float3 col = _Color.rgb * _Color.a * glow * shine + _CoreColor.rgb * _CoreColor.a * core * (0.85 + 0.3 * band);
-                return fixed4(col * ends * SeaClear(i.world), 1);
+                return fixed4(col * ends * SeaClear(i.world, SeaReach(_FogReach)) * SeaNearGlow(i.world), 1);
             }
             ENDCG
         }

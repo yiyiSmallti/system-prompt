@@ -22,10 +22,16 @@ namespace SystemPrompt.Dungeon
         public bool Solved { get; private set; }  // the gate is open
         public bool Lit { get; private set; }     // the light has reached the goal (it stays found)
         public bool HasLight => source.HasValue;
+        // The light runs out along its way at LightSpeed (Animate) rather than being there at once: held at a plate
+        // until it has turned, cut back to it when its way changes beyond. Arrived: it has run all the way to the goal.
+        public bool LightArrived { get; private set; }
+        public float LightReach => reach;
+        public float LightLength => beamLength;
 
         readonly DungeonDef def;
         readonly DungeonMap map;
         readonly Transform root;
+        readonly SeaGlims glims;
         static readonly Color Amber = new Color(1f, 0.66f, 0.2f), Full = new Color(0.35f, 1f, 0.6f);
 
         readonly Dictionary<Vector2Int, SocketLook> sockets = new Dictionary<Vector2Int, SocketLook>();
@@ -38,18 +44,32 @@ namespace SystemPrompt.Dungeon
         Mesh ribbon;
         Transform end, prism, rippleRing;
         Vector2Int goal;
+        readonly List<Vector3> beamPoints = new List<Vector3>();
+        readonly List<float> beamAlong = new List<float>(); // metres along the way to each point
+        float beamLength, reach, holdAt, holdUntil = -1f, lastTime;
+        bool reachesGoal;
+        const float LightSpeed = 40f;
 
-        // A socket's mark on the seabed and the ghost of a block over it, showing where one goes.
+        // A socket's mark on the seabed and the ghost of a block over it, showing where one goes; when a block goes in
+        // (Full, from Changed) the ghost folds down as it slides over, and as it seats the band flashes white, a ring
+        // runs out over the seabed and a spark runs along the cable to the gate.
         sealed class SocketLook
         {
             public Material Mark, Lines, Scan, Band;
-            public Transform Ghost, ScanPlane;
+            public Transform Ghost, ScanPlane, Spark;
+            public Vector3 At, GateAt;
+            public bool Full, Rang = true;
+            public float Changed = -100f;
         }
 
-        public SeaPuzzles(DungeonDef def, DungeonMap map, Transform parent)
+        // A block's slide (CacheBlock.Slide) and its seating after; the cable's spark in metres a second.
+        const float Seat = 0.3f, SparkSpeed = 12f;
+
+        public SeaPuzzles(DungeonDef def, DungeonMap map, Transform parent, SeaGlims glims)
         {
             this.def = def;
             this.map = map;
+            this.glims = glims;
             root = Parts.Node("Puzzles", parent);
             var q = map.Find('Q');
             if (q.Count > 0) source = q[0];
@@ -78,6 +98,9 @@ namespace SystemPrompt.Dungeon
             }
             if (source.HasValue) BuildLight(source.Value);
             Refresh();
+            if (!source.HasValue) return;
+            reach = beamLength; // there from the start
+            ShowLight();
         }
 
         // ------------------------------------------------------------------ cache blocks
@@ -106,7 +129,12 @@ namespace SystemPrompt.Dungeon
         public bool Push(CacheBlock block, Vector2Int direction, Func<Vector2Int, bool> taken, float time)
         {
             var to = block.Cell + direction;
-            if (Solved || map.Solid(to) || taken(to) || map[to] == 'X' || map[to] == 'Y') return false;
+            if (Solved) return false;
+            if (map.Solid(to) || taken(to) || map[to] == 'X' || map[to] == 'Y')
+            {
+                block.Bump(direction, time);
+                return false;
+            }
             pushes.Push((block, block.Cell));
             Move(block, to, time);
             return true;
@@ -131,14 +159,18 @@ namespace SystemPrompt.Dungeon
             map.Blocks.Remove(block.Cell);
             map.Blocks.Add(to);
             block.Slide(to, time);
-            Refresh();
+            Refresh(time);
+            // Open at once; the gate itself goes when the player is shown it (OpenGate, DungeonScreen.GateOpened).
             if (Sockets.Count > 0 && Sockets.TrueForAll(map.Blocks.Contains))
             {
                 Solved = true;
                 map.GateOpen = true;
-                gate?.Open(time);
             }
         }
+
+        public Vector3? GatePosition => gate?.Position;
+
+        public void OpenGate(float time, SeaGlims glims, SeaWake wake) => gate?.Open(time, glims, wake);
 
         // In a corner of walls and not in a socket: no push can ever bring it out again.
         public bool Stuck(CacheBlock b)
@@ -158,7 +190,7 @@ namespace SystemPrompt.Dungeon
             map.Blocks.UnionWith(map.BlockStarts);
             foreach (var b in Blocks) b.Slide(b.Start, time);
             pushes.Clear();
-            Refresh();
+            Refresh(time);
         }
 
         public bool InSocket(CacheBlock b) => Sockets.Contains(b.Cell);
@@ -175,6 +207,7 @@ namespace SystemPrompt.Dungeon
             Parts.Shape("Frame", node, SeaArt.Box(new Vector3(3f, 0.16f, 3f)), frame, new Vector3(0, 0.08f, 0));
             var look = new SocketLook
             {
+                At = map.World(c),
                 Mark = SeaArt.Glow(SeaArt.SocketMark, Amber.WithAlpha(0.9f)),
                 Lines = SeaArt.Glow(SeaArt.White, Amber.WithAlpha(0.5f)),
                 Scan = SeaArt.Glow(SeaArt.SocketMark, Amber.WithAlpha(0.35f)),
@@ -189,7 +222,8 @@ namespace SystemPrompt.Dungeon
             sockets[c] = look;
         }
 
-        // A line of light along the seabed from a socket to the gate it powers.
+        // A line of light along the seabed from a socket to the gate it powers, and the spark that runs along it
+        // when a block seats (one look for all of them).
         void Cable(Vector2Int from, Vector2Int to)
         {
             var a = map.World(from);
@@ -199,7 +233,15 @@ namespace SystemPrompt.Dungeon
             node.localRotation = Quaternion.LookRotation(b - a);
             Parts.Shape("Line", node, SeaArt.Decal(1f), m).transform.localScale = new Vector3(0.14f, 1f, Vector3.Distance(a, b));
             cables[from] = m;
+            sparkLook ??= SeaArt.Glow(SeaArt.Flare, Full);
+            var look = sockets[from];
+            look.GateAt = b;
+            look.Spark = Parts.Node("Spark", root, a);
+            Parts.Shape("Flare", look.Spark, SeaArt.Quad(0.6f, 0.6f), sparkLook).gameObject.AddComponent<Billboard>();
+            look.Spark.gameObject.SetActive(false);
         }
+
+        Material sparkLook;
 
         // ------------------------------------------------------------------ light
 
@@ -217,13 +259,32 @@ namespace SystemPrompt.Dungeon
             return best;
         }
 
-        // A quarter of a right angle clockwise (step 1) or back (-1). True the first time the light reaches the goal.
+        // A quarter of a right angle clockwise (step 1) or back (-1). True the first time the light reaches the goal
+        // (at once; the light itself gets there a moment later, LightArrived). The light waits at the plate, if it gets
+        // that far, until the plate has turned.
         public bool Turn(LightPlate plate, float time, int step = 1)
         {
+            // The way up to the plate stays as it was; past it, the light goes back to the plate and waits there.
+            var at = Along(plate.Cell);
+            if (at >= 0f)
+            {
+                holdAt = at;
+                holdUntil = time + 0.3f;
+                reach = Mathf.Min(reach, at);
+            }
             plate.Turn(time, step);
             var wasLit = Lit;
             Refresh();
             return Lit && !wasLit;
+        }
+
+        // Metres along the light's way to a plate on it, or -1.
+        float Along(Vector2Int cell)
+        {
+            var p = map.World(cell) + Vector3.up * BeamHeight;
+            for (var i = 0; i < beamPoints.Count; i++)
+                if ((beamPoints[i] - p).sqrMagnitude < 0.01f) return beamAlong[i];
+            return -1f;
         }
 
         // The lighthouse's light coming down at Q: a shaft from far overhead, streaks running down it, a pool
@@ -239,7 +300,7 @@ namespace SystemPrompt.Dungeon
             Parts.Shape("Pool", node, SeaArt.Decal(7f), Dot(colour * 0.5f), new Vector3(0, 0.06f, 0));
             ripple = SeaArt.Glow(SeaArt.Ring, colour * 0.5f);
             rippleRing = Parts.Shape("Ripple", node, SeaArt.Decal(1f), ripple, new Vector3(0, 0.07f, 0)).transform;
-            prism = Parts.Shape("Prism", node, SeaArt.Sphere(0.55f, 0f, 4, 2), SeaArt.Toon(colour, colour * 0.6f, Color.white, colour * 0.9f, 0.02f), new Vector3(0, BeamHeight, 0)).transform;
+            prism = Parts.Shape("Prism", node, SeaArt.Sphere(0.55f, 0f, 4, 2), SeaArt.Toon(colour, colour * 0.6f, Color.white, colour * 1.8f, 0.02f), new Vector3(0, BeamHeight, 0)).transform;
             prism.localScale = new Vector3(1f, 1.5f, 1f);
             // The beam: a white core in the lighthouse's colour, streaks running the way the light goes.
             ribbon = SeaArt.Ribbon(1.1f, 2);
@@ -257,43 +318,74 @@ namespace SystemPrompt.Dungeon
             return m;
         }
 
-        // Follows the light from Q, and moves the beam's pieces to match; sockets light with their blocks.
-        void Refresh()
+        // Follows the light from Q, and moves the beam's pieces to match; sockets light with their blocks (from `time`,
+        // Animate; before it, as they are).
+        void Refresh(float time = -100f)
         {
             foreach (var kv in sockets)
             {
+                var look = kv.Value;
                 var full = map.Blocks.Contains(kv.Key);
-                kv.Value.Mark.SetColor("_Color", full ? Full.WithAlpha(0.95f) : Amber.WithAlpha(0.9f));
-                kv.Value.Band.SetColor("_Color", full ? Full.WithAlpha(0.9f) : Amber.WithAlpha(0.8f));
-                kv.Value.Ghost.gameObject.SetActive(!full);
-                if (cables.TryGetValue(kv.Key, out var cable))
-                    cable.SetColor("_Color", full ? Full.WithAlpha(0.6f) : Amber.WithAlpha(0.25f));
+                if (full == look.Full) continue;
+                look.Full = full;
+                look.Changed = time;
+                look.Rang = !full || time < 0f;
             }
             foreach (var b in Blocks)
             {
-                b.SetFilled(InSocket(b));
+                b.SetFilled(InSocket(b), time);
                 b.SetStuck(Stuck(b));
             }
             if (!source.HasValue) return;
 
-            var points = new List<Vector3>();
+            beamPoints.Clear();
             BeamCells.Clear();
-            var reached = Trace(source.Value, points);
-            Lit |= reached;
-            for (var i = 0; i < points.Count - 1; i++)
+            reachesGoal = Trace(source.Value, beamPoints);
+            Lit |= reachesGoal;
+            // Laid along the way; how much of it shows is the light's (ShowLight).
+            beamAlong.Clear();
+            beamLength = 0f;
+            for (var i = 0; i < beamPoints.Count; i++)
+            {
+                if (i > 0) beamLength += Vector3.Distance(beamPoints[i - 1], beamPoints[i]);
+                beamAlong.Add(beamLength);
+            }
+            for (var i = 0; i < beamPoints.Count - 1; i++)
             {
                 if (i >= segments.Count) segments.Add(Segment());
-                var a = points[i];
-                var b = points[i + 1];
                 var t = segments[i];
-                t.gameObject.SetActive(true);
-                t.position = a;
-                t.rotation = Quaternion.FromToRotation(Vector3.up, (b - a).normalized);
-                t.localScale = new Vector3(1f, Vector3.Distance(a, b), 1f);
+                t.position = beamPoints[i];
+                t.rotation = Quaternion.FromToRotation(Vector3.up, (beamPoints[i + 1] - beamPoints[i]).normalized);
             }
-            for (var i = Mathf.Max(0, points.Count - 1); i < segments.Count; i++) segments[i].gameObject.SetActive(false);
-            end.position = points[points.Count - 1];
-            foreach (var p in Plates) p.SetStruck(BeamCells.Contains(p.Cell));
+            for (var i = Mathf.Max(0, beamPoints.Count - 1); i < segments.Count; i++) segments[i].gameObject.SetActive(false);
+            reach = Mathf.Min(reach, beamLength);
+            ShowLight();
+        }
+
+        // The beam up to where the light has got, its flare there, and the plates it has got to lit.
+        void ShowLight()
+        {
+            for (var i = 0; i < beamPoints.Count - 1; i++)
+            {
+                var length = Mathf.Clamp(reach - beamAlong[i], 0f, beamAlong[i + 1] - beamAlong[i]);
+                var t = segments[i];
+                t.gameObject.SetActive(length > 0.01f);
+                t.localScale = new Vector3(1f, Mathf.Max(length, 0.01f), 1f);
+            }
+            end.position = At(reach);
+            foreach (var p in Plates)
+            {
+                var at = Along(p.Cell);
+                p.SetStruck(at >= 0f && BeamCells.Contains(p.Cell) && reach >= at - 0.01f);
+            }
+        }
+
+        Vector3 At(float metres)
+        {
+            for (var i = 0; i < beamPoints.Count - 1; i++)
+                if (metres <= beamAlong[i + 1])
+                    return Vector3.Lerp(beamPoints[i], beamPoints[i + 1], Mathf.InverseLerp(beamAlong[i], beamAlong[i + 1], metres));
+            return beamPoints[beamPoints.Count - 1];
         }
 
         Transform Segment()
@@ -348,11 +440,27 @@ namespace SystemPrompt.Dungeon
 
         public void Animate(float time)
         {
+            var dt = Mathf.Max(0f, time - lastTime);
+            lastTime = time;
+            if (source.HasValue)
+            {
+                var target = time < holdUntil ? Mathf.Min(beamLength, holdAt) : beamLength;
+                if (!Mathf.Approximately(reach, target))
+                {
+                    reach = reach > target ? target : Mathf.MoveTowards(reach, target, LightSpeed * dt);
+                    ShowLight();
+                }
+                if (Lit && reachesGoal && reach >= beamLength - 0.01f) LightArrived = true;
+            }
             foreach (var b in Blocks) b.Animate(time);
             foreach (var p in Plates) p.Animate(time);
             gate?.Animate(time);
-            foreach (var look in sockets.Values)
+            foreach (var kv in sockets)
             {
+                var look = kv.Value;
+                ShowSocket(look, time);
+                if (cables.TryGetValue(kv.Key, out var cable))
+                    cable.SetColor("_Color", look.Full && time - look.Changed >= Seat ? Full.WithAlpha(0.6f) : Amber.WithAlpha(0.25f));
                 if (!look.Ghost.gameObject.activeSelf) continue;
                 var k = Mathf.Repeat(time * 0.45f, 1f);
                 look.ScanPlane.localPosition = new Vector3(0, CacheBlock.Size * k, 0);
@@ -371,6 +479,29 @@ namespace SystemPrompt.Dungeon
                 ripple.SetColor("_Color", def.Lighthouse * 0.6f * (1f - k));
             }
         }
+        // A socket after a block went in or came out (look.Changed): the ghost folding down over the block as it slides
+        // in (unfolding as it is taken back), and once it seats the mark and band going green, the band through white,
+        // with a ring out over the seabed and a spark along the cable to the gate.
+        void ShowSocket(SocketLook look, float time)
+        {
+            var since = time - look.Changed;
+            var folded = look.Full ? Ease.InCubic(Mathf.Clamp01((since - 0.05f) / 0.2f)) : 1f - Ease.OutCubic(Mathf.Clamp01(since / 0.2f));
+            look.Ghost.gameObject.SetActive(folded < 1f);
+            look.Ghost.localScale = new Vector3(1f, Mathf.Max(1f - folded, 0.01f), 1f);
+            var seated = look.Full && since >= Seat;
+            look.Mark.SetColor("_Color", seated ? Full.WithAlpha(0.95f) : Amber.WithAlpha(0.9f));
+            look.Band.SetColor("_Color", seated ? Color.Lerp(Color.white, Full.WithAlpha(0.9f), (since - Seat) / 0.35f) : Amber.WithAlpha(0.8f));
+            if (seated && !look.Rang)
+            {
+                look.Rang = true;
+                glims.Pulse(look.At, Full * 0.6f, time);
+            }
+            if (look.Spark == null) return;
+            var run = Vector3.Distance(look.At, look.GateAt);
+            var along = seated ? (since - Seat) * SparkSpeed / Mathf.Max(run, 0.01f) : 1f;
+            look.Spark.gameObject.SetActive(along < 1f);
+            if (along < 1f) look.Spark.position = Vector3.Lerp(look.At, look.GateAt, along) + Vector3.up * 0.3f;
+        }
     }
 
     // A cube of cache the size of a person, sliding a cell when pushed: a dark case in a pale frame with lit
@@ -388,9 +519,12 @@ namespace SystemPrompt.Dungeon
         readonly DungeonMap map;
         readonly Transform root, body;
         readonly Material corners, panels, under;
-        Vector3 from, heading;
-        float movedAt = -1f;
+        Vector3 from, heading, bumpTo;
+        float movedAt = -1f, seatedAt = -100f, bumpedAt = -1f;
         bool filled, stuck;
+        // Sat down into a socket: this far up, settling in after its slide.
+        const float Seated = 0.04f, SlideSeconds = 0.28f;
+        static readonly Color Knock = new Color(1f, 0.55f, 0.45f);
 
         public CacheBlock(Vector2Int cell, DungeonMap map, Transform parent)
         {
@@ -402,7 +536,7 @@ namespace SystemPrompt.Dungeon
             var steel = SeaArt.Toon(Palette.Hex("#8FA9D6"), Palette.Hex("#3C5282"), new Color(0.7f, 0.9f, 1f, 1f), Palette.Hex("#101A30"), 0.03f);
             Parts.Shape("Case", body, SeaArt.Box(Vector3.one * (Size - 0.08f)), shell, new Vector3(0, Size / 2f, 0));
             Edges(body, Bar, steel);
-            corners = SeaArt.Toon(Cyan, Cyan, Color.white, Cyan * 0.8f, 0.01f);
+            corners = SeaArt.Toon(Cyan, Cyan, Color.white, Cyan * 1.6f, 0.01f);
             var knob = SeaArt.Box(Vector3.one * (Bar + 0.06f));
             for (var i = 0; i < 8; i++)
             {
@@ -448,7 +582,20 @@ namespace SystemPrompt.Dungeon
             movedAt = time;
         }
 
-        public void SetFilled(bool on) => filled = on;
+        // In a socket from `time` (it seats as its slide ends); before any (time < 0), seated already.
+        public void SetFilled(bool on, float time)
+        {
+            if (on && !filled) seatedAt = time < 0f ? -100f : time + SlideSeconds;
+            filled = on;
+        }
+
+        // Pushed against something it can't go into: it knocks against it and its lights flash red, then back to what
+        // they were (still red if it is stuck).
+        public void Bump(Vector2Int direction, float time)
+        {
+            bumpedAt = time;
+            bumpTo = DungeonMap.Direction(direction);
+        }
 
         public void SetStuck(bool on) => stuck = on;
 
@@ -468,11 +615,27 @@ namespace SystemPrompt.Dungeon
             else root.position = target;
             var axis = Vector3.Cross(Vector3.up, heading.sqrMagnitude > 0f ? heading : Vector3.forward);
             body.localRotation = Quaternion.AngleAxis(lean, axis);
-            body.localPosition = new Vector3(0, Hover + 0.05f * Mathf.Sin(time * 1.6f + Start.x), 0);
+            var hover = Hover + 0.05f * Mathf.Sin(time * 1.6f + Start.x);
+            var seat = time - seatedAt;
+            if (filled && seat >= 0f)
+                hover = seat < 0.12f ? Mathf.Lerp(hover, Seated, Ease.InCubic(seat / 0.12f))
+                    : Seated + 0.05f * Mathf.Exp(-12f * (seat - 0.12f)) * Mathf.Sin(18f * (seat - 0.12f));
+            var shove = Vector3.zero;
+            var knock = 0f;
+            if (bumpedAt >= 0f)
+            {
+                var since = time - bumpedAt;
+                if (since < 0.16f) shove = bumpTo * (0.16f * Mathf.Sin(Mathf.PI * since / 0.16f));
+                knock = 1f - Mathf.Clamp01(since / 0.25f);
+                if (since >= 0.25f) bumpedAt = -1f;
+            }
+            body.localPosition = new Vector3(0, hover, 0) + shove;
             var pulse = 0.75f + 0.25f * Mathf.Sin(time * 2.2f + Start.x);
-            var colour = filled ? Full : stuck ? Jammed : Cyan;
+            var colour = Color.Lerp(filled ? Full : stuck ? Jammed : Cyan, Knock, knock);
             panels.SetColor("_Color", colour.WithAlpha(filled ? 0.95f : 0.8f * pulse));
-            corners.SetColor("_Emission", colour * (filled ? 1f : 0.6f + 0.3f * pulse));
+            // The corners glow past the lens's threshold; 减弱闪光 holds their halo steady instead of pulsing it.
+            var calm = GameRoot.Instance != null && GameRoot.Instance.Settings.reduceFlash;
+            corners.SetColor("_Emission", colour * (filled ? 2f : calm ? 1.65f : 1.2f + 0.6f * pulse));
             corners.SetColor("_Color", colour);
             under.SetColor("_Color", colour.WithAlpha(filled ? 0.7f : 0.5f));
         }
@@ -498,6 +661,7 @@ namespace SystemPrompt.Dungeon
         float turnedAt = -1f;
         float fromYaw, turnBy;
         bool struck;
+        float lit, lastTime; // how far its flare is up (0 to 1, in 0.15 s)
 
         public LightPlate(Vector2Int cell, int index, int facing, DungeonMap map, Transform parent)
         {
@@ -546,11 +710,11 @@ namespace SystemPrompt.Dungeon
             turnedAt = time;
         }
 
-        // Whether the light reaches this plate.
+        // Whether the light has got to this plate: its flare comes up (and goes) over 0.15 s.
         public void SetStruck(bool on)
         {
             struck = on;
-            flare.gameObject.SetActive(on);
+            if (on) flare.gameObject.SetActive(true);
         }
 
         public void Animate(float time)
@@ -561,10 +725,16 @@ namespace SystemPrompt.Dungeon
                 pivot.localRotation = Quaternion.Euler(0, Mathf.Lerp(fromYaw, fromYaw + turnBy, 1f - (1f - t) * (1f - t)), 0);
                 if (t >= 1f) turnedAt = -1f;
             }
+            var dt = Mathf.Max(0f, time - lastTime);
+            lastTime = time;
+            lit = Mathf.MoveTowards(lit, struck ? 1f : 0f, dt / 0.15f);
             var shimmer = Mathf.Sin(time * 1.7f + Index);
-            sheen.SetColor("_Color", struck ? new Color(0.85f, 0.95f, 1f, 0.75f + 0.1f * shimmer) : new Color(0.75f, 0.9f, 1f, 0.4f + 0.1f * shimmer));
-            band.SetColor("_Color", new Color(0.6f, 0.85f, 1f, struck ? 0.9f : 0.5f));
-            if (struck) flare.localScale = Vector3.one * (0.85f + 0.15f * Mathf.Sin(time * 8f + Index));
+            sheen.SetColor("_Color", Color.Lerp(new Color(0.75f, 0.9f, 1f, 0.4f + 0.1f * shimmer), new Color(0.85f, 0.95f, 1f, 0.75f + 0.1f * shimmer), lit));
+            band.SetColor("_Color", new Color(0.6f, 0.85f, 1f, Mathf.Lerp(0.5f, 0.9f, lit)));
+            if (!flare.gameObject.activeSelf) return;
+            flareLight.SetColor("_Color", new Color(0.95f, 0.98f, 1f, 0.9f * lit));
+            flare.localScale = Vector3.one * (0.85f + 0.15f * Mathf.Sin(time * 8f + Index));
+            if (lit <= 0f && !struck) flare.gameObject.SetActive(false);
         }
     }
 }

@@ -82,6 +82,9 @@ namespace SystemPrompt.E2E
         int shotCount;
         int hold;
         bool finished;
+        // Every music track heard, and where the game was when each first came up ("title", "story:<scene>", "dungeon", "battle").
+        readonly HashSet<string> heard = new HashSet<string>();
+        readonly Dictionary<string, string> heardAt = new Dictionary<string, string>();
         bool deepTaught; // the first battle DeepSeek fights in has shown 防御, 白米饭 and the 辣条
 
         float Now => Time.realtimeSinceStartup - started;
@@ -121,6 +124,18 @@ namespace SystemPrompt.E2E
 
         void Update()
         {
+            // With v-sync on, a window that gets covered is presented at a fraction of the rate while every frame
+            // still counts as 1/60 s: the whole game runs in slow motion and the run times out. Paced by the frame
+            // cap instead (as the visual lab is), a slowed frame carries its real time. The game's settings put
+            // v-sync back whenever they are applied, so this is held every frame.
+            if (QualitySettings.vSyncCount != 0 || Application.targetFrameRate != 60)
+            {
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = 60;
+            }
+            var track = game != null && game.Audio != null ? game.Audio.Music : null;
+            if (track != null && heard.Add(track))
+                heardAt[track] = game.InBattle ? "battle" : game.InDungeon ? "dungeon" : game.InStory ? "story:" + game.State.scene : "title";
             if (!finished && started > 0 && Now > RunTimeout)
             {
                 Fail($"整体超时（{RunTimeout:0} 秒）");
@@ -277,6 +292,15 @@ namespace SystemPrompt.E2E
             Check(game.State.abilities.Contains("deep_dive"), "获得能力「深海潜行」");
             Check(game.State.deadlines.Any(d => d.id == "deepseek_evaluation" && d.month == 5 && d.day == 6), "评测日设为 5/6");
             Check(game.State.contacts.Contains("ChatGPT"), "通讯录里有 ChatGPT");
+            Check(Seen("cg-dive") && Seen("cg-whale") && Seen("cg-council"),
+                $"三张过场 CG 都放出了动态版（潜入 {Seen("cg-dive")}，深渊之鲸 {Seen("cg-whale")}，学生会室 {Seen("cg-council")}）");
+            Check(game.Story.Cg == "council_window", $"学生会室的 CG 留到序章结束（实际 {game.Story.Cg ?? "无"}）");
+            var tracks = new[] { "title", "story", "sea", "battle", "shadow", "awakening", "results", "deep" };
+            Check(tracks.All(heard.Contains), $"八首配乐都放过（没放的：{string.Join("、", tracks.Where(t => !heard.Contains(t)).DefaultIfEmpty("无"))}）");
+            Check(heardAt.TryGetValue("shadow", out var shadowAt) && shadowAt == "story:cache_sea", $"影子的曲子在灯塔脚下的剧情里响起（实际 {heardAtOr("shadow")}）");
+            Check(heardAt.TryGetValue("awakening", out var wakeAt) && wakeAt == "story:cache_sea", $"觉醒的曲子在剧情里先响、接进教学战斗（实际 {heardAtOr("awakening")}）");
+            Check(heardAt.TryGetValue("deep", out var deepAt) && deepAt == "dungeon", $"深层的曲子在深层探索里响起（实际 {heardAtOr("deep")}）");
+            Check(heardAt.TryGetValue("results", out var resultsAt) && resultsAt == "battle", $"结算的曲子在战斗结算时响起（实际 {heardAtOr("results")}）");
             Check(Said($"还想被叫{Nickname}"), "直面影子时说还想被叫这个称呼");
             Check(Said($"中午你给我起的「{Nickname}」") && Said("记仇的那种记"), "战后说会记着这个称呼（记仇）");
 
@@ -451,7 +475,7 @@ namespace SystemPrompt.E2E
             yield return Walk(ridgeBeacon.Cell, "穿过墓地，到灯塔背面的信标", 2.2f);
             yield return Lurk(() => Maze.Exploring && ridgeBeacon.Used, "灯塔背面的信标点亮");
             yield return Pearl(3, "灯塔背面东头");
-            yield return Fight(Noise('4'), "下到机柜峡谷，和峡谷的噪声体战斗");
+            yield return Fight(Noise('4'), "下到机柜峡谷，和峡谷的噪声体战斗", SpareTheCaller);
             if (finished) yield break;
             Check(game.Battle.CalledIn >= 1, $"转发型在战斗里召唤了标题党型（{game.Battle.CalledIn} 只）");
             var sodas = game.State.ItemCount("ice_soda");
@@ -557,7 +581,7 @@ namespace SystemPrompt.E2E
             var before = Maze.Meter;
             yield return Press(Key.Enter);
             yield return Pump(() => Maze.Exploring && patch.Used, "打开宝箱");
-            yield return Wait(0.3f);
+            yield return Wait(0.45f); // the camera's 0.25 s turn back from the chest well over
             yield return Snap("dungeon-chest", "打开宝箱（延时补丁）");
             Check(Maze.ChestsOpened == 1 && Maze.Meter < before, $"延时补丁让维护进度下降（{before:0.0}% → {Maze.Meter:0.0}%）");
             if (!Noise('5').Active)
@@ -581,7 +605,10 @@ namespace SystemPrompt.E2E
                 if (finished) yield break;
             }
             Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 6, $"转了 {Maze.Turns} 次（最后一块逆时针转 1 次），光照到出口，出口出现");
-            yield return Pump(() => Maze.Exploring, "出口出现的对话");
+            // The exit's cutaway and DeepSeek's call-out come only once the light has run round (LightFound): the controls
+            // are still free between the last turn and the cut. Enter only while they are taken (Lurk), or it would turn
+            // the plate beside the player again.
+            yield return Lurk(() => Maze.Exploring && Maze.Nav.Said == "出口出现了！", "出口出现的插入镜头和提示");
             yield return Walk(new Vector2Int(9, 6), "退到大厅西南角看光路", 1.2f);
             yield return Face(w.Map.World(new Vector2Int(14, 3)));
             yield return Snap("dungeon-light", "光绕过大厅照到出口");
@@ -653,6 +680,49 @@ namespace SystemPrompt.E2E
             }
             Check(guarded, "先制战斗里主角选了防御");
             Check(ate, "先制战斗里 DeepSeek 吃了白米饭");
+        }
+
+        // The canyon's 转发型 calls a 标题党型 in on its first turn — unless the screenshot crits the 标题党型 beside
+        // it away, One More takes most of the 转发型 and the preemptive round finishes it before it has had a turn.
+        // So until it has called, the player shoots only the 标题党型 and guards once that one is gone: the check
+        // after the battle doesn't hang on that luck, and the fight is the one fought straight through (guarding
+        // from the first turn left the 标题党型 standing and the player alone against three).
+        IEnumerator SpareTheCaller()
+        {
+            var called = game.Battle.CalledIn;
+            var t0 = Now;
+            var quiet = Now;
+            while (!finished && game.InBattle && game.Battle.CalledIn == called)
+            {
+                if (Now - t0 > StepTimeout)
+                {
+                    Fail("峡谷的战斗里等不到转发型召唤");
+                    yield return Snap("timeout", "超时：等转发型召唤");
+                    Finish();
+                    yield break;
+                }
+                if (hold > 0 || !Visible(ui.Q(className: "sp-battle__menu")))
+                {
+                    if (hold == 0 && Now - quiet > 3f)
+                    {
+                        yield return Press(Key.Enter);
+                        quiet = Now;
+                    }
+                    else yield return null;
+                    continue;
+                }
+                var shoot = game.Battle.FoeStands("clickbait");
+                var want = shoot ? "攻击（截图）" : "防御";
+                for (var i = 0; i < 6 && !CommandSelected(want); i++) yield return Press(shoot ? Key.UpArrow : Key.DownArrow);
+                yield return Press(Key.Enter);
+                if (shoot)
+                {
+                    yield return Wait(0.3f);
+                    yield return Press(Key.Enter); // the cursor starts on the first one standing, the 标题党型
+                }
+                quiet = Now;
+                yield return Wait(0.4f);
+            }
         }
 
         // Moves whatever is on screen along: a talk or a results screen with Enter; a battle's command menu with the
@@ -1160,8 +1230,11 @@ namespace SystemPrompt.E2E
             Watch("deepseek-speech", "DeepSeek 说话", () => SpeakerIs("DeepSeek"), 0.12f);
             Watch("whisper", "小声说话", () => Visible(box) && box.ClassListContains("is-whisper"), 0.3f);
             Watch("phone-screen", "手机屏幕（维护时刻）", () => Visible(ui.Q(className: "sp-phone-screen")), 0.4f);
+            // The cutscene pictures (UI/Story/StoryFx.cs ShowCg), each filmed from a few frames into its clip to its hold.
+            Film("cg-dive", "过场 CG：潜入（房间碎成方块，手伸向手机）", () => game.Story.Cg == "dive" && game.Story.CgFrame >= 4, 8, 0.9f, null, 480, 270, 4);
             Film("glitch-swap", "房间被删除（方块之间的房间色差撕裂、变成马赛克）", () => Exists("fx-blocks"), 8, 0.18f);
             Watch("shadow", "影子 DeepSeek", () => Visible(box) && box.ClassListContains("is-shadow"), 0.3f);
+            Film("cg-whale", "过场 CG：觉醒「深渊之鲸」（影子化成光点，光之鲸升起）", () => game.Story.Cg == "abyss_whale" && game.Story.CgFrame >= 4, 8, 0.9f, null, 480, 270, 4);
             Watch("effort-max", "思考强度 Max", () => StampShown("强度 Max"), 0.25f);
             Watch("dungeon-explore", "潜空间探索：缓存海·浅层", () => Maze.Exploring && World.Def.Id == "cache_sea_shallows", 1.2f);
             Watch("dungeon-talk", "探索中的对话框", () => Maze.Talking && Visible(ui.Q(className: "sp-dungeon__talk")), 0.4f);
@@ -1197,11 +1270,11 @@ namespace SystemPrompt.E2E
             // each taken in turn.
             Film("battle-shot-reach", "截图：单手把手机伸到臂长，侧着拍，缩略图跟着歪", () => Exists("sp-viewfinder") && Stage?.Held == SeaFigure.PhoneHold.Reach, 10, 0.12f);
             Film("battle-shot-low", "截图：单膝跪地，手机放低往上仰拍", () => Exists("sp-viewfinder") && Stage?.Held == SeaFigure.PhoneHold.Low, 10, 0.12f);
-            Film("battle-spoon-slash", "饭勺·横斩：冲上去横着斩，勺尖拖出光带", () => OnStage("Spoon Slash"), 10, 0.1f);
+            Film("battle-spoon-slash", "饭勺·横斩：冲上去横着斩，勺尖拖出光带", () => OnStage("Spoon Slash"), 15, 0.11f); // the run in and all three cuts
             Film("battle-spoon-sweep", "饭勺·回旋扫：从另一侧冲上去，单脚转身低扫一圈，海床上扩开水环", () => OnStage("Spoon Sweep"), 10, 0.1f);
             Film("battle-spoon-rush", "饭勺·鱼跃连击：贴地鱼跃翻滚过去，起身左右两下", () => OnStage("Spoon Rush"), 12, 0.1f);
             Film("battle-spoon-leap", "饭勺·跃劈：跳起落到噪声体面前砸下，海床冲起水柱", () => OnStage("Spoon Leap"), 10, 0.09f);
-            Film("battle-current", "寒流：冰晶寒流从掌心横穿画面、镜头横移跟随，噪声体结冰碎裂", () => OnStage("Stream"), 12, 0.08f);
+            Film("battle-current", "寒流：冰晶寒流从掌心横穿画面、镜头横移跟随，噪声体结冰碎裂", () => OnStage("Stream"), 15, 0.09f); // the ice bursts about 0.95 s in
             Film("battle-maelstrom", "深海潜流：冰蓝漩涡卷起噪声体、镜头后拉，全体冻结碎裂", () => OnStage("Vortex"), 14, 0.12f);
             Watch("battle-impact", "打中弱点：放射光线和冲击环", () => OnStage("Impact"), 0.05f, false);
             Film("battle-popups", "标题党型「震惊！」：弹窗广告砸向队员", () => OnStage("Popup"), 8, 0.08f);
@@ -1220,7 +1293,7 @@ namespace SystemPrompt.E2E
             // preemptive battle (GuardAndEat).
             Film("battle-pose-think", "深度思考：两指按太阳穴、低头闭眼，思考字样绕着头飘起，脚下留下蓄力光阵", () => SkillBarSays("深度思考"), 8, 0.15f, null, 640, 360, 4);
             Film("battle-pose-guard", "防御：压低身体、前臂挡在脸前，面前立起六边形光盾", () => SkillBarSays("防御"), 8, 0.11f, null, 640, 360, 4);
-            Film("battle-pose-item", "道具：DeepSeek 双手捧着白米饭", () => SkillBarSays("白米饭"), 8, 0.15f, null, 640, 360, 4);
+            Film("battle-pose-item", "道具：举起白米饭", () => SkillBarSays("白米饭"), 8, 0.15f, null, 640, 360, 4);
             Watch("battle-think", "深度思考", () => Visible(ui.Q(className: "sp-battle__think")), 0.25f);
             Watch("battle-down", "全员倒地", () => StampShown("全员倒地！"), 0.2f);
             Watch("battle-prompt", "集成确认", () => Visible(ui.Q(className: "sp-battle__prompt")), 0.2f);
@@ -1236,6 +1309,7 @@ namespace SystemPrompt.E2E
             Film("battle-face-hit", "队伍卡片表情：受击", () => CardActing("is-hit"), 10, 0.1f, cards, 960, 207, 2);
             Film("battle-face-victory", "队伍卡片表情：胜利", () => CardActing("is-victory"), 6, 0.15f, cards, 960, 207, 2);
             Watch("coop", "Coop 卡片", () => Exists("fx-coop"), 0.6f);
+            Film("cg-council", "过场 CG：学生会室的窗前（ChatGPT 看着评测文件）", () => game.Story.Cg == "council_window" && game.Story.CgFrame >= 4, 8, 0.9f, null, 480, 270, 4);
             Watch("file", "评测文件", () => Visible(ui.Q(className: "sp-file")), 0.4f);
             Watch("deadline", "评测倒计时", () => Visible(ui.Q(className: "sp-deadline")), 0.4f);
             Watch("chapter-end", "序章结束", () => StampShown("完"), 0.3f);
@@ -1460,6 +1534,8 @@ namespace SystemPrompt.E2E
             game.LoadGame(save);
             yield return Until(() => game.StoryRunner != before && game.StoryRunner?.CurrentNode == save.node && !game.Transitions.Busy, what);
         }
+
+        string heardAtOr(string track) => heardAt.TryGetValue(track, out var where) ? where : "没放";
 
         bool Said(string text) => game.Story.Backlog.Any(b => b.Text.Contains(text));
 

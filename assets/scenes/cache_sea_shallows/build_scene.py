@@ -92,6 +92,7 @@ def islands():
     return result
 
 ISLANDS = islands()
+HERO_CORAL = (8, 13)  # the coral island nearest the coral wood's way in, (10,15): the one DeepSeek planted
 
 def rgb(hexcode):
     vals = [int(hexcode.lstrip('#')[i:i+2],16)/255 for i in (0,2,4)]
@@ -256,6 +257,27 @@ class Geo:
             self.face([v[-1][(i+1)%n],v[-1][i],(x,y,z-c)],mat)
         for u,w in zip(v,v[1:]):
             for i in range(n):self.face([u[i],w[i],w[(i+1)%n],u[(i+1)%n]],mat)
+    def pillow(self, at, half, mat, n=16, rings=4, e=.3, waist=1.02, under=None, back=None):
+        """A chat bubble's pillow along y: a superellipse section (curved everywhere, so smooth shading runs
+        across every face instead of lying flat on it), swelling a little at its waist, each end a lens
+        closing on one pole vertex fanned as Geo.sphere's poles are. Its bounds stay at the half sizes.
+        Coarser where it is least seen: `under` steps round the underside half of the section (n/2 by default),
+        which rests on the seabed or the pillow below and is seen from above, and `back` lens rings at its +y end
+        (rings by default), away from the typing dots on its -y end."""
+        x,y,z=at;a,b,c=half;band=b-.26
+        under=under or n//2;back=back or rings
+        angles=[i*math.pi/(n//2) for i in range(n//2)]+[math.pi+i*math.pi/under for i in range(under)]
+        sec=[(math.copysign(abs(math.cos(u))**e,math.cos(u)),math.copysign(abs(math.sin(u))**e,math.sin(u)))
+             for u in angles]
+        n=len(sec)
+        ring=lambda yy,s:[(x+a*s*px,y+yy,z+c*s*pz) for px,pz in sec]
+        lens=lambda q:[(band+.26*math.sin(math.radians(k*90/q)),math.cos(math.radians(k*90/q))**.45) for k in range(q-1,0,-1)]
+        rows=[ring(-yy,s) for yy,s in lens(rings)]+[ring(-band,1.),ring(0.,waist),ring(band,1.)]+[ring(yy,s) for yy,s in reversed(lens(back))]
+        for i in range(n):
+            self.face([(x,y-b,z),rows[0][i],rows[0][(i+1)%n]],mat)
+            self.face([(x,y+b,z),rows[-1][(i+1)%n],rows[-1][i]],mat)
+        for u,w in zip(rows,rows[1:]):
+            for i in range(n):self.face([u[i],w[i],w[(i+1)%n],u[(i+1)%n]],mat)
     def transform(self,matrix):
         self.v=[tuple(matrix@Vector(v)) for v in self.v]
         self.lookup={}
@@ -412,44 +434,78 @@ def bubble_geo(low=False,variant=0):
         h=.51 if low else .87
         z=.68 if low else .96+i*1.80
         x=(.10 if i%2 else -.10);y=(i%2-.5)*.12
-        # Rounded rectangular front and back, with a convex rim: a pillow, not an ellipsoid.
-        profile=[];ww=3.68;hh=h*2;rr=min(.44,h*.70)
-        for cx,cz,start in [(ww/2-rr,-hh/2+rr,-90),(ww/2-rr,hh/2-rr,0),(-ww/2+rr,hh/2-rr,90),(-ww/2+rr,-hh/2+rr,180)]:
-            for k in range(4):
-                a=math.radians(start+k*30);profile.append((cx+rr*math.cos(a),cz+rr*math.sin(a)))
-        rings=[]
-        for yy,scale in [(-1.88,.90),(-1.62,1.),(1.62,1.),(1.88,.90)]:
-            rings.append([(x+xx*scale,y+yy,z+zz*scale) for xx,zz in profile])
-        g.face(rings[0],m);g.face(list(reversed(rings[-1])),m)
-        for a,b in zip(rings,rings[1:]):
-            for k in range(len(a)):g.face([a[k],b[k],b[(k+1)%len(a)],a[(k+1)%len(a)]],m)
+        # A pillow, rounded every way, its ends gently domed: no flat face for the light to lie on evenly. Its
+        # underside and the end away from the dots in fewer steps, which wins back the triangles for later work.
+        g.pillow((x,y,z),(1.84,1.88,h),m,under=4,back=3)
         # Solid wedge tail lies inside the cell and never drops below ground.
         tail=[(x-1.35,z-h*.58),(x-1.66,z-h*.98),(x-.90,z-h*.64)]
         for yy in (-1.72,-.94):g.face([(xx,y+yy,zz) for xx,zz in (tail if yy==-1.72 else list(reversed(tail)))],m)
         for k in range(3):
             a,b=tail[k],tail[(k+1)%3]
             g.face([(a[0],y-1.72,a[1]),(a[0],y-.94,a[1]),(b[0],y-.94,b[1]),(b[0],y-1.72,b[1])],m)
-        # Small raised dot messages distinguish the rounded pillows from plain boulders.
-        for dx in (-.32,0,.32):g.sphere((x+dx,y-1.90,z+.12),(.055,.05,.055),'M_Rack_Trim',6,3)
+        # The three dots of someone typing, lit in the reef's mint on the front dome (inside the cell).
+        for dx in (-.42,0,.42):g.sphere((x+dx,y-1.88,z+.12),(.16,.05,.16),'M_Rack_LED_Reef',6,3)
     return g
 
-def coral_geo(variant):
-    g=Geo();g.box((0,0,.08),(3.98,3.98,.16),'M_Coral_Mound',sides=(1,2,3,4,5))
-    g.sphere((0,0,.05),(1.99,1.99,.66),'M_Coral_Mound',12,5)
-    for i,(x,y) in enumerate([(-.92,-.65),(.88,.55),(-.38,.95),(.65,-.85)]):
-        v=(variant+i)%4;z=2.65+(v*.73);r=.63 if i%2 else .70
+CORAL_COLOURS=['Gold','Pink','Orange','Cyan']
+
+def emoji_face(g,x,y,c,r,side,face,head):
+    """One side's face on a head of radius r centred at (x,y,c): 0 smile, 1 happy closed eyes, 2 flat mouth,
+    3 crying, 4 a hand over the face, 5 XD. Laid out for a 0.7m head and scaled with it, each point on the
+    head's surface and out a little more."""
+    k=r/.7;d='M_Rack_Shadow'
+    def P(u,v,out=0.):
+        depth=math.sqrt(max(r*r-(u*k)**2-(v*k)**2,0.))+(.015+out)*k
+        return (x+u*k,y+side*depth,c+v*k)
+    def flat(points):
+        # A flat feature (the open mouth) wound to face out of the head.
+        p=[Vector(q) for q in points]
+        if (p[1]-p[0]).cross(p[2]-p[0]).y*side<0:points=list(reversed(points))
+        g.face(points,d)
+    for dx in (-.21,.21):
+        if face in (1,3) or face==4 and dx<0:
+            ends,mid=(.22,.30) if face!=3 else (.28,.20) # happy eyes curve up, sad ones down
+            g.tube([P(dx-.075,ends),P(dx,mid),P(dx+.075,ends)],.035*k,d,4)
+        elif face==5:
+            for a,b in ((.11,.29),(.29,.11)):g.tube([P(dx-.075,a),P(dx+.075,b)],.03*k,d,4)
+        elif face!=4:g.sphere(P(dx,.18),(.055*k,.035*k,.09*k),d,6,4)
+        if face==3:g.sphere(P(dx+.02,.04,.03),(.06*k,.05*k,.10*k),'M_Emit_ColdWhite',6,4)
+    if face==4:
+        # The palm laid slantwise over one eye, three fingertips over the brow, in another coral's colour so it
+        # stands off the face it hides (gold on pink, cyan on gold or orange).
+        hand={'M_Coral_Pink':'M_Coral_Gold','M_Coral_Gold':'M_Coral_Cyan','M_Coral_Orange':'M_Coral_Cyan','M_Coral_Cyan':'M_Coral_Gold'}[head]
+        palm=Geo();palm.sphere((0,0,0),(.28*k,.12*k,.22*k),hand,10,5)
+        for u,v in ((-.12,.22),(0,.26),(.12,.22)):palm.sphere((u*k,0,v*k),(.06*k,.07*k,.08*k),hand,6,3)
+        g.append(palm,Matrix.Translation(P(.24,.14,.06))@Matrix.Rotation(math.radians(25),4,'Y'))
+    if face==5:flat([P(.2*math.cos(math.radians(a)),-.02+.2*math.sin(math.radians(a))) for a in range(180,361,20)])
+    elif face==3:g.tube([P(u,-.13+.08*math.cos(u/.2*math.pi/2)) for u in (-.2,-.1,0,.1,.2)],.035*k,d,4)
+    elif face==2:g.tube([P(u,-.18) for u in (-.2,0,.2)],.035*k,d,4)
+    elif face==4:g.tube([P(u,-.2) for u in (-.12,.12)],.035*k,d,4)
+    else:g.tube([P(u,-.09-.15*math.cos(u/.27*math.pi/2)) for u in (-.27,-.135,0,.135,.27)],.035*k,d,4)
+
+def coral_geo(variant,hero=False):
+    """A mound with four emoji heads on stalks (each kit its own mix of the six faces), small coral cones growing
+    on the mound. The hero is the one DeepSeek says she planted: one big head hiding its face behind its hand."""
+    g=Geo();g.sphere((0,0,.05),(1.99,1.99,.66),'M_Coral_Mound',12,5)
+    rng=random.Random(70+variant+(9 if hero else 0))
+    for i in range(6):
+        a=rng.uniform(0,TAU);d=rng.uniform(.95,1.55);cx,cy=d*math.cos(a),d*math.sin(a)
+        top=.05+.66*math.sqrt(max(0,1-(d/1.99)**2))-.05;rb=rng.uniform(.08,.14);h=rng.uniform(.25,.45)
+        base=[(cx+rb*math.cos(j*TAU/6),cy+rb*math.sin(j*TAU/6),top) for j in range(6)]
+        for j in range(6):g.face([base[j],base[(j+1)%6],(cx,cy,top+h)],'M_Coral_'+CORAL_COLOURS[(i+variant)%4])
+    stalks=[(-.92,-.65),(.88,.55),(-.38,.95),(.65,-.85)]
+    for i,(x,y) in enumerate(stalks):
+        v=(variant+i)%4;z=2.65+(v*.73);r=.63 if i%2 else .70;face=(variant*4+i)%6
+        if hero:
+            # The big head low at the front; a smiling and a crying one high behind it, clear of it.
+            if i==0:x,y,z,r,face=-.55,-.2,2.35,.8,4
+            elif i==3:continue
+            else:face=(0,3)[i-1]
+        head='M_Coral_'+CORAL_COLOURS[v]
         g.tube([(x,y,.35),(x+.12,y-.08,z*.48),(x,y,z)],.14,'M_Coral_Stem',6)
-        g.sphere((x,y,z+.26),(r,r,r),'M_Coral_'+['Gold','Pink','Orange','Cyan'][v],14,8)
+        g.sphere((x,y,z+.26),(r,r,r),head,14,8)
         # Faces on both sides; all features are geometry, never an atlas.
-        for side in (-1,1):
-            yy=y+side*r*.94
-            for dx in (-.21,.21):
-                if v==1:
-                    g.tube([(x+dx-.075,yy,z+.48),(x+dx,yy-side*.035,z+.56),(x+dx+.075,yy,z+.48)],.035,'M_Rack_Shadow',4)
-                else:g.sphere((x+dx,yy,z+.44),(.055,.035,.09),'M_Rack_Shadow',6,4)
-            pts=[(x+u,yy,z+.17-.15*math.cos(u/.27*math.pi/2)) for u in (-.27,-.135,0,.135,.27)]
-            if v==2:pts=[(px,py,z+.08) for px,py,pz in pts]
-            g.tube(pts,.035,'M_Rack_Shadow',4)
+        for side in (-1,1):emoji_face(g,x,y,z+.26,r,side,face,head)
     return g
 
 def grave_geo(low=False):
@@ -462,12 +518,37 @@ def grave_geo(low=False):
             g.append(text_geo('此\n帖\n已\n删\n除',.83,'M_Emit_Firewall',(0,s*.653,3.78),True,s==1))
             for x in (-1.12,1.12):g.box((x,s*.65,3.66),(.034,.025,6.2),'M_Emit_Firewall')
     else:
-        for x in (-.96,.96):
-            g.box((x,0,.09),(1.74,1.40,.18),'M_Rock')
-            g.box((x,0,.68),(1.52,.43,1.0),'M_Grave')
-            g.sphere((x,0,1.16),(.76,.215,.14),'M_Grave',12,4)
-            for s in (-1,1):g.append(text_geo('已删除',.32,'M_Emit_Firewall',(x,s*.22,.73),True,s==1))
+        # Two low arched headstones straight out of the seabed, each leaning its own way (the cell's lean comes
+        # on top, build_layout); the eye passes over them at 1.22m.
+        for x,roll in ((-.96,3.5),(.96,-4.5)):
+            g.append(headstone(),Matrix.Translation((x,0,0))@Matrix.Rotation(math.radians(roll),4,'Y'))
     return g
+
+def headstone(w=1.52,t=.2,rise=.46,e=.03):
+    """A slab with a round top, its edges chamfered, sunk 15cm into the seabed (deep enough that neither lean lifts
+    a corner out of it); 已删除 on both faces."""
+    g=Geo();r=w/2
+    def outline(inset):
+        return [(-r+inset,-.15),(r-inset,-.15)]+[((r-inset)*math.cos(math.radians(a)),rise+(r-inset)*math.sin(math.radians(a))) for a in range(0,181,15)]
+    inner,outer=outline(e),outline(0)
+    for s in (-1,1):
+        face=[(u,s*t/2,v) for u,v in inner]
+        g.face(face if s<0 else list(reversed(face)),'M_Grave')
+    n=len(outer)
+    for i in range(1,n):  # the bottom edge (0 to 1) is under the seabed
+        a,b=outer[i],outer[(i+1)%n]
+        g.face([(a[0],-t/2+e,a[1]),(a[0],t/2-e,a[1]),(b[0],t/2-e,b[1]),(b[0],-t/2+e,b[1])],'M_Grave')
+        for s in (-1,1):
+            ia,ib=inner[i],inner[(i+1)%n]
+            quad=[(a[0],s*(t/2-e),a[1]),(b[0],s*(t/2-e),b[1]),(ib[0],s*t/2,ib[1]),(ia[0],s*t/2,ia[1])]
+            g.face(quad if s<0 else list(reversed(quad)),'M_Grave')
+    for s in (-1,1):g.append(text_geo('已删除',.42,'M_Emit_Firewall',(0,s*(t/2+.006),.55),True,s==1))
+    return g
+
+def grave_lean(c,r):
+    """A low grave pair's lean (about x) and turn (about z), 4-7 degrees either way by the cell, sometimes turned round."""
+    lean=lambda h:math.copysign(math.radians(4+3*abs(h*2-1)),h-.5)
+    return lean(hash32(c+31,r+7)),lean(hash32(c+5,r+43))+(math.pi if hash32(c+13,r+29)<.5 else 0)
 
 def rounded_slab(w,d,z,h,mat,r=.28):
     g=Geo();outline=[]
@@ -507,12 +588,20 @@ def kelp_geo(cables=False):
             g.tube(pts,.055 if i%2 else .075,'M_Rack_LED_Canyon' if i%3==0 else 'M_Rack_Shadow',5)
             g.cyl((x+.15,y,bottom),.10,.15,'M_Rack_Trim',6)
     else:
-        for i in range(7):
-            x=-1.73+(i%2)*.28;y=-1.60+(i//2)*.80;h=1.65+(i%3)*.40
-            g.tube([(x,y,.02),(x+.10,y,h*.4),(x-.03,y+.12,h*.75),(x+.12,y,h)],.035,'M_Emit_Green',4)
-            for j in range(2):
-                z=h*(.3+j*.25)
-                g.face([(x,y,z),(x+.24,y+.14,z+.36),(x+.10,y,z+.5)],'M_Bubble_Green')
+        # Four clumps of ribbon blades, each narrowing to its tip, twisting along its length (so its two sides catch
+        # the light in turn) and bent in an S; drawn from both sides and swayed at run time (SeaScene, "(kelp)").
+        rng=random.Random(31)
+        for cy in (-1.45,-.55,.35,1.25):
+            for _ in range(rng.randint(3,5)):
+                x0=rng.uniform(-1.62,-1.38);y0=cy+rng.uniform(-.22,.22);h=rng.uniform(1.6,2.6);w=rng.uniform(.18,.32)
+                turn=rng.uniform(0,math.pi);twist=math.radians(rng.uniform(90,160))*rng.choice((-1,1))
+                bend=rng.uniform(.08,.12)*rng.choice((-1,1));drift=rng.uniform(-.1,.1)
+                rows=[]
+                for k in range(9):
+                    t=k/8;a=turn+twist*t;half=(w*(1-t)+.05*t)/2
+                    x=x0+bend*math.sin(t*1.6*math.pi);y=y0+drift*t;z=.02+h*t
+                    rows.append(((x-math.cos(a)*half,y-math.sin(a)*half,z),(x+math.cos(a)*half,y+math.sin(a)*half,z)))
+                for (a0,a1),(b0,b1) in zip(rows,rows[1:]):g.face([a0,a1,b1,b0],'M_Bubble_Green')
     return g
 
 def beacon_parts():
@@ -798,6 +887,15 @@ def build_layout():
             if ch=='#':
                 if style=='Reef':
                     spawn('BubbleStack_'+str(1+(c+r)%3),c,r,col,'wall_special');role='bubble';expected=5.7
+                elif style=='Coral' and (c,r)==HERO_CORAL:
+                    # Not a kit (the kit sheets are six by three): one of a kind, its front head turned 15 degrees
+                    # east of south, to the walkway east of it (c9) that goes north from the way in at (10,15):
+                    # the camera behind the player coming up it looks at the hand. From the way in itself the
+                    # rack corner at (10,14) hides it.
+                    root=tag(empty(f'EmojiCoral_Hero_c{c:02d}_r{r:02d}',col,cell(c,r),MAIN),c,r,'wall_special')
+                    root.rotation_euler.z=math.radians(15)
+                    o=obj_mesh(root.name+'_Mesh',coral_geo(1,True).mesh('EmojiCoral_Hero_Mesh'),col,(0,0,0),root)
+                    tag(o,c,r,'wall_special');o['kit_name']='EmojiCoral_Hero';role='coral';expected=5.6
                 elif style=='Coral' and (c,r) in ISLANDS:
                     spawn('EmojiCoral_'+str(1+(c+r)%3),c,r,col,'wall_special');role='coral';expected=5.6
                 elif style=='Graveyard' and (c,r) in ISLANDS:
@@ -836,6 +934,7 @@ def build_layout():
                     root=spawn(name,c,r,col,'low_wall');role=name
                     if name=='LowRack':
                         for o in root.children:o.data=recolor_mesh(o.data,style)
+                    if name=='GraveLowPair':root.rotation_euler.x,root.rotation_euler.z=grave_lean(c,r)
                     expected=1.3
             elif ch=='%':
                 if style=='Canyon':

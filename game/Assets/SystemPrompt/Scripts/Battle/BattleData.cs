@@ -111,6 +111,7 @@ namespace SystemPrompt.Battle
         public (string Id, int Count)[] Drops;
         public bool Tutorial;
         public float EnemyDamageScale = 1f;
+        public string Music = "battle"; // Resources/Audio/BGM
 
         // Two battles fought as one when a noise body called a neighbour in (UI/Dungeon/DungeonScreen.cs): every
         // enemy of both, the rewards added up, the harder hitters' scale.
@@ -139,6 +140,7 @@ namespace SystemPrompt.Battle
             ["prologue_tutorial"] = new BattleDef
             {
                 Id = "prologue_tutorial",
+                Music = "awakening", // 「深渊之鲸」: the story starts it as she awakens and it runs on into the fight
                 Enemies = new[]
                 {
                     new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 30, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },

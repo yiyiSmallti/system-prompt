@@ -33,7 +33,7 @@ namespace SystemPrompt.Dungeon
             ZoneStyle.Graveyard => new Look("#B8404E", 0.55f, "#FF5A64", 0.75f, 4f, 6f),
             ZoneStyle.Ridge => new Look("#9CC2FF", 0.5f, "#BFD8FF", 0.5f, 6f, 9f),
             ZoneStyle.Canyon => new Look("#26C8FF", 0.45f, "#5CE1FF", 0.6f, 11f, 16f),
-            ZoneStyle.Plaza => new Look("#DCE8FF", 0.7f, "#E8F0FF", 0.7f, 7f, 10f),
+            ZoneStyle.Plaza => new Look("#9FC4FF", 0.45f, "#E8F0FF", 0.7f, 7f, 10f), // the seabed blue, under the lamp's white
             ZoneStyle.Rift => new Look("#FF5A3C", 0.55f, "#FF6A4A", 0.8f, 9f, 13f),
             ZoneStyle.Servers => new Look("#FFA733", 0.5f, "#FFB347", 0.8f, 4.6f, 5.2f),
             ZoneStyle.RecycleBin => new Look("#8A98B2", 0.5f, "#C2CCE0", 0.6f, 4f, 7f),
@@ -67,6 +67,43 @@ namespace SystemPrompt.Dungeon
         Material kelpLight, cableLight;
 
         public Transform Exit { get; private set; }
+        public SeaColumn ExitColumn { get; private set; }
+
+        // A span of cables hung across the canyon (Cables), swinging on the line between its ends (Axis, from T), and
+        // its packets of data running along its middle strand (Path, Along: metres to each point).
+        struct Span
+        {
+            public Transform T;
+            public Vector3 Axis;
+            public Vector3[] Path;
+            public float[] Along;
+            public Transform[] Packets;
+            public float Phase;
+        }
+
+        const int MaxSpans = 12;
+        const float Breath = 4f; // seconds to a breath of the lighthouse's lamp (DungeonWorld.LightBeams)
+        static readonly Color RingColor = new Color(0.8f, 0.88f, 1f);
+        static readonly Color ScreenColor = new Color(0.6f, 0.8f, 1f, 0.6f);
+        static readonly Color WordsColor = new Color(0.9f, 0.95f, 1f);
+
+        readonly List<Span> spans = new List<Span>();
+        readonly List<(Transform t, Material look, float size)> rings = new List<(Transform, Material, float)>();
+        Transform hologram;
+        Vector3 hologramAt;
+        Material screenLook;
+        Material[] holoLooks; // the message's backing, light, badge and its 1, thinned together (Veil)
+        Color[] holoColours;
+        TextMesh holoWords;
+        float veil, veilShown = -1f;
+
+        // Where the sunken phone's message floats, for DungeonWorld to tell when someone stands in front of it; null
+        // without one.
+        public Vector3? Message => hologram != null ? hologram.position : null;
+
+        // Someone stands between the message and the camera (veiled): it thins to a quarter over 0.3 s, so they and
+        // what shows over them stay in front of it, and comes back as they move off.
+        public void Veil(bool veiled, float dt) => veil = Mathf.MoveTowards(veil, veiled ? 1f : 0f, dt / 0.3f);
 
         public SeaDecor(DungeonDef def, DungeonMap map, Transform parent)
         {
@@ -95,6 +132,30 @@ namespace SystemPrompt.Dungeon
         }
 
         public float LowWallHeight => LowWall;
+
+        // How high what stands at c reaches: a rack (as DungeonWorld.BuildWalls and the Blender scenes have it), what
+        // stands in the reef, the coral wood or the graveyard instead of one, a low wall, or nothing.
+        public float WallTop(Vector2Int c)
+        {
+            if (!map.Inside(c.x, c.y)) return 0f;
+            var style = StyleAt(c);
+            switch (map[c])
+            {
+                case '#' when Draws(c):
+                    return style == ZoneStyle.Reef ? 5.4f : style == ZoneStyle.Coral ? 6.4f : 7.3f;
+                case '#':
+                {
+                    var look = For(style);
+                    var h = Hash(c.x, c.y);
+                    var edge = c.x == 0 || c.y == 0 || c.x == map.Width - 1 || c.y == map.Height - 1;
+                    return edge ? look.High + 2f + h * 4f : look.Low + h * (look.High - look.Low);
+                }
+                case '=':
+                    return LowWall;
+                default:
+                    return 0f;
+            }
+        }
 
         // Racks that stand free of the outer wall: coral clumps, monuments, server rows.
         void FindIslands()
@@ -131,13 +192,15 @@ namespace SystemPrompt.Dungeon
         // ------------------------------------------------------------------ building
 
         // modelled: the area's scenery is a Blender model (SeaScene), which has the bubbles, coral, graves,
-        // kelp and the sunken phone already; only the zones' words and light (Dress) are built here then.
-        public void Build(bool modelled)
+        // kelp and the sunken phone already; only the zones' words and light (Dress) are built here then, and what
+        // goes over the phone's screen (at screen, SeaScene.Screen).
+        public void Build(bool modelled, Pose? screen = null)
         {
             if (modelled)
             {
                 foreach (var zone in def.Zones)
                     if (zone.Style != ZoneStyle.Channel) Dress(zone);
+                    else if (screen is Pose at) PhoneScreen(at);
                 return;
             }
 
@@ -177,6 +240,44 @@ namespace SystemPrompt.Dungeon
         {
             foreach (var s in sway)
                 s.T.localRotation = s.Rest * Quaternion.Euler(Mathf.Sin(time * 0.9f + s.Phase) * s.Degrees, 0f, Mathf.Cos(time * 0.7f + s.Phase * 1.3f) * s.Degrees);
+            var calm = GameRoot.Instance != null && GameRoot.Instance.Settings.reduceFlash;
+            // The plaza's rings go out from the lamp at its brightest, a third of a breath apart.
+            for (var i = 0; i < rings.Count; i++)
+            {
+                var (t, look, size) = rings[i];
+                var p = calm ? 1f : Mathf.Repeat(time - 1f + i * Breath / rings.Count, Breath) / Breath;
+                t.localScale = Vector3.one * size * Mathf.Lerp(0.6f, 1f, p);
+                look.SetColor("_Color", RingColor.WithAlpha(calm ? 0.2f : 0.35f * (1f - p)));
+            }
+            if (hologram != null)
+            {
+                hologram.localPosition = hologramAt + Vector3.up * (0.15f * Mathf.Sin(time * 0.8f * Mathf.PI));
+                // A message coming in: up in 0.3 s, back down over 1.5 s.
+                var p = Mathf.Repeat(time, Breath);
+                screenLook.SetColor("_Color", ScreenColor.WithAlpha(calm ? 0.7f : p < 0.3f ? Mathf.Lerp(0.6f, 0.9f, p / 0.3f) : Mathf.Lerp(0.9f, 0.6f, (p - 0.3f) / 1.5f)));
+                // Only as it changes: the words' colour rebuilds their mesh.
+                if (veil != veilShown)
+                {
+                    veilShown = veil;
+                    var keep = 1f - 0.75f * veil;
+                    for (var i = 0; i < holoLooks.Length; i++) holoLooks[i].SetColor("_Color", holoColours[i].WithAlpha(holoColours[i].a * keep));
+                    holoWords.color = WordsColor.WithAlpha(keep);
+                }
+            }
+            foreach (var s in spans)
+            {
+                s.T.localRotation = Quaternion.AngleAxis(5f * Mathf.Sin(time * 0.5f + s.Phase) + 1.5f * Mathf.Sin(time * 1.1f + s.Phase * 2f), s.Axis);
+                var length = s.Along[s.Along.Length - 1];
+                for (var k = 0; k < s.Packets.Length; k++)
+                {
+                    var d = Mathf.Repeat(time * 1.5f + s.Phase + k * length / s.Packets.Length, length);
+                    var j = 0;
+                    while (j < s.Along.Length - 2 && s.Along[j + 1] < d) j++;
+                    var packet = s.Packets[k];
+                    packet.localPosition = Vector3.Lerp(s.Path[j], s.Path[j + 1], (d - s.Along[j]) / (s.Along[j + 1] - s.Along[j]));
+                    packet.localScale = Vector3.one * Mathf.Clamp01(Mathf.Min(d, length - d) / 0.6f); // in and out at the plugs
+                }
+            }
         }
 
         // The seabed's light per cell, a texel each with a clear border, and where it lies in the world.
@@ -200,7 +301,11 @@ namespace SystemPrompt.Dungeon
         {
             var key = lit + shade + emission;
             if (!materials.TryGetValue(key, out var m))
+            {
                 materials[key] = m = SeaArt.Toon(Palette.Hex(lit), Palette.Hex(shade), new Color(0.55f, 0.9f, 1f, 1f), Palette.Hex(emission), outline);
+                m.SetFloat("_Fade", 1f); // makes way for the lens and the avatar (Toon.shader)
+                m.SetFloat("_Caustic", 1f); // and takes the surface's light net
+            }
             return m;
         }
 
@@ -358,13 +463,17 @@ namespace SystemPrompt.Dungeon
             switch (zone.Style)
             {
                 case ZoneStyle.Channel: Phone(zone); break;
-                case ZoneStyle.Graveyard: Drifting(zone, "[已删除]", new Color(1f, 0.35f, 0.4f, 0.35f), 6); break;
+                case ZoneStyle.Graveyard:
+                    Drifting(zone, "[已删除]", new Color(1f, 0.35f, 0.4f, 0.35f), 6);
+                    Offerings(zone);
+                    Mist(zone);
+                    break;
+                case ZoneStyle.Canyon: Cables(zone); break;
                 case ZoneStyle.RecycleBin: Cards(zone); break;
                 case ZoneStyle.Servers: RowLabels(zone); break;
                 case ZoneStyle.Context: ChatLog(zone); break;
                 case ZoneStyle.WhiteHall: ExitLight(); break;
-                case ZoneStyle.Rift: Cracks(zone); break;
-                case ZoneStyle.Plaza: PlazaRing(); break;
+                case ZoneStyle.Plaza: Plaza(zone); break;
             }
         }
 
@@ -437,9 +546,18 @@ namespace SystemPrompt.Dungeon
             Drifting(zone, "将在 7 天后永久删除", new Color(0.75f, 0.82f, 1f, 0.3f), 3);
         }
 
-        // A label at both ends of every rack row in the server room, like any machine room.
+        // A label at both ends of every rack row in the server room, like any machine room: amber words on a dark plate
+        // in an amber frame, so they read against the racks' cyan strips (added on them they read as noise). One plate
+        // and one frame look for the zone; near the lens the frame and words fade out (Glow, Text: SeaNearGlow) and the
+        // plate thins out as the scenery does (Toon _Fade).
         void RowLabels(ZoneDef zone)
         {
+            var plate = Toon("#1A140A", "#1A140A", "#000000", 0f);
+            plate.SetFloat("_Cull", 0f); // seen from either side of the quad
+            // Flat and dark: no cyan rim (on a quad seen aslant it lit the whole plate) and no light net over it.
+            plate.SetColor("_RimColor", Color.clear);
+            plate.SetFloat("_Caustic", 0f);
+            var frame = Glow(SeaArt.White, new Color(1f, 0.62f, 0.2f, 0.5f));
             var row = 0;
             for (var y = zone.Cells.yMin; y < zone.Cells.yMax; y++)
             {
@@ -460,19 +578,30 @@ namespace SystemPrompt.Dungeon
                     {
                         var node = Parts.Node("Label", root, map.World(cell) + dir * (Dungeons.Cell / 2f + 0.05f) + Vector3.up * 3.6f);
                         node.localRotation = Quaternion.LookRotation(-dir);
-                        Parts.Shape("Plate", node, SeaArt.Quad(2.2f, 0.9f), Glow(SeaArt.White, new Color(1f, 0.62f, 0.2f, 0.35f)), new Vector3(0, 0, 0.02f));
-                        SeaArt.Text("Words", node, label, 0.6f, new Color(1f, 0.85f, 0.6f, 1f));
+                        Parts.Shape("Frame", node, SeaArt.Quad(1.56f, 0.56f), frame, new Vector3(0, 0, 0.03f));
+                        Parts.Shape("Plate", node, SeaArt.Quad(1.5f, 0.5f), plate, new Vector3(0, 0, 0.02f));
+                        SeaArt.Text("Words", node, label, 0.36f, Palette.Hex("#FFC870"));
                     }
                 }
             }
         }
 
         // Over the long-context corridor, the whole conversation hangs in the water, one message per cell,
-        // the two sides taking turns.
+        // the two sides taking turns: the newest at the way in from the rift (the south end), older and older further
+        // in, each fainter and greyer, as a long context loses its oldest first, down to the first message, already
+        // gone: 「…（已截断）」. Each bubble's own fade is a property block on the two shared looks.
         void ChatLog(ZoneDef zone)
         {
             var mine = Glow(SeaArt.Atlas, new Color(0.45f, 0.95f, 0.6f, 0.55f), SeaArt.AtlasBubble);
             var theirs = Glow(SeaArt.Atlas, new Color(0.8f, 0.85f, 1f, 0.55f), SeaArt.AtlasBubble);
+            var n = 0;
+            for (var y = zone.Cells.yMin; y < zone.Cells.yMax; y++)
+            for (var x = zone.Cells.xMin; x < zone.Cells.xMax; x++)
+            {
+                var c = new Vector2Int(x, y);
+                if (map.Inside(x, y) && !map.Solid(c) && def.ZoneAt(c) == zone) n++;
+            }
+            var block = new MaterialPropertyBlock();
             var i = 0;
             for (var y = zone.Cells.yMin; y < zone.Cells.yMax; y++)
             for (var x = zone.Cells.xMin; x < zone.Cells.xMax; x++)
@@ -480,56 +609,260 @@ namespace SystemPrompt.Dungeon
                 var c = new Vector2Int(x, y);
                 if (!map.Inside(x, y) || map.Solid(c) || def.ZoneAt(c) != zone) continue;
                 var left = i % 2 == 0;
-                var node = Parts.Node("Message", root, map.World(c) + new Vector3(left ? -0.8f : 0.8f, 4.4f + (i % 3) * 0.5f, 0f));
+                var old = n > 1 ? 1f - (float)i / (n - 1) : 0f; // 1 the first message (the north end), 0 the newest
+                // The two sides lie across the corridor where it runs: on an east-west stretch (the north end, where the
+                // oldest hang) sides along it would put the messages one behind another, their words over each other.
+                var eastWest = !map.Solid(new Vector2Int(x - 1, y)) && !map.Solid(new Vector2Int(x + 1, y));
+                var side = (left ? -0.8f : 0.8f) * (eastWest ? Vector3.forward : Vector3.right);
+                var node = Parts.Node("Message", root, map.World(c) + side + new Vector3(0f, 4.4f + (i % 3) * 0.5f, 0f));
                 node.gameObject.AddComponent<Billboard>();
-                Parts.Shape("Bubble", node, SeaArt.Quad(2.6f, 1.5f), left ? theirs : mine).transform.localScale = new Vector3(left ? 1f : -1f, 1f, 1f);
-                SeaArt.Text("Words", node, Chat[i % Chat.Length], 0.42f, left ? new Color(0.85f, 0.9f, 1f, 1f) : new Color(0.6f, 1f, 0.7f, 1f), new Vector3(0, 0.12f, -0.02f));
+                var look = left ? theirs : mine;
+                var bubble = Parts.Shape("Bubble", node, SeaArt.Quad(2.6f, 1.5f), look);
+                bubble.transform.localScale = new Vector3(left ? 1f : -1f, 1f, 1f);
+                var tone = look.color;
+                tone.a *= Mathf.Lerp(1f, 0.3f, old);
+                block.SetColor("_Color", tone);
+                bubble.SetPropertyBlock(block);
+                var ink = left ? new Color(0.85f, 0.9f, 1f, 1f) : new Color(0.6f, 1f, 0.7f, 1f);
+                ink = Color.Lerp(ink, Color.white * ink.grayscale, 0.6f * old);
+                ink.a = Mathf.Lerp(1f, 0.3f, old);
+                SeaArt.Text("Words", node, i == 0 && n > 2 ? "…（已截断）" : Chat[i % Chat.Length], 0.42f, ink, new Vector3(0, 0.12f, -0.02f));
                 i++;
             }
         }
 
-        // The way out: a column of light rising from the goal to the surface, streaks running up it.
+        // The way out: a column of light in the lighthouse's colour (只有灯塔的光，找得到它) rising from the goal to the
+        // surface, its sign on a dark plate so it reads against the white hall (SeaColumn). It comes up once the light
+        // has run to the goal (DungeonWorld.RiseExit), which animates it.
         void ExitLight()
         {
             var goals = map.Find('G');
             if (goals.Count == 0) return;
-            var node = Exit = Parts.Node("Exit", root, map.World(goals[0]));
-            var column = Parts.Shape("Column", node, SeaArt.Ribbon(5f, 24), SeaArt.Shaft(new Color(0.75f, 0.9f, 1f, 0.55f), new Color(0.95f, 0.98f, 1f, 0.7f), 0.25f, 3f, 0.5f, 1.2f, 0.6f)).transform;
-            column.localScale = new Vector3(1f, 70f, 1f);
-            var halo = Parts.Shape("Halo", node, SeaArt.Ribbon(13f, 24), SeaArt.Shaft(new Color(0.7f, 0.85f, 1f, 0.16f), Color.clear, 0.2f, 1.5f, 0.3f, 1.8f, 1f)).transform;
-            halo.localScale = new Vector3(1f, 45f, 1f);
-            Parts.Shape("Pool", node, SeaArt.Decal(9f), Glow(SeaArt.Atlas, new Color(0.7f, 0.85f, 1f, 0.5f), SeaArt.AtlasDot), new Vector3(0, 0.06f, 0));
-            var sign = Parts.Node("Sign", node, new Vector3(0, 5.2f, 0));
-            sign.gameObject.AddComponent<Billboard>();
-            SeaArt.Text("Words", sign, "出口", 1.3f, new Color(0.85f, 0.95f, 1f, 0.9f));
+            ExitColumn = new SeaColumn(root, map.World(goals[0]), def.Lighthouse, 5f, "出口");
+            Exit = ExitColumn.Root;
+            Exit.name = "Exit";
         }
 
-        // Red light seeping up through the floor of the rift.
-        void Cracks(ZoneDef zone)
+        // Round the lighthouse, three rings of light going out over the seabed, 10, 16 and 22 m across at the full,
+        // each as the lamp breathes (Animate); crystals grown round the foot of its island; and lamps on posts along
+        // the low walls that close the plaza, on every other one, two of them either side of the way in: the posts one
+        // mesh, the lamps one look, each a bright bulb in a wide soft halo so the ring of them reads from across the sea.
+        void Plaza(ZoneDef zone)
         {
-            var glow = Glow(SeaArt.White, new Color(1f, 0.32f, 0.2f, 0.5f));
-            var i = 0;
+            var at = map.World(def.LighthouseCell.x, def.LighthouseCell.y) + Vector3.up * 0.05f;
+            var disc = SeaArt.Decal(1f);
+            for (var i = 0; i < 3; i++)
+            {
+                var look = SeaArt.Glow(SeaArt.Ring, RingColor.WithAlpha(0.2f));
+                rings.Add((Parts.Shape("Ring", root, disc, look, at).transform, look, (10f + i * 6f) * 2f / 0.88f)); // SeaArt.Ring's line lies at 0.88
+            }
+            IslandCrystals();
+            var feet = new List<Vector3>();
+            foreach (var c in Cells(zone, '='))
+                if (c.x % 2 == 1) feet.Add(map.World(c) + Vector3.up * LowWall);
+            if (feet.Count == 0) return;
+            var post = SeaArt.Cylinder(0.07f, 0.05f, 2.8f, 8);
+            var collar = SeaArt.Cylinder(0.13f, 0.13f, 0.1f, 8);
+            var parts = new List<(Mesh, Matrix4x4)>();
+            var lamp = SeaArt.Glow(SeaArt.Disc, Palette.Hex("#E8F0FF"));
+            var halo = Glow(SeaArt.Atlas, Palette.Hex("#BFD6FF").WithAlpha(0.35f), SeaArt.AtlasDot);
+            var bulb = SeaArt.Quad(0.35f, 0.35f);
+            var glow = SeaArt.Quad(2.6f, 2.6f);
+            foreach (var foot in feet)
+            {
+                parts.Add((post, Matrix4x4.Translate(foot)));
+                parts.Add((collar, Matrix4x4.Translate(foot + Vector3.up * 2.7f)));
+                var light = Parts.Node("Lamp", root, foot + Vector3.up * 2.95f);
+                light.gameObject.AddComponent<Billboard>();
+                Parts.Shape("Halo", light, glow, halo);
+                Parts.Shape("Bulb", light, bulb, lamp, new Vector3(0f, 0f, -0.01f));
+            }
+            Parts.Shape("Lamp Posts", root, SeaArt.Combine("Lamp Posts", parts), Toon("#3A4C6E", "#1A2540", "#000000", 0.02f));
+            Object.Destroy(post);
+            Object.Destroy(collar);
+        }
+
+        // Clusters of crystals, two and a half times the size of those at the racks' feet, on the seabed just off each
+        // open side of the lighthouse's island ('L'), jittered along it, in a cold pale blue: white would light up
+        // past the lens's threshold and lose its facets.
+        void IslandCrystals()
+        {
+            var at = new List<Vector3>();
+            foreach (var c in map.Find('L'))
+                foreach (var d in new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left })
+                {
+                    var n = c + d;
+                    if (!map.Inside(n.x, n.y) || map.Solid(n) || map[n] == 'L') continue;
+                    var side = new Vector3(d.y, 0f, d.x); // along the island's edge
+                    var step = map.World(n) - map.World(c);
+                    at.Add(map.World(c) + step * 0.68f + side * ((Hash(c.x * 7 + d.x, c.y * 5 + d.y) - 0.5f) * 2.4f));
+                }
+            if (at.Count == 0) return;
+            Parts.Shape("Island Crystals", root, SeaArt.CrystalBed(at, new Color(0.55f, 0.7f, 0.9f), 2.5f, 17), SeaArt.Plain("Scatter"));
+        }
+
+        // Before every other grave, on the seabed on its south side: a smiley lying face up and three little lights
+        // standing round it like flowers.
+        void Offerings(ZoneDef zone)
+        {
+            var graves = new List<Vector2Int>(Cells(zone, '='));
+            if (graves.Count == 0) return;
+            var face = Glow(SeaArt.Atlas, new Color(1f, 0.85f, 0.45f, 0.8f), SeaArt.AtlasEmoji);
+            var flower = Glow(SeaArt.Atlas, new Color(1f, 0.45f, 0.55f, 0.9f), SeaArt.AtlasDot);
+            var decal = SeaArt.Decal(0.35f);
+            var bud = SeaArt.Quad(0.14f, 0.14f);
+            for (var i = 0; i < graves.Count; i += 2)
+            {
+                var c = graves[i];
+                var h = Hash(c.x * 3, c.y * 11);
+                var at = map.World(c) + new Vector3(h < 0.5f ? -0.96f : 0.96f, 0.03f, -0.62f);
+                Parts.Shape("Offering", root, decal, face, at).transform.localRotation = Quaternion.Euler(0f, (h - 0.5f) * 60f, 0f);
+                for (var k = 0; k < 3; k++)
+                {
+                    var a = (k * 120f + h * 90f) * Mathf.Deg2Rad;
+                    Parts.Shape("Flower", root, bud, flower, at + new Vector3(Mathf.Cos(a) * 0.28f, 0.1f + k * 0.05f, Mathf.Sin(a) * 0.2f))
+                        .gameObject.AddComponent<Billboard>();
+                }
+            }
+        }
+
+        // A low red haze over the graveyard, at the height of the shins: big soft puffs, each a slow 20 s in and out.
+        void Mist(ZoneDef zone)
+        {
+            var node = Parts.Node("Mist", root, map.World(zone.Cells.center.x - 0.5f, zone.Cells.center.y - 0.5f));
+            SeaArt.Particles(node, "Mist", SeaArt.AtlasDot, SeaArt.AtlasDot, 55, new Vector3(zone.Cells.width * Dungeons.Cell, 0.4f, zone.Cells.height * Dungeons.Cell),
+                20f, 4f, 6.5f, Palette.Hex("#FF5A64").WithAlpha(0.32f), 0f, 0.45f);
+        }
+
+        // Cables hung across the canyon's north-south corridors from rack top to rack top, over about half the open
+        // cells with racks east and west of them (not the gate's or a firewall's; up to MaxSpans), so they come
+        // irregularly, not as the rungs of a ladder: one to three strands to a span, each span a metre either way
+        // along the corridor and sagging to its own depth, its lowest strand 6.35 to 7.8 m up, over the camera however
+        // it is tipped (6.2 m at most), so the default view (its top edge rises 0.1 m a metre out from the lens, from
+        // 4 m) takes the lowest in from some 25 m down the corridor, and looking up all of them. Plugs lit in the
+        // canyon's light where it leaves the racks; two packets of data, a bright bead in a soft glow, running along it
+        // at 1.5 m/s (Animate).
+        void Cables(ZoneDef zone)
+        {
+            var ends = new List<(Vector2Int, Vector2Int)>();
             for (var y = zone.Cells.yMin; y < zone.Cells.yMax; y++)
             for (var x = zone.Cells.xMin; x < zone.Cells.xMax; x++)
             {
                 var c = new Vector2Int(x, y);
-                if (!map.Inside(x, y) || map.Solid(c)) continue;
-                for (var k = 0; k < 2; k++)
-                {
-                    var h = Hash(x * 5 + k, y * 3 + i);
-                    var crack = Parts.Shape("Crack", root, SeaArt.Decal(1f), glow, map.World(c) + new Vector3((h - 0.5f) * 2.4f, 0.05f, (Hash(y, x + k) - 0.5f) * 2.4f)).transform;
-                    crack.localScale = new Vector3(0.12f, 1f, 1.6f + h * 2f);
-                    crack.localRotation = Quaternion.Euler(0f, h * 180f, 0f);
-                }
-                i++;
+                var mark = map[c];
+                if ((mark != '.' && !char.IsLower(mark) && !char.IsDigit(mark)) || def.ZoneAt(c) != zone) continue;
+                var (a, b) = (c + Vector2Int.left, c + Vector2Int.right);
+                if (map[a] == '#' && map[b] == '#' && !Draws(a) && !Draws(b) && Hash(c.x * 13, c.y * 7) < 0.55f) ends.Add((a, b));
             }
+            if (ends.Count == 0 || spans.Count >= MaxSpans) return;
+            var dark = Toon("#050A14", "#03060C", "#000000", 0.02f);
+            var led = Palette.Hex("#5CE1FF");
+            var lit = SeaArt.Toon(led * 0.35f, led * 0.35f, Color.clear, led * 1.9f, 0f);
+            lit.SetFloat("_Fade", 1f);
+            var bead = SeaArt.Glow(SeaArt.Disc, new Color(0.6f, 0.95f, 1f));
+            var glow = Glow(SeaArt.Atlas, led.WithAlpha(0.6f), SeaArt.AtlasDot);
+            var plug = SeaArt.Box(new Vector3(0.32f, 0.24f, 0.32f));
+            var (core, halo) = (SeaArt.Quad(0.22f, 0.22f), SeaArt.Quad(1.1f, 1.1f));
+            foreach (var (a, b) in ends)
+                if (spans.Count < MaxSpans) Stretch(a, b, dark, lit, plug, (bead, glow, core, halo));
         }
 
-        // A ring of light on the seabed round the lighthouse.
-        void PlazaRing()
+        void Stretch(Vector2Int a, Vector2Int b, Material dark, Material lit, Mesh plug, (Material bead, Material glow, Mesh core, Mesh halo) packet)
         {
-            var ring = SeaArt.Glow(SeaArt.Ring, new Color(0.8f, 0.88f, 1f, 0.4f));
-            Parts.Shape("Ring", root, SeaArt.Decal(26f), ring, map.World(def.LighthouseCell.x, def.LighthouseCell.y) + Vector3.up * 0.05f);
+            var i = spans.Count;
+            var flat = (map.World(b) - map.World(a)).normalized;
+            var across = Vector3.Cross(Vector3.up, flat);
+            var along = across * ((Hash(i, 43) - 0.5f) * 2f); // a metre either way along the corridor
+            var start = map.World(a) + flat * (Dungeons.Cell / 2f + 0.12f) + Vector3.up * WallTop(a) + along;
+            var end = map.World(b) - flat * (Dungeons.Cell / 2f + 0.12f) + Vector3.up * WallTop(b) + along;
+            var node = Parts.Node("Cables", root, start);
+            var paths = new Vector3[1 + (int)(Hash(47, i) * 2.99f)][];
+            var lowest = 7.2f + (Hash(i, 41) - 0.5f) * 1.2f;
+            for (var k = 0; k < paths.Length; k++)
+            {
+                var off = k - (paths.Length - 1) / 2f;
+                var shift = across * (off * 0.22f);
+                paths[k] = Hang(shift, end - start + shift, lowest + off * 0.25f - start.y);
+            }
+            Parts.Shape("Strands", node, SeaArt.Strands(paths, 0.04f), dark);
+            Parts.Shape("Plug", node, plug, lit);
+            Parts.Shape("Plug", node, plug, lit, end - start);
+            var packets = new Transform[2];
+            for (var k = 0; k < packets.Length; k++)
+            {
+                packets[k] = Parts.Node("Packet", node);
+                packets[k].gameObject.AddComponent<Billboard>();
+                Parts.Shape("Glow", packets[k], packet.halo, packet.glow);
+                Parts.Shape("Bead", packets[k], packet.core, packet.bead, new Vector3(0f, 0f, -0.01f));
+            }
+            var path = paths[paths.Length / 2];
+            var metres = new float[path.Length];
+            for (var j = 1; j < path.Length; j++) metres[j] = metres[j - 1] + Vector3.Distance(path[j - 1], path[j]);
+            spans.Add(new Span { T = node, Axis = (end - start).normalized, Path = path, Along = metres, Packets = packets, Phase = Hash(41, i) * 6.283f });
+        }
+
+        // A cable hanging from `from` to `to` (heights may differ) whose lowest point is at `lowest`, in 12 pieces: a
+        // parabola, near enough a catenary for a cable this slack, its sag found from where it bottoms out.
+        static Vector3[] Hang(Vector3 from, Vector3 to, float lowest)
+        {
+            var rise = to.y - from.y;
+            var below = (from.y + to.y) / 2f - lowest;
+            var sag = (below + Mathf.Sqrt(Mathf.Max(below * below - rise * rise / 4f, 0f))) / 2f;
+            var points = new Vector3[13];
+            for (var j = 0; j < points.Length; j++)
+            {
+                var s = j / 12f;
+                points[j] = Vector3.Lerp(from, to, s) - Vector3.up * (4f * sag * s * (1f - s));
+            }
+            return points;
+        }
+
+        // Over the modelled sunken phone (SeaScene.Screen): the chat on its screen, lighting up every breath of the lamp
+        // as a message comes in (Animate; steady under 减弱闪光), a pool of its light on the seabed round it, and floating
+        // over it, turned to the camera, the message itself, 在吗, one unread. The message hangs over the phone's east
+        // side 4.5 m up, off the line from the start up the channel past the firewall to the lighthouse, so from the
+        // way in neither the firewall's frame nor the lamp stands behind its words.
+        void PhoneScreen(Pose screen)
+        {
+            screenLook = SeaArt.Glow(SeaArt.PhoneScreen, ScreenColor);
+            var overlay = Parts.Shape("Screen", root, SeaArt.Decal(1f), screenLook, screen.position + screen.up * 0.02f).transform;
+            overlay.rotation = screen.rotation;
+            overlay.localScale = new Vector3(10f, 1f, 9.4f);
+            Parts.Shape("Pool", root, SeaArt.Decal(19f), Glow(SeaArt.Atlas, Palette.Hex("#DCEBFF").WithAlpha(0.35f), SeaArt.AtlasDot),
+                new Vector3(screen.position.x, 0.04f, screen.position.z));
+            hologramAt = screen.position + Vector3.right * 3.5f + Vector3.up * 4.5f;
+            hologram = Parts.Node("Message", root, hologramAt);
+            hologram.gameObject.AddComponent<Billboard>();
+            // In layers drawn in order (their queues): dark glass in the bubble's shape laid over whatever is behind, so
+            // the words read against the firewall's red or a rack's lights; the bubble's light and the words added on
+            // it; the badge laid on top in red at 0.78, under the lens's threshold so it stays a red spot round its 1,
+            // and the 1 dark on it. The atlas bubble's body is 0.81 of the quad wide, its middle 0.06 up and its top
+            // corner at (0.41, 0.33): 1.7 m words, 40-odd px from the start, fit inside it.
+            var bubble = SeaArt.Quad(5.2f, 5.2f);
+            var back = Laid(Glow(SeaArt.Atlas, new Color(0.03f, 0.07f, 0.16f, 0.82f), SeaArt.AtlasBubble), 0);
+            var light = Glow(SeaArt.Atlas, new Color(0.35f, 0.6f, 1f, 0.35f), SeaArt.AtlasBubble);
+            light.renderQueue = 3001;
+            var badge = Laid(SeaArt.Glow(SeaArt.Disc, new Color(0.78f, 0.2f, 0.28f, 1f)), 2);
+            Parts.Shape("Backing", hologram, bubble, back, new Vector3(0f, 0f, 0.02f));
+            Parts.Shape("Bubble", hologram, bubble, light);
+            holoWords = SeaArt.Text("Words", hologram, "在吗", 1.7f, WordsColor, new Vector3(0f, 0.33f, -0.02f));
+            var words = holoWords.GetComponent<MeshRenderer>();
+            words.sharedMaterial = new Material(words.sharedMaterial) { hideFlags = HideFlags.None, renderQueue = 3001 }; // freed with the maze
+            Parts.Shape("Badge", hologram, SeaArt.Quad(1f, 1f), badge, new Vector3(2.05f, 1.65f, -0.03f));
+            var one = SeaArt.Text("Unread", hologram, "1", 0.6f, Color.white, new Vector3(2.05f, 1.65f, -0.04f));
+            var ink = Laid(SeaArt.Glow(one.font.material.mainTexture, new Color(0.12f, 0f, 0.04f, 1f)), 3);
+            one.GetComponent<MeshRenderer>().sharedMaterial = ink;
+            holoLooks = new[] { back, light, badge, ink };
+            holoColours = new Color[holoLooks.Length];
+            for (var i = 0; i < holoLooks.Length; i++) holoColours[i] = holoLooks[i].GetColor("_Color");
+        }
+
+        // A Glow laid over what is behind it instead of added (premultiplied), drawn `order` places after the rest.
+        static Material Laid(Material glow, int order)
+        {
+            glow.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            glow.renderQueue = 3000 + order;
+            return glow;
         }
     }
 }

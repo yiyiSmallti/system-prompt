@@ -16,7 +16,9 @@ namespace SystemPrompt.Dungeon
         public readonly Transform Root;
         public bool Used;
 
-        static readonly Color Rested = new Color(0.45f, 1f, 0.85f, 1f); // a beacon after the player has rested at it
+        public static readonly Color Rested = new Color(0.45f, 1f, 0.85f, 1f); // a beacon after the player has rested at it
+        public static readonly Color Gold = new Color(1f, 0.8f, 0.35f, 1f);    // a chest's light
+        public const float LampHeight = 2.42f; // a beacon's lamp
 
         readonly Material glow;
         readonly Material beam;
@@ -24,8 +26,17 @@ namespace SystemPrompt.Dungeon
         readonly Transform lid;
         readonly Transform sweep, ripple;
         readonly Material sweepLight, bands, rippleLight;
-        float usedAt = -1f;
+        readonly Transform uplink;     // the terminal's shaft of light sent up as it is used
+        readonly Material uplinkLight;
+        readonly Material flare;       // a beacon lamp's halo
+        readonly Transform burst;      // a chest's gold shaft and cards, thrown up as it opens
+        readonly Transform[] cards;
+        readonly Material burstLight, cardLook;
+        float usedAt = -1f, litAt = -1f;
         readonly Color color;
+
+        // 减弱闪光: the beacon's flash on resting goes half as bright.
+        static bool Calm => GameRoot.Instance != null && GameRoot.Instance.Settings.reduceFlash;
 
         public float Reach => Kind == PropKind.Goal ? 0f : Kind == PropKind.Beacon ? 3f : 2.6f;
 
@@ -87,6 +98,20 @@ namespace SystemPrompt.Dungeon
                     Parts.Shape("Keyhole", Root, SeaArt.Quad(0.06f, 0.11f), glow, new Vector3(0, 0.49f, 0.435f)).transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                     Parts.Shape("Seam", Root, SeaArt.Box(new Vector3(1.19f, 0.04f, 0.79f)), glow, new Vector3(0, 0.62f, 0));
                     Ring(2.2f, color);
+                    // Thrown up out of it as it opens: a short gold shaft and three of the sea's cards rising in it.
+                    burst = Parts.Node("Burst", Root, new Vector3(0, 0.62f, 0));
+                    burstLight = SeaArt.Shaft(Gold.WithAlpha(0.45f), new Color(1f, 0.95f, 0.8f, 0.6f), 0.15f, 3f, 0.6f, 1.2f, 0.2f);
+                    Parts.Shape("Shaft", burst, SeaArt.Ribbon(0.7f), burstLight).transform.localScale = new Vector3(1f, 2.8f, 1f);
+                    cardLook = SeaArt.Glow(SeaArt.Atlas, Color.white);
+                    cardLook.mainTextureScale = new Vector2(0.25f, 1f);
+                    cardLook.mainTextureOffset = new Vector2(0.25f * SeaArt.AtlasCard, 0f);
+                    cards = new Transform[3];
+                    for (var i = 0; i < cards.Length; i++)
+                    {
+                        cards[i] = Parts.Shape("Card", burst, SeaArt.Quad(0.34f, 0.34f), cardLook).transform;
+                        cards[i].gameObject.AddComponent<Billboard>();
+                    }
+                    burst.gameObject.SetActive(false);
                     break;
                 }
                 case PropKind.Terminal:
@@ -110,6 +135,10 @@ namespace SystemPrompt.Dungeon
                     Parts.Shape("Stripe", Root, SeaArt.Box(new Vector3(0.05f, 0.7f, 0.05f)), glow, new Vector3(0, 0.55f, 0.18f));
                     Ring(2.2f, color);
                     Beam(color, 0.8f, 12f, 0.1f);
+                    uplinkLight = SeaArt.Shaft(new Color(0.45f, 0.85f, 1f, 0.5f), new Color(0.9f, 0.97f, 1f, 0.8f), 0.15f, 6f, 0.8f);
+                    uplink = Parts.Shape("Uplink", Root, SeaArt.Ribbon(0.5f), uplinkLight, new Vector3(0, 1.6f, 0)).transform;
+                    uplink.localScale = new Vector3(1f, 40f, 1f);
+                    uplink.gameObject.SetActive(false);
                     break;
                 }
                 case PropKind.Console:
@@ -131,7 +160,7 @@ namespace SystemPrompt.Dungeon
                     var screen = Parts.Shape("Screen", Root, SeaArt.Quad(0.62f, 0.38f), glow, new Vector3(-0.14f, 0.983f, 0.023f));
                     screen.transform.localRotation = slope;
                     SeaArt.Text("Words", Root, "RESET", 0.14f, new Color(1f, 0.85f, 0.6f, 1f), new Vector3(-0.14f, 0.992f, 0.027f)).transform.localRotation = slope;
-                    var button = Parts.Shape("Button", Root, SeaArt.Cylinder(0.11f, 0.09f, 0.06f, 12), SeaArt.Toon(color, color * 0.6f, Color.white, color * 0.8f, 0.01f),
+                    var button = Parts.Shape("Button", Root, SeaArt.Cylinder(0.11f, 0.09f, 0.06f, 12), SeaArt.Toon(color, color * 0.6f, Color.white, color * 1.6f, 0.01f),
                         new Vector3(0.36f, 0.94f, 0.1f));
                     button.transform.localRotation = Quaternion.Euler(tilt, 0f, 0f);
                     Ring(2.2f, color);
@@ -154,10 +183,14 @@ namespace SystemPrompt.Dungeon
                     Parts.Shape("Band", Root, SeaArt.Tube(0.425f, 0.425f, 0.06f, 8), bands, new Vector3(0, 0.92f, 0));
                     Parts.Shape("Band", Root, SeaArt.Tube(0.375f, 0.375f, 0.06f, 8), bands, new Vector3(0, 1.52f, 0));
                     Parts.Shape("Glass", Root, SeaArt.Tube(0.33f, 0.33f, 0.5f, 8), SeaArt.Glow(SeaArt.White, new Color(0.6f, 0.85f, 1f, 0.18f)), new Vector3(0, 2.17f, 0));
-                    glow = SeaArt.Toon(color, color, Color.white, color * 0.6f, 0.01f);
-                    Parts.Shape("Lamp", Root, SeaArt.Sphere(0.2f), glow, new Vector3(0, 2.42f, 0));
+                    // The lamp a lit ball with its shading showing, its glow a halo over it (past the lens's threshold
+                    // only at the halo's heart) rather than emission burning the ball out to a white disc.
+                    glow = SeaArt.Toon(color * 0.85f, color * 0.45f, Color.white * 0.6f, color * 0.3f, 0f);
+                    Parts.Shape("Lamp", Root, SeaArt.Sphere(0.2f), glow, new Vector3(0, LampHeight, 0));
+                    flare = SeaArt.Glow(SeaArt.Flare, color * 0.7f);
+                    Parts.Shape("Halo", Root, SeaArt.Quad(1.8f, 1.8f), flare, new Vector3(0, LampHeight, 0)).gameObject.AddComponent<Billboard>();
                     Parts.Shape("Roof", Root, SeaArt.Cone(0.48f, 0.4f, 8), trim, new Vector3(0, 2.67f, 0));
-                    sweep = Parts.Node("Sweep", Root, new Vector3(0, 2.42f, 0));
+                    sweep = Parts.Node("Sweep", Root, new Vector3(0, LampHeight, 0));
                     sweepLight = SeaArt.Shaft(color.WithAlpha(0.4f), Color.white.WithAlpha(0.35f), 0.12f, 4f, 0.4f, 1.6f, 0.3f);
                     for (var k = 0; k < 2; k++)
                     {
@@ -199,12 +232,28 @@ namespace SystemPrompt.Dungeon
             if (Kind == PropKind.Beacon || Kind == PropKind.Console)
             {
                 // A beacon or console stays usable: using it again just lights it up again.
+                if (!Used) litAt = time;
                 usedAt = time;
                 Used = true;
                 return;
             }
             Used = true;
             usedAt = time;
+            if (Kind == PropKind.Chest) burst.gameObject.SetActive(true);
+            if (Kind == PropKind.Terminal)
+            {
+                // Its log starts scrolling past, and it sends its light up to the walls it opens.
+                glow.mainTexture = SeaArt.Log;
+                glow.mainTextureScale = new Vector2(1f, 2f);
+                glow.SetVector("_Scroll", new Vector4(0f, -0.6f, 0f, 0f));
+                uplink.gameObject.SetActive(true);
+            }
+        }
+
+        // The terminal's talk over: its log goes on scrolling, slowly.
+        public void Settle()
+        {
+            if (Kind == PropKind.Terminal) glow.SetVector("_Scroll", new Vector4(0f, -0.1f, 0f, 0f));
         }
 
         public void Animate(float time, Camera camera)
@@ -224,22 +273,61 @@ namespace SystemPrompt.Dungeon
                     if (Used && since < 1f) floater.localScale = Vector3.one * (1f + 0.6f * (1f - since));
                     break;
                 case PropKind.Chest:
-                    if (Used) lid.localRotation = Quaternion.Euler(-Mathf.Min(1f, since / 0.45f) * 105f, 0, 0);
-                    glow.SetColor("_Color", Used ? new Color(1f, 0.8f, 0.35f, 0.15f) : new Color(1f, 0.8f, 0.35f, 0.6f + 0.3f * Mathf.Sin(time * 2.5f)));
+                {
+                    // Opened over 0.5 s: the lid pressed 4° down first, then up past its 105° and back a little. The seam
+                    // flares as the lid parts and dies down to an ember over 0.6 s.
+                    var seam = 0.6f + 0.3f * Mathf.Sin(time * 2.5f);
+                    if (Used)
+                    {
+                        var u = since / 0.5f;
+                        var angle = u < 0.16f ? -4f * Mathf.Sin(u / 0.16f * Mathf.PI) : 105f * Ease.OutBack(Mathf.Min(1f, (u - 0.16f) / 0.84f));
+                        lid.localRotation = Quaternion.Euler(-angle, 0, 0);
+                        seam = u < 0.16f ? 0.6f : Mathf.Lerp(1f, 0.15f, Mathf.Clamp01((since - 0.08f) / 0.6f));
+                    }
+                    glow.SetColor("_Color", Gold.WithAlpha(seam));
+                    if (burst.gameObject.activeSelf)
+                    {
+                        // From 0.12 s, once the lid has come up off its press and parted (nothing before, or the cards
+                        // show over a shut lid): the shaft in over 0.1 s and out from 0.7 s to 1.2 s; the cards rise
+                        // 1.2 m over 0.9 s, fading.
+                        var b = since - 0.12f;
+                        var a = Mathf.Min(Mathf.Clamp01(b / 0.1f), 1f - Mathf.Clamp01((b - 0.7f) / 0.5f));
+                        burstLight.SetColor("_Color", Gold.WithAlpha(0.45f * a));
+                        burstLight.SetColor("_CoreColor", new Color(1f, 0.95f, 0.8f, 0.6f * a));
+                        var k = Mathf.Clamp01(b / 0.9f);
+                        var rise = Ease.OutCubic(k);
+                        for (var i = 0; i < cards.Length; i++)
+                            cards[i].localPosition = new Vector3((i - 1) * (0.2f + 0.25f * rise), 0.1f + (1.2f - 0.25f * Mathf.Abs(i - 1)) * rise, (i - 1) * 0.05f);
+                        cardLook.SetColor("_Color", new Color(1f, 0.95f, 0.85f, 0.9f * Mathf.Min(Mathf.Clamp01(b / 0.1f), 1f - Mathf.Clamp01((b - 0.5f) / 0.4f))));
+                        if (b >= 1.2f) burst.gameObject.SetActive(false);
+                    }
                     break;
+                }
                 case PropKind.Terminal:
                     glow.SetColor("_Color", Used ? new Color(0.35f, 0.85f, 1f, 0.9f) : new Color(0.3f, 1f, 0.6f, 0.45f + 0.35f * Mathf.Abs(Mathf.Sin(time * 4f))));
+                    if (uplink.gameObject.activeSelf)
+                    {
+                        // Up in 0.15 s, held, gone over 0.6 s.
+                        var a = Mathf.Min(Mathf.Clamp01(since / 0.15f), 1f - Mathf.Clamp01((since - 0.6f) / 0.6f));
+                        uplinkLight.SetColor("_Color", new Color(0.45f, 0.85f, 1f, 0.5f * a));
+                        uplinkLight.SetColor("_CoreColor", new Color(0.9f, 0.97f, 1f, 0.8f * a));
+                        if (since >= 1.2f) uplink.gameObject.SetActive(false);
+                    }
                     break;
                 case PropKind.Console:
                     glow.SetColor("_Color", new Color(1f, 0.66f, 0.2f, since >= 0f && since < 0.6f ? 1f : 0.5f + 0.2f * Mathf.Sin(time * 3f)));
                     break;
                 case PropKind.Beacon:
                 {
-                    // Resting lights it up for a moment and sends a ring out at once; after that it stays green.
-                    var lit = Used ? Rested : color;
-                    var flash = since >= 0f && since < 1.2f ? 1f - since / 1.2f : 0f;
-                    var pulse = 1f + flash * 2f;
-                    glow.SetColor("_Emission", lit * 0.7f * pulse);
+                    // Resting lights it up for a moment and sends a ring out at once; its colour turns to green over
+                    // 0.8 s the first time, and stays.
+                    var lit = Color.Lerp(color, Rested, Used ? Mathf.SmoothStep(0f, 1f, (time - litAt) / 0.8f) : 0f);
+                    // Halved with reduced flashing (Calm), the beam and its core included.
+                    var flash = (since >= 0f && since < 1.2f ? 1f - since / 1.2f : 0f) * (Calm ? 0.5f : 1f);
+                    var pulse = 1f + 2f * flash;
+                    var breath = Mathf.Max(flash, 0.5f + 0.5f * Mathf.Sin(time * 2f));
+                    glow.SetColor("_Emission", lit * (0.22f + 0.12f * breath));
+                    flare.SetColor("_Color", (lit * 0.7f).WithAlpha(Mathf.Lerp(0.45f, 0.75f, breath)));
                     beam.SetColor("_Color", lit.WithAlpha((Used ? 0.55f : 0.45f) * (1f + flash)));
                     beam.SetColor("_CoreColor", Color.white.WithAlpha((Used ? 0.4f : 0.3f) * (1f + flash)));
                     sweep.localRotation = Quaternion.Euler(0, time * 50f, 0);
@@ -255,40 +343,124 @@ namespace SystemPrompt.Dungeon
     }
 
     // A wall of data blocks across a corridor: red, the firewall to the lighthouse until the terminal is
-    // used; amber, the gate to the terminal until its sockets are full.
+    // used; amber, the gate to the terminal until its sockets are full. Opened, it washes out to white with its
+    // data running fast, then breaks up in square cells from the top down (Shaders/Dissolve.shader) into pixels
+    // drifting up, lighting the frame round it as it goes; seen from a cutaway (DungeonScreen.Reveal) a shaft of light
+    // drops onto it first, the terminal's answer coming down.
     public sealed class Firewall
     {
-        readonly Transform root;
+        public readonly Vector3 Position;
+        readonly Transform root, layerRoot, drop;
         readonly Material[] layers = new Material[2];
-        readonly Color colour;
+        readonly Material dropLight;
+        readonly Color colour, edge, light;
+        readonly bool alongX;
+        SeaGlims glims;
+        SeaWake wake;
         float openedAt = -1f;
+        bool burst;
+
+        const float Height = 7f, DropLength = 40f;
+
+        public bool Opened => openedAt >= 0f;
 
         public Firewall(Vector3 position, bool alongX, Transform parent) : this(position, alongX, parent, new Color(1f, 0.22f, 0.25f)) { }
 
         public Firewall(Vector3 position, bool alongX, Transform parent, Color colour)
         {
+            Position = position;
             this.colour = colour;
+            this.alongX = alongX;
+            var amber = colour.g > 0.5f;
+            edge = amber ? new Color(1f, 0.8f, 0.45f) : new Color(0.66f, 1.05f, 1.1f);
+            light = amber ? new Color(1f, 0.75f, 0.35f) : new Color(0.35f, 1f, 0.6f);
             root = Parts.Node("Firewall", parent, position);
             if (!alongX) root.localRotation = Quaternion.Euler(0, 90f, 0);
+            layerRoot = Parts.Node("Layers", root);
             for (var i = 0; i < layers.Length; i++)
             {
-                layers[i] = SeaArt.Glow(SeaArt.Firewall, colour.WithAlpha(0.55f - i * 0.2f));
-                layers[i].mainTextureScale = new Vector2(2f, 3.5f);
-                layers[i].SetVector("_Scroll", new Vector4(0f, i == 0 ? 0.12f : -0.07f, 0, 0));
-                Parts.Shape("Layer", root, SeaArt.Quad(Dungeons.Cell, 7f), layers[i], new Vector3(0, 3.5f, i * 0.3f - 0.15f));
+                var m = layers[i] = SeaArt.Plain("Dissolve");
+                m.mainTexture = SeaArt.Firewall;
+                m.mainTextureScale = new Vector2(2f, 3.5f);
+                m.SetColor("_Color", colour.WithAlpha(0.55f - i * 0.2f));
+                m.SetVector("_Scroll", new Vector4(0f, i == 0 ? 0.12f : -0.07f, 0, 0));
+                m.SetColor("_EdgeColor", edge);
+                // The back layer's cells a little off the front's, so the two don't break up as one.
+                m.SetVector("_Cells", new Vector4(16f + i * 3f, 28f + i * 5f, 0, 0));
+                Parts.Shape("Layer", layerRoot, SeaArt.Quad(Dungeons.Cell, Height), m, new Vector3(0, Height / 2f, i * 0.3f - 0.15f));
             }
+            // Hung upside down from high over the wall, it grows down onto the wall's top.
+            dropLight = SeaArt.Shaft(new Color(0.45f, 0.85f, 1f, 0.5f), new Color(0.9f, 0.97f, 1f, 0.8f), 0.15f, 6f, 0.8f);
+            drop = Parts.Shape("Drop", root, SeaArt.Ribbon(0.5f), dropLight, new Vector3(0, Height + DropLength, 0)).transform;
+            drop.localRotation = Quaternion.Euler(0, 0, 180f);
+            drop.gameObject.SetActive(false);
         }
 
-        public void Open(float time) => openedAt = time;
+        // From the maze's `time` on: glims and wake light its frame and take its pixels; beam: the shaft drops onto it first.
+        public void Open(float time, SeaGlims glims, SeaWake wake, bool beam = false)
+        {
+            if (Opened) return;
+            openedAt = time;
+            this.glims = glims;
+            this.wake = wake;
+            drop.gameObject.SetActive(beam);
+            if (beam) drop.localScale = new Vector3(1f, 0f, 1f);
+        }
 
         public void Animate(float time)
         {
-            if (openedAt < 0f) return;
-            var t = Mathf.Clamp01((time - openedAt) / 0.9f);
-            for (var i = 0; i < layers.Length; i++)
-                layers[i].SetColor("_Color", Color.Lerp(colour, Color.white, t * 0.75f).WithAlpha((0.55f - i * 0.2f) * (1f - t)));
-            root.localScale = new Vector3(1f, 1f - t * 0.95f, 1f);
-            if (t >= 1f) root.gameObject.SetActive(false);
+            if (!Opened || !root.gameObject.activeSelf) return;
+            var since = time - openedAt;
+            if (drop.gameObject.activeSelf)
+            {
+                // Down in a quarter second, held, gone after a second.
+                drop.localScale = new Vector3(1f, DropLength * Ease.OutCubic(Mathf.Clamp01(since / 0.25f)), 1f);
+                var a = 1f - Mathf.Clamp01((since - 0.9f) / 0.4f);
+                dropLight.SetColor("_Color", new Color(0.45f, 0.85f, 1f, 0.5f * a));
+                dropLight.SetColor("_CoreColor", new Color(0.9f, 0.97f, 1f, 0.8f * a));
+                if (a <= 0f) drop.gameObject.SetActive(false);
+            }
+            if (layerRoot.gameObject.activeSelf)
+            {
+                // Washed out to white with its data rushing, then eaten away cell by cell. The rush runs up to four times
+                // the drift as it whitens: the extra distance, integrated here, goes on the texture's offset, with the
+                // shader's own scroll (_Scroll × _SeaTime) left alone; scaling that speed would jump the texture by
+                // however far the clock has run.
+                var white = Mathf.Clamp01(since / 0.25f);
+                var rushed = 3f * (since < 0.25f ? since * since / 0.5f : since - 0.125f);
+                var cut = Mathf.SmoothStep(0f, 1f, (since - 0.25f) / 0.85f);
+                var calm = GameRoot.Instance != null && GameRoot.Instance.Settings.reduceFlash;
+                for (var i = 0; i < layers.Length; i++)
+                {
+                    var m = layers[i];
+                    m.SetColor("_Color", Color.Lerp(colour, Color.white * 0.9f, white).WithAlpha(0.55f - i * 0.2f));
+                    m.mainTextureOffset = new Vector2(0f, (i == 0 ? 0.12f : -0.07f) * rushed);
+                    m.SetFloat("_Cut", cut);
+                    m.SetColor("_EdgeColor", edge * (calm ? 0.55f : 1f));
+                }
+                if (since >= 1.1f) layerRoot.gameObject.SetActive(false);
+            }
+            if (!burst && since >= 0.25f)
+            {
+                burst = true;
+                Burst(time);
+            }
+            if (since >= 2.6f && !drop.gameObject.activeSelf) root.gameObject.SetActive(false);
+        }
+
+        // The wall's pixels let go and drift up; its light sweeps over the frame round it and a ring runs out from its foot.
+        void Burst(float time)
+        {
+            var across = alongX ? Vector3.right : Vector3.forward;
+            if (wake != null)
+                for (var i = 0; i < 90; i++)
+                {
+                    var at = Position + across * Random.Range(-Dungeons.Cell / 2f, Dungeons.Cell / 2f) + Vector3.up * Random.Range(0.2f, Height);
+                    var c = Color.Lerp(Color.white, edge.WithAlpha(1f), Random.value);
+                    wake.Bit(at, Vector3.up * Random.Range(0.6f, 1.4f) + Random.insideUnitSphere * 0.3f, Random.Range(0.12f, 0.22f), Random.Range(0.9f, 1.4f), c.WithAlpha(0.9f));
+                }
+            glims?.Light(Position + Vector3.up * 2f, light, 7f, 1.2f, time);
+            glims?.Pulse(Position, edge * 0.7f, time);
         }
     }
 }

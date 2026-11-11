@@ -1,5 +1,6 @@
 // Soft dark spots on the seabed under whatever stands or floats there (Dungeon/SeaArt.Shadow; the sea has
-// no real shadows): darkens what is behind it, less the further into the fog.
+// no real shadows): darkens what is behind it, less the further into the fog. Near the player, where the seabed takes
+// the figures' and noise bodies' own shadows (Dungeon/SeaShade.cs), it is only a lighter contact shade.
 Shader "SystemPrompt/Shadow"
 {
     Properties
@@ -37,6 +38,8 @@ Shader "SystemPrompt/Shadow"
             {
                 float a = saturate(1.0 - length(i.uv * 2.0 - 1.0));
                 a = a * a * (3.0 - 2.0 * a);
+                // Where the seabed takes the shaped shadows (SeaShade), only the contact shade under the feet: 0.35 of 0.6.
+                a *= 1.0 - 0.42 * SeaShadeCover(i.world);
                 return fixed4(0, 0, 0, a * _Strength * SeaClear(i.world));
             }
             ENDCG

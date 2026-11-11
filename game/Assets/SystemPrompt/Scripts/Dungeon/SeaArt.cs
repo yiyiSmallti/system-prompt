@@ -58,6 +58,7 @@ namespace SystemPrompt.Dungeon
         {
             var m = new Material(Load("Ice"));
             m.SetColor("_Color", color);
+            m.SetTexture("_FrostTex", Frost);
             return m;
         }
 
@@ -80,9 +81,10 @@ namespace SystemPrompt.Dungeon
         }
 
         // Drifting billboards from the atlas (tiles firstTile..lastTile) in a box above parent: the plankton
-        // and the lost things of the sea.
+        // and the lost things of the sea. With a texture of their own (the bubbles off a vent), that instead.
+        // maxScreen: the most of the view's height one may cover, so one drifting past the lens stays a speck.
         public static void Particles(Transform parent, string name, int firstTile, int lastTile, int count, Vector3 box, float lifetime,
-            float minSize, float maxSize, Color color, float rise, float height = 4f)
+            float minSize, float maxSize, Color color, float rise, float height = 4f, Texture texture = null, float maxScreen = 0.5f)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -122,14 +124,15 @@ namespace SystemPrompt.Dungeon
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.25f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
             fade.color = g;
             var sheet = ps.textureSheetAnimation;
-            sheet.enabled = true;
+            sheet.enabled = texture == null;
             sheet.numTilesX = 4;
             sheet.numTilesY = 1;
             sheet.frameOverTime = new ParticleSystem.MinMaxCurve(firstTile / 4f, (lastTile + 0.99f) / 4f);
             sheet.cycleCount = 1;
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = SeaArt.Glow(SeaArt.Atlas, Color.white);
+            renderer.sharedMaterial = SeaArt.Glow(texture != null ? texture : SeaArt.Atlas, Color.white);
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.maxParticleSize = maxScreen;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             ps.Play();
@@ -190,7 +193,7 @@ namespace SystemPrompt.Dungeon
 
         public const int AtlasBubble = 0, AtlasEmoji = 1, AtlasCard = 2, AtlasDot = 3;
 
-        static Texture2D atlas, beam, white, firewall, ring, flare, cells, socket, sheen, dial, spark, glare, puff, wave, across, bubble, snow, bands;
+        static Texture2D atlas, beam, white, firewall, ring, flare, spikes, cells, socket, sheen, dial, spark, glare, glareCore, puff, puffSheet, wave, across, bubble, snow, bands, frost, swipe, caustics;
 
         // Four 128px cells: a chat bubble, an emoji face, a web card and a soft dot, white on clear.
         public static Texture2D Atlas => atlas ??= MakeAtlas();
@@ -199,18 +202,26 @@ namespace SystemPrompt.Dungeon
         public static Texture2D Firewall => firewall ??= MakeFirewall();
         public static Texture2D Ring => ring ??= MakeRing();
         public static Texture2D Flare => flare ??= MakeFlare();
+        // A blow's star: needle rays and nothing between them (MakeSpikes).
+        public static Texture2D Spikes => spikes ??= MakeSpikes();
         public static Texture2D Cells => cells ??= MakeCells();
         public static Texture2D SocketMark => socket ??= MakeSocket();
         public static Texture2D Sheen => sheen ??= MakeSheen();
         public static Texture2D Dial => dial ??= MakeDial();
         // The battle's effects (Dungeon/BattleEffects.cs): a hot point with a little glow round it, stretched
-        // into a streak by a spark's speed; a flash's glare; a puff of smoke or flame; a shock wave; and the
+        // into a streak by a spark's speed; a flash's glare, and for a big one a hot core with only a breath of
+        // glare; a puff of smoke or flame; a shock wave, a sharp front with a thin wake inside it; and the
         // cross-section of a trail of light.
         public static Texture2D Spark => spark ??= Radial(64, r => Mathf.Exp(-r * r * 30f) + 0.22f * Mathf.Exp(-r * r * 5f));
         public static Texture2D Glare => glare ??= Radial(128, r => 0.85f * Mathf.Exp(-r * r * 20f) + 0.4f * Mathf.Exp(-r * r * 3.5f));
+        public static Texture2D GlareCore => glareCore ??= Radial(128, r => 0.95f * Mathf.Exp(-r * r * 26f) + 0.12f * Mathf.Exp(-r * r * 6f));
         public static Texture2D Puff => puff ??= MakePuff();
-        public static Texture2D Wave => wave ??= Radial(128, r => r < 0.92f ? Mathf.Pow(Mathf.Clamp01((r - 0.6f) / 0.32f), 2.6f) * 0.6f + Mathf.Exp(-Mathf.Pow((r - 0.92f) / 0.025f, 2f)) * 0.4f
-            : Mathf.Exp(-Mathf.Pow((r - 0.92f) / 0.025f, 2f)));
+        // The puff rolling over as it burns, in 16 cells of 64 px read left to right from the top (a particle's
+        // texture sheet): swelling, its clumps going up, and thinning to nothing.
+        public static Texture2D PuffSheet => puffSheet ??= MakePuffSheet();
+        // The front sits at 0.86, where Radial's edge still leaves it 0.84 of its light.
+        public static Texture2D Wave => wave ??= Radial(128, r => Mathf.Exp(-Mathf.Pow((r - 0.86f) / 0.035f, 2f))
+            + (r < 0.86f ? 0.1f * Mathf.Pow(Mathf.Clamp01((r - 0.55f) / 0.31f), 2f) : 0f));
         public static Texture2D Across => across ??= MakeAcross();
         // A bubble of air: a thin bright rim round a faint body, a highlight up to its left; a snowflake, six
         // arms with spurs off them, bright at the middle; and bands of current winding across a tile that
@@ -218,6 +229,47 @@ namespace SystemPrompt.Dungeon
         public static Texture2D Bubble => bubble ??= MakeBubble();
         public static Texture2D Snow => snow ??= MakeSnow();
         public static Texture2D Bands => bands ??= MakeBands();
+        // Frost on ice (Shaders/Ice.shader): fine cracks between jittered cells and a dusting of rime between
+        // them, in alpha, repeating both ways.
+        public static Texture2D Frost => frost ??= MakeFrost();
+        // The 饭勺's blade of water (BattleEffects.Swipe): u its age (0 the freshest), v from the spoon (0) out to
+        // the edge (1), brightest toward the edge and streaked along the swing.
+        public static Texture2D Swipe => swipe ??= MakeSwipe();
+        // The light net the surface throws on everything under it (SeaCommon.cginc SeaCaustic): one grey channel,
+        // kept for the whole run and handed to the shaders at start-up (GameRoot), as making it takes a moment.
+        public static Texture2D Caustics => caustics ??= MakeCaustics();
+        // The sunken phone's screen (SeaDecor.PhoneScreen), drawn over the modelled one, north up: kept for the whole run.
+        public static Texture2D PhoneScreen => phoneScreen ??= MakePhoneScreen();
+        static Texture2D phoneScreen;
+        // A plain round spot, solid to its edge: the unread badge over it.
+        public static Texture2D Disc => disc ??= Radial(64, r => 1f);
+        static Texture2D disc;
+        // A terminal's log scrolling past (SeaProp, the maintenance terminal once used): a white bar of its own
+        // length every 6 px down, indented a little now and then, repeating both ways.
+        public static Texture2D Log => log ??= MakeLog();
+        static Texture2D log;
+
+        static Texture2D MakeLog()
+        {
+            const int w = 128, h = 256;
+            var t = New(w, h, TextureWrapMode.Repeat);
+            t.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            var px = new Color32[w * h];
+            var r = new System.Random(7);
+            for (var row = 0; row < h / 6; row++)
+            {
+                var indent = r.Next(4) == 0 ? 16 : 6;
+                var length = r.Next(20, 111);
+                for (var y = row * 6 + 1; y < row * 6 + 4; y++)
+                for (var x = indent; x < Mathf.Min(w - 4, indent + length); x++)
+                    px[y * w + x] = new Color32(255, 255, 255, 255);
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        public static void WarmCaustics() => Shader.SetGlobalTexture("_SeaCausticTex", Caustics);
 
         // The atlas rectangle of one cell, for a material's scale and offset.
         public static Vector4 AtlasCell(int i) => new Vector4(0.25f, 1f, 0.25f * i, 0f);
@@ -391,6 +443,34 @@ namespace SystemPrompt.Dungeon
             return t;
         }
 
+        // Four long rays out to the edges and four short ones on the diagonals, each a needle tapering to its tip,
+        // meeting in a pin-point with no glow round it: made big, a star adds length, not a disc of light.
+        static Texture2D MakeSpikes()
+        {
+            const int S = 128;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f) / (S / 2f);
+                var d = new Vector2(p.x + p.y, p.y - p.x) * 0.70710678f;
+                var a = Ray(p.x, p.y, 1f) + Ray(p.y, p.x, 1f) + 0.6f * (Ray(d.x, d.y, 0.6f) + Ray(d.y, d.x, 0.6f)) + Mathf.Exp(-p.sqrMagnitude * 900f);
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+
+            // Along `along` both ways out to `length`, `across` off it.
+            static float Ray(float along, float across, float length)
+            {
+                var u = Mathf.Abs(along) / length;
+                if (u >= 1f) return 0f;
+                return Mathf.Exp(-Mathf.Abs(across) / (0.03f * (1f - u) + 0.005f)) * Mathf.Pow(1f - u, 1.5f);
+            }
+        }
+
         // White, its alpha `shape(r)` out from the middle (r 1 at the edge), brought down to nothing at the edge.
         static Texture2D Radial(int size, System.Func<float, float> shape)
         {
@@ -486,6 +566,170 @@ namespace SystemPrompt.Dungeon
             return t;
         }
 
+        // A chat on a phone's screen, u east and v north over a 10 x 9.4 m screen: deep blue going lighter toward the
+        // top, a status bar, messages without words (theirs white on the left, ours green on the right) under where the
+        // model's own 在吗 lies (u 0.07-0.6, v 0.55-0.8), a crack across it, and a red badge in the corner, inside the
+        // screen's rounded corners.
+        static Texture2D MakePhoneScreen()
+        {
+            const int S = 512;
+            var t = new Texture2D(S, S, TextureFormat.RGBA32, true)
+            {
+                wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Trilinear, anisoLevel = 4, name = "Sea Phone Screen",
+                hideFlags = HideFlags.DontUnloadUnusedAsset,
+            };
+            var deep = new Color(0.12f, 0.3f, 0.75f);
+            var theirs = new Color(0.9f, 0.94f, 1f);
+            var ours = new Color(0.35f, 0.95f, 0.6f);
+            var red = new Color(1f, 0.27f, 0.36f);
+            // Messages in px (centre, half size), y up; the last of ours unanswered higher up, by the badge.
+            var chat = new (Vector2 at, Vector2 half, bool mine)[]
+            {
+                (new Vector2(150, 220), new Vector2(110, 30), false), (new Vector2(372, 160), new Vector2(92, 26), true),
+                (new Vector2(130, 100), new Vector2(90, 26), false), (new Vector2(360, 236), new Vector2(104, 30), true),
+                (new Vector2(390, 330), new Vector2(76, 24), true),
+            };
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                var p = new Vector2(x + 0.5f, y + 0.5f);
+                var screen = Fill(Box(p - new Vector2(S / 2f, S / 2f), new Vector2(S / 2f - 2f, S / 2f - 2f), 18f));
+                var col = Color.Lerp(deep, deep * 1.5f, p.y / S);
+                var a = 0.3f + 0.15f * p.y / S;
+                // The status bar: a lit strip with the time's and the battery's marks.
+                var bar = Fill(Box(p - new Vector2(S / 2f, S - 24f), new Vector2(S / 2f - 20f, 10f), 4f));
+                var marks = Fill(Mathf.Min(Box(p - new Vector2(60, S - 24f), new Vector2(26, 5), 2), Box(p - new Vector2(S - 70, S - 24f), new Vector2(22, 5), 2)));
+                col = Color.Lerp(col, Color.white, marks);
+                a = Mathf.Max(a, bar * 0.5f + marks * 0.4f);
+                foreach (var m in chat)
+                {
+                    var tail = Box(p - (m.at + new Vector2(m.mine ? m.half.x - 6f : 6f - m.half.x, -m.half.y + 4f)), new Vector2(8, 8), 2);
+                    var f = Fill(Mathf.Min(Box(p - m.at, m.half, 14f), tail));
+                    col = Color.Lerp(col, m.mine ? ours : theirs, f);
+                    a = Mathf.Max(a, f * 0.85f);
+                }
+                // A crack from the top left corner down across the messages: a thin jagged line, brighter at its edges.
+                var along = (p.x + p.y * 0.55f) / S;
+                var jag = Mathf.Abs(p.y - (S - 1.35f * p.x + 12f * Mathf.Sin(p.x * 0.11f) + 7f * Mathf.Sin(p.x * 0.37f)));
+                var crack = Mathf.Clamp01(1.6f - jag) * Mathf.Clamp01(1.4f - along * 1.6f);
+                col = Color.Lerp(col, Color.white, crack);
+                a = Mathf.Max(a, crack * 0.9f);
+                var badge = Fill((p - new Vector2(S - 46f, S - 64f)).magnitude - 16f);
+                col = Color.Lerp(col, red, badge);
+                a = Mathf.Max(a, badge);
+                a *= screen;
+                px[y * S + x] = new Color32((byte)(Mathf.Clamp01(col.r) * 255), (byte)(Mathf.Clamp01(col.g) * 255), (byte)(Mathf.Clamp01(col.b) * 255), (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        // The edges between 8 x 8 jittered cells, bright and thin, wavering a little; every period a whole number of
+        // times the tile, so it repeats both ways without a seam.
+        static Texture2D MakeCaustics()
+        {
+            const int S = 256, N = 8;
+            var t = new Texture2D(S, S, TextureFormat.R8, true)
+            {
+                wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear, anisoLevel = 4, name = "Sea Caustics",
+                hideFlags = HideFlags.DontUnloadUnusedAsset,
+            };
+            var seeds = new Vector2[N * N];
+            for (var i = 0; i < seeds.Length; i++) seeds[i] = new Vector2(0.15f + 0.7f * DungeonWorld.Hash(i, 1), 0.15f + 0.7f * DungeonWorld.Hash(i, 2));
+            var px = new byte[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                float u = (x + 0.5f) / S, v = (y + 0.5f) / S;
+                var p = new Vector2(u + 0.035f * Mathf.Sin(Mathf.PI * 2f * (v * 2f + 0.3f)), v + 0.035f * Mathf.Sin(Mathf.PI * 2f * (u * 3f + 0.7f))) * N;
+                int cx = Mathf.FloorToInt(p.x), cy = Mathf.FloorToInt(p.y);
+                float f1 = 9f, f2 = 9f; // the nearest cell's seed and the next
+                for (var dy = -1; dy <= 1; dy++)
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    int gx = cx + dx, gy = cy + dy;
+                    var seed = seeds[(gy % N + N) % N * N + (gx % N + N) % N];
+                    var d = Vector2.Distance(p, new Vector2(gx + seed.x, gy + seed.y));
+                    if (d < f1)
+                    {
+                        f2 = f1;
+                        f1 = d;
+                    }
+                    else if (d < f2) f2 = d;
+                }
+                var line = Mathf.Pow(1f - Mathf.SmoothStep(0f, 1f, (f2 - f1) / 0.12f), 1.5f);
+                px[y * S + x] = (byte)Mathf.RoundToInt(line * 255f);
+            }
+            t.SetPixelData(px, 0);
+            t.Apply(true, true);
+            return t;
+        }
+
+        static Texture2D MakeFrost()
+        {
+            const int S = 128, N = 6, R = 16;
+            var t = New(S, S, TextureWrapMode.Repeat);
+            var seeds = new Vector2[N * N];
+            for (var i = 0; i < seeds.Length; i++) seeds[i] = new Vector2(0.1f + 0.8f * DungeonWorld.Hash(i, 11), 0.1f + 0.8f * DungeonWorld.Hash(i, 12));
+            // Rime: value noise on a 16 x 16 lattice that wraps, so it tiles too.
+            float Rime(float u, float v)
+            {
+                float x = u * R, y = v * R;
+                int x0 = Mathf.FloorToInt(x), y0 = Mathf.FloorToInt(y);
+                float fx = Mathf.SmoothStep(0f, 1f, x - x0), fy = Mathf.SmoothStep(0f, 1f, y - y0);
+                float At(int gx, int gy) => DungeonWorld.Hash((gx % R + R) % R, (gy % R + R) % R + 40);
+                return Mathf.Lerp(Mathf.Lerp(At(x0, y0), At(x0 + 1, y0), fx), Mathf.Lerp(At(x0, y0 + 1), At(x0 + 1, y0 + 1), fx), fy);
+            }
+            var px = new Color32[S * S];
+            for (var y = 0; y < S; y++)
+            for (var x = 0; x < S; x++)
+            {
+                float u = (x + 0.5f) / S, v = (y + 0.5f) / S;
+                var p = new Vector2(u, v) * N;
+                int cx = Mathf.FloorToInt(p.x), cy = Mathf.FloorToInt(p.y);
+                float f1 = 9f, f2 = 9f;
+                for (var dy = -1; dy <= 1; dy++)
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    int gx = cx + dx, gy = cy + dy;
+                    var seed = seeds[(gy % N + N) % N * N + (gx % N + N) % N];
+                    var d = Vector2.Distance(p, new Vector2(gx + seed.x, gy + seed.y));
+                    if (d < f1)
+                    {
+                        f2 = f1;
+                        f1 = d;
+                    }
+                    else if (d < f2) f2 = d;
+                }
+                var crack = 1f - Mathf.SmoothStep(0f, 1f, (f2 - f1) / 0.07f);
+                var rime = Mathf.Clamp01((Rime(u, v) * 0.6f + Rime(u * 2f % 1f, v * 2f % 1f) * 0.4f - 0.45f) * 2.2f);
+                var a = Mathf.Clamp01(crack * 0.85f + rime * 0.45f);
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        static Texture2D MakeSwipe()
+        {
+            const int W = 128, H = 32;
+            var t = New(W, H);
+            var px = new Color32[W * H];
+            for (var y = 0; y < H; y++)
+            for (var x = 0; x < W; x++)
+            {
+                float u = (x + 0.5f) / W, v = (y + 0.5f) / H;
+                var a = Mathf.Pow(v, 1.6f) * (0.55f + 0.45f * Mathf.PerlinNoise(u * 3f + 4.1f, v * 14f + 1.7f)) * Mathf.SmoothStep(0f, 1f, (1f - v) / 0.08f);
+                px[y * W + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
         // A billowing puff: clumped noise in a soft round.
         static Texture2D MakePuff()
         {
@@ -501,6 +745,36 @@ namespace SystemPrompt.Dungeon
                 for (var o = 0; o < 4; o++, amp *= 0.5f, f *= 2.1f) n += amp * Mathf.PerlinNoise(p.x * f + 17.3f + o * 5.1f, p.y * f + 3.7f + o * 9.4f);
                 var a = Mathf.Pow(Mathf.Clamp01(fall * (n * 1.9f - 0.25f)), 1.2f);
                 px[y * S + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
+        }
+
+        static Texture2D MakePuffSheet()
+        {
+            const int C = 64, S = C * 4;
+            var t = New(S, S);
+            var px = new Color32[S * S];
+            for (var f = 0; f < 16; f++)
+            {
+                var k = f / 15f;
+                var swell = 0.85f + 0.15f * k; // its round, out to the cell's edge
+                var lift = 0.07f * f;
+                var burn = 0.25f + 0.35f * k * k * k; // thinning late: the particle's own colour fades it out too
+                int x0 = f % 4 * C, y0 = (3 - f / 4) * C; // row 0 of a texture is its bottom
+                for (var y = 0; y < C; y++)
+                for (var x = 0; x < C; x++)
+                {
+                    var p = new Vector2(x - C / 2f + 0.5f, y - C / 2f + 0.5f) / (C / 2f);
+                    var fall = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(0.15f * swell, swell, p.magnitude));
+                    var q = p / (1f + 0.35f * k);
+                    float n = 0f, amp = 0.5f, fq = 2.2f;
+                    for (var o = 0; o < 4; o++, amp *= 0.5f, fq *= 2.1f)
+                        n += amp * Mathf.PerlinNoise(q.x * fq + 17.3f + o * 5.1f, (q.y - lift) * fq + 3.7f + o * 9.4f);
+                    var a = Mathf.Pow(Mathf.Clamp01(fall * (n * 1.9f - burn)), 1.2f);
+                    px[(y0 + y) * S + x0 + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+                }
             }
             t.SetPixels32(px);
             t.Apply();
@@ -892,9 +1166,10 @@ namespace SystemPrompt.Dungeon
 
         // What lies about at the foot of the racks where they face open seabed (`open`): bits of broken
         // hardware, a few glowing data shards, and cables coming out of the plinth, along the seabed and back
-        // in. Vertex colour for the Scatter shader: rgb the colour, alpha how much of it glows.
+        // in; with `crystals`, now and then a cluster of crystals (the shallows: the deep gets its own later). Vertex
+        // colour for the Scatter shader: rgb the colour, alpha how much of it glows.
         public static Mesh Scatter(Dictionary<Vector2Int, float> blocks, System.Func<Vector2Int, Vector3> centre, float cell,
-            System.Func<Vector2Int, Color> tint, System.Func<Vector2Int, bool> open)
+            System.Func<Vector2Int, Color> tint, System.Func<Vector2Int, bool> open, bool crystals = false)
         {
             var b = new Builder();
             var half = cell / 2f;
@@ -945,9 +1220,62 @@ namespace SystemPrompt.Dungeon
                         var colour = glowing ? new Color(led.r * 0.8f, led.g * 0.8f, led.b * 0.8f, 0.7f) : rubber;
                         Cable(b, p0, side, n, s0, s1, 0.025f + R() * 0.015f, 0.18f + R() * 0.25f, R() * 6f, colour);
                     }
+                    if (R() < 0.34f && crystals)
+                        Crystals(b, p0 + side * (0.4f + R() * (cell - 0.8f)) + n * (PlinthDepth + 0.12f + R() * 0.25f), led, r);
                 }
             }
             return b.Build("Rack Litter");
+        }
+
+        // Clusters of Crystals at each of `at`, `scale` times their size at a rack's foot, for the Scatter shader.
+        public static Mesh CrystalBed(IList<Vector3> at, Color colour, float scale, int seed)
+        {
+            var b = new Builder();
+            var r = new System.Random(seed);
+            foreach (var p in at) Crystals(b, p, colour, r, scale);
+            return b.Build("Crystals");
+        }
+
+        // A cluster of three to five crystals grown out of the silt: hexagonal prisms with pointed tips, 15 to 40 cm
+        // (at scale 1), each leaning 10 to 25 degrees out from the others, in the zone's light (colour's rgb). Their
+        // sides mostly lit, a third glowing, so each facet takes the sea's light its own way and they read as cut
+        // stone, not a flat cut-out; their tips glow more.
+        static void Crystals(Builder b, Vector3 at, Color colour, System.Random r, float scale = 1f)
+        {
+            float R() => (float)r.NextDouble();
+            var sides = new Color(colour.r, colour.g, colour.b, 0.3f);
+            var tips = new Color(colour.r, colour.g, colour.b, 0.7f);
+            var count = 3 + r.Next(0, 3);
+            var ring = new Vector3[6];
+            var top = new Vector3[6];
+            for (var k = 0; k < count; k++)
+            {
+                var yaw = Quaternion.Euler(0f, (k + R() * 0.6f) * 360f / count, 0f);
+                var lean = yaw * Quaternion.Euler(10f + R() * 15f, 0f, 0f); // tipped the way it stands off the middle
+                var radius = (0.04f + R() * 0.05f) * scale;
+                var tall = (0.15f + R() * 0.25f) * scale;
+                var foot = at + yaw * Vector3.forward * radius * 1.2f - Vector3.up * 0.03f * scale;
+                var axis = lean * Vector3.up;
+                for (var j = 0; j < 6; j++)
+                {
+                    var d = lean * new Vector3(Mathf.Cos(j * Mathf.PI / 3f), 0f, Mathf.Sin(j * Mathf.PI / 3f)) * radius;
+                    ring[j] = foot + d;
+                    top[j] = foot + d + axis * tall;
+                }
+                var tip = foot + axis * (tall + radius * 1.8f);
+                for (var j = 0; j < 6; j++)
+                {
+                    var j1 = (j + 1) % 6;
+                    var outward = (ring[j] + ring[j1]) * 0.5f - foot;
+                    outward -= axis * Vector3.Dot(outward, axis);
+                    b.Quad(b.Add(ring[j], outward.normalized, Vector2.zero, default, sides), b.Add(ring[j1], outward.normalized, Vector2.zero, default, sides),
+                        b.Add(top[j1], outward.normalized, Vector2.zero, default, sides), b.Add(top[j], outward.normalized, Vector2.zero, default, sides), outward);
+                    var facet = Vector3.Cross(top[j1] - top[j], tip - top[j]);
+                    if (Vector3.Dot(facet, outward + axis) < 0f) facet = -facet;
+                    b.Tri(b.Add(top[j], facet.normalized, Vector2.zero, default, tips), b.Add(top[j1], facet.normalized, Vector2.zero, default, tips),
+                        b.Add(tip, facet.normalized, Vector2.zero, default, tips), facet);
+                }
+            }
         }
 
         // A cable out of the plinth at s0 along the face, sagging onto the seabed `reach` out from it and back
@@ -984,6 +1312,37 @@ namespace SystemPrompt.Dungeon
                 int d = a + Around, e = c + Around;
                 b.Quad(a, c, e, d, b.N[a] + b.N[c] + b.N[d] + b.N[e]);
             }
+        }
+
+        // Cables along the given paths (the canyon's, hung across it in SeaDecor.Cables): a tube of four flat sides
+        // round each, its normals rounded off so the cel light runs along it as along a round one.
+        public static Mesh Strands(IList<Vector3[]> paths, float radius)
+        {
+            const int Around = 4;
+            var b = new Builder();
+            foreach (var points in paths)
+            {
+                var start = b.V.Count;
+                for (var i = 0; i < points.Length; i++)
+                {
+                    var ahead = (points[Mathf.Min(i + 1, points.Length - 1)] - points[Mathf.Max(i - 1, 0)]).normalized;
+                    var right = Vector3.Cross(Vector3.up, ahead).normalized;
+                    var upward = Vector3.Cross(ahead, right);
+                    for (var j = 0; j < Around; j++)
+                    {
+                        var a = 2f * Mathf.PI * (j + 0.5f) / Around;
+                        var dir = right * Mathf.Cos(a) + upward * Mathf.Sin(a);
+                        b.Add(points[i] + dir * radius, dir, Vector2.zero);
+                    }
+                }
+                for (var i = 0; i < points.Length - 1; i++)
+                for (var j = 0; j < Around; j++)
+                {
+                    int a = start + i * Around + j, c = start + i * Around + (j + 1) % Around;
+                    b.Quad(a, c, c + Around, a + Around, b.N[a] + b.N[c] + b.N[a + Around] + b.N[c + Around]);
+                }
+            }
+            return b.Build("Strands");
         }
 
         static Vector3 MapDir(Vector2Int d) => new Vector3(d.x, 0f, -d.y);

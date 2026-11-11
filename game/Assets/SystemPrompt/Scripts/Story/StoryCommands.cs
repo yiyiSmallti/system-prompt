@@ -26,6 +26,14 @@ namespace SystemPrompt.Story
 
             runner.AddCommandHandler("scene", (Func<string, Awaitable>)(id => guard(() => screen.ChangeScene(id))));
 
+            runner.AddCommandHandler("cg", (Func<string, Awaitable>)(id => guard(() => screen.ShowCg(id))));
+
+            runner.AddCommandHandler("music", (Func<string, Awaitable>)(id => guard(() =>
+            {
+                game.StoryMusic(id == "off" ? null : id);
+                return Done();
+            })));
+
             runner.AddCommandHandler("contact_add", (Func<string, Awaitable>)(who => guard(() =>
             {
                 if (state().AddContact(who))
@@ -86,7 +94,8 @@ namespace SystemPrompt.Story
         // The commands of the nodes played inside the maze or a battle (StoryController.RunHint).
         public static void RegisterHints(DialogueRunner runner, GameRoot game, Func<Func<Awaitable>, Awaitable> guard)
         {
-            runner.AddCommandHandler("mirror", (Func<string, Awaitable>)(state => guard(() => game.Dungeon.Mirror(state == "on"))));
+            runner.AddCommandHandler("mirror", (Func<string, Awaitable>)(state => guard(() => state == "walk" ? game.Dungeon.MirrorWalk() : game.Dungeon.Mirror(state == "on"))));
+            runner.AddCommandHandler("reveal", (Func<string, Awaitable>)(what => guard(() => game.Dungeon.Reveal(what))));
         }
 
         static async Awaitable Done()

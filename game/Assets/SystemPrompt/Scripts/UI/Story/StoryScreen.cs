@@ -42,6 +42,7 @@ namespace SystemPrompt.UI
         readonly Image bgFront;
         readonly AmbientLayer ambientBack;
         readonly AmbientLayer ambientFront;
+        readonly VisualElement cgLayer;
         readonly VisualElement ui;
         readonly VisualElement fx;
 
@@ -112,6 +113,11 @@ namespace SystemPrompt.UI
 
             Stage = new PortraitStage(game, Root);
             ambientFront = new AmbientLayer(Root, true);
+
+            // <<cg>> pictures cover the scene and whoever stands in it; the lines go on over them.
+            cgLayer = Ui.El("sp-cg", Root);
+            Ui.Fill(cgLayer);
+            cgLayer.pickingMode = PickingMode.Ignore;
 
             // The cover fades the whole story UI while a menu or page is up (SetCovered); ui itself is HIDE's.
             cover = Ui.El("sp-story__cover", Root);
@@ -306,6 +312,7 @@ namespace SystemPrompt.UI
         public void Show(bool on)
         {
             Ui.Show(Root, on);
+            if (!on) ClearCg(); // a battle or the maze took over: the story comes back to its scene
         }
 
         // Start of a new game or a load: wipe everything the previous story left on screen.
@@ -318,6 +325,7 @@ namespace SystemPrompt.UI
             options.Clear();
             optionsActive = false;
             fx.Clear();
+            ClearCg();
             autoMode = false;
             skipMode = false;
             hidden = false;
@@ -340,12 +348,13 @@ namespace SystemPrompt.UI
 
         void ShowScene(SceneDef def)
         {
+            ClearCg();
             bgBack.image = null;
             bgFront.image = Ui.Tex(def.BackgroundKey);
             bgFront.style.opacity = 1;
             ambientBack.Set(def.Ambient);
             ambientFront.Set(def.Ambient);
-            game.UpdateMusic();
+            game.StoryMusic(null); // a track the story asked for ends with the scene it was asked in
         }
 
         public void RefreshHud()
@@ -626,8 +635,8 @@ namespace SystemPrompt.UI
             var isSpeech = kind == LineKind.Speech || kind == LineKind.Shadow;
             if (isSpeech) Stage.OnLine(line.Speaker, line.Face, true);
             else Stage.SetSpeaker(null, kind != LineKind.Narration);
-            // The spike points at whoever is talking, once they stand on the stage.
-            var speakerX = isSpeech ? Stage.CenterOf(line.Speaker) : null;
+            // The spike points at whoever is talking, once they stand on the stage (a <<cg>> picture hides it).
+            var speakerX = isSpeech && Cg == null ? Stage.CenterOf(line.Speaker) : null;
             boxShape.Outline(BoxOutline(speakerX - BoxLeft));
 
             if (!Ui.Visible(box))

@@ -6,9 +6,11 @@ namespace SystemPrompt.UI
     // Shared Persona-style effects. Flashes and shakes honour the accessibility settings.
     public static class Fx
     {
-        // Big slammed word over a spiky burst (对抗样本！/ONE MORE!/全员倒地！). Returns once it has settled;
-        // the caller decides how long it stays and removes it with Dismiss.
-        public static VisualElement Stamp(VisualElement layer, string text, Color color, float fontSize, float angle, Vector2 center, bool burst = true)
+        // Big slammed word over a spiky burst (对抗样本！/ONE MORE!/全员倒地！), zooming down onto the picture from
+        // `zoomFrom` times its size. Returns once it has settled; the caller decides how long it stays and removes
+        // it with Dismiss.
+        public static VisualElement Stamp(VisualElement layer, string text, Color color, float fontSize, float angle, Vector2 center, bool burst = true,
+            float zoomFrom = 2.4f)
         {
             var root = Ui.El("fx-stamp", layer);
             root.style.position = Position.Absolute;
@@ -25,13 +27,13 @@ namespace SystemPrompt.UI
             label.style.fontSize = fontSize;
             label.style.color = color;
             Ui.Turn(inner, angle);
-            AnimateIn(inner).Forget();
+            AnimateIn(inner, zoomFrom).Forget();
             return root;
         }
 
-        static async Awaitable AnimateIn(VisualElement inner)
+        static async Awaitable AnimateIn(VisualElement inner, float zoomFrom)
         {
-            await Anim.Tween(0.22f, t => Ui.Zoom(inner, Mathf.Lerp(2.4f, 1f, t)), Ease.OutBack);
+            await Anim.Tween(0.22f, t => Ui.Zoom(inner, Mathf.Lerp(zoomFrom, 1f, t)), Ease.OutBack);
         }
 
         public static async Awaitable Dismiss(VisualElement stamp, float seconds = 0.16f)

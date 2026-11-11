@@ -25,8 +25,8 @@ namespace SystemPrompt.Dungeon
         // human scale (about its hips' height): Quaternius' Walk_Loop and Jog_Fwd_Loop, measured over each footfall
         // on the VRoid models.
         const float WalkPace = 0.87f, RunPace = 5.7f;
-        const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds
-        const float FlinchOut = 0.2f, FlinchWeight = 0.75f; // a hit's jolt easing off at the end, seconds, and not quite all of it
+        const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds, unless told otherwise
+        const float FlinchOut = 0.2f; // a hit's jolt easing off at the end, seconds
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
         const float RiceGrow = 0.15f; // the 道具's rice ball coming into the hand and going, in seconds
         static readonly Color Shade = new Color(0.78f, 0.74f, 0.8f);
@@ -78,17 +78,46 @@ namespace SystemPrompt.Dungeon
         public readonly Animator Animator;
         readonly PlayableGraph graph;
         readonly AnimationMixerPlayable mixer;
-        readonly AnimationLayerMixerPlayable layers; // the idle, walk and run under the motion playing over them, a flinch over both
+        readonly AnimationLayerMixerPlayable layers; // the idle, walk and run under the motion playing over them, a flinch added over both
         readonly AnimationMixerPlayable actions; // the motion playing, and the one it is taking over from
         readonly AnimationClipPlayable walk, run;
         readonly float stride; // the avatar's human scale in metres as the model is sized, which the paces scale by
         AnimationClipPlayable idle, action, leaving;
         int actionInput, leavingInput; // their inputs on actions
-        float actionTime, actionLength, actionWeight; // length infinite for a loop, which plays until Stop
+        string actionName;
+        float actionTime, actionLength, actionWeight; // length infinite for a loop or a hold, which plays until Stop
+        // The motion playing: its own fades in and out, the most it shows over the idle, its speed; the one leaving's most.
+        float actionFadeIn, actionFadeOut, actionMax, actionSpeed, leavingMax;
+        float actionShare; // how much of the pose the motions have this frame, eased
+        float holdFrom, holdTo = -1f; // held (Hold): its clip's time going round between these until Release or Stop
         float handover; // 0 to 1, from the motion leaving to the one playing
-        AnimationClipPlayable flinch; // a hit's jolt, from the waist up only
-        float flinchTime, flinchLength;
-        static AvatarMask upperBody;
+        AnimationClipPlayable flinch; // a hit's jolt, added over the chest and head only
+        float flinchTime, flinchLength, flinchWeight;
+        static AvatarMask torso;
+
+        // The poses struck in place (Act, posed by Editor/StancePoser.cs): seconds from the stance into the pose, held
+        // a breath, and back to the stance. A held one (Act's hold) goes round its breath until Release.
+        public static readonly Dictionary<string, (float Rise, float Seconds, float Return)> PoseTimes = new Dictionary<string, (float, float, float)>
+        {
+            ["Guard"] = (0.22f, 1.2f, 0.4f),
+            ["Item"] = (0.35f, 1.0f, 0.4f),
+            ["Think"] = (0.4f, 1.6f, 0.45f),
+            ["Victory"] = (0.3f, 1.6f, 0.4f),
+        };
+
+        // In battle the stance settles over the motion (Settle): the body lowered by Crouch (metres) into the knees,
+        // breathing, its weight drifting from foot to foot, nudged by a blow or a start (Nudge), and the feet put back
+        // where the motion has them, so only the knees take it. The breath and the drift start at the stance's phase.
+        public float Crouch;
+        // In the stance the phone held ready before the chest in both hands (HoldReady), rather than out at arm's
+        // length as the library's stance has it.
+        public bool Ready;
+        float readyShare;      // how much of it shows: none while a motion plays or the figure walks
+        Vector3 readyAt;       // where it puts the phone, for the 截图 to bring it up from
+        Quaternion readyTurn;
+        float settleTime, settlePhase;
+        Vector3 nudge;
+        float nudgeTime, nudgeRise = 1f, nudgeFall = 1f;
         readonly Material look; // null on a VRoid model, whose parts each bring their own
         // The expressions are drawn on a picture of the face taken straight from the front (Editor/FaceCapture.cs)
         // and laid back over it from the front by the toon shader, in a box that moves with the head bone.
@@ -116,6 +145,38 @@ namespace SystemPrompt.Dungeon
         float spoonShown;
         bool wielding;
 
+        // Exploring the maze (SeaAvatar, SeaCompanion): the head turns to what it is told to look at (LookAt). The
+        // battle's figures leave it off and keep their motions as made, but are Attentive: the head alone turns to
+        // what BattleStage points it at, less far, and not while a motion or the phone has the head.
+        public bool Explorer, Attentive;
+        Vector3? lookPoint;
+        bool lookQuick, lookIdle;
+        float lookYaw, lookPitch, lookWeight; // the head's wanted way in Root's space (degrees aside, up), and how much
+        float eyeYaw, eyePitch;               // a VRoid face's eyes, ahead of the head
+        readonly Transform neck;
+        readonly Transform[] eyes;            // a VRoid face's eye bones, or none (a drawn face)
+        readonly Quaternion[] eyeRest;
+        // Exploring, DeepSeek's tail sways of itself, slowly and less as she runs, and wags for a moment (Wag): the
+        // battle dress's as it is laid (LayTail), the uniform's spring by turning its first links' pull (SeaSprings.Swing).
+        const float SwayHz = 0.35f, WagHz = 1.8f;
+        const int SwayLinks = 4;
+        readonly int tailSpring = -1;         // the uniform tail's first link in the springs, or -1
+        float swayTime, swayShare, wagTime, wagLength, wagShare; // the wag's length 0 with none
+        // Exploring, each foot set down at a walk or a run: where on the seabed, and how fast the figure is going. The
+        // clips carry no events, so it is found as the low point of the foot's height over Root, near its height at rest.
+        public event Action<Vector3, float> Footfall;
+        readonly Transform[] feet;
+        readonly float footRest;
+        readonly float[] footWas = new float[2], footSince = new float[2];
+        readonly bool[] footFalling = new bool[2];
+        // Exploring, the body leans with how Root speeds up, slows and turns: forward pushing off, back pulling up, into
+        // a turn at a run; on a damped spring, so a stop rocks back past upright and settles. On the spine and chest
+        // alone: turning the hips would swing the legs (there is no foot IK) and the battle dress's tail with them.
+        const float LeanSpring = 14f, LeanDamping = 0.45f; // radians a second, and the damping ratio
+        readonly Transform spine, chest;
+        Vector3 leanWas, leanVelocity, leanAccel, leanAccelChange;
+        float leanPitch, leanPitchSpeed, leanRoll, leanRollSpeed;
+
         // A tail that curves down from the hips and lies along the floor (DeepSeek's battle dress, bones Tail1–Tail6).
         // The motions are made for figures without one and carry it stiffly on the hips, so every lean and bob of
         // the hips swung its far end up off the floor. After each pose it is laid back joint by joint from the
@@ -134,6 +195,15 @@ namespace SystemPrompt.Dungeon
         readonly Vector3[] tailSide;    // each bone's level axis across the tail at rest, in its own space
         readonly Vector3 hipsAhead;     // Root's forward at rest, in the hips' space
         Vector3[] tailWas;              // where each point was put last frame, in the world
+        // In battle the joints the hips carry sway from side to side about the hips' forward axis too, and are flung
+        // (Flick) on a damped spring (about 1.2 Hz, gone in half a second), at most 25 degrees either way. No motion
+        // writes the tail's bones, so the turn is put on Tail1's pose at rest each frame, never on last frame's. The
+        // sway dies away while the figure lies on the floor (Lying), where it would sweep the tail over it.
+        const float CarriedSwayHz = 0.4f, FlickStiffness = 60f, FlickDamping = 8f, FlickMost = 25f;
+        float carriedTime, flick, flickSpeed; // degrees toward the figure's right, and its speed
+        float carriedSway = 1f;               // how much of the sway shows: none while lying
+        readonly Quaternion carriedRest;      // Tail1's local rotation at rest
+        public bool Lying;
 
         // The player of the chosen gender: in the lounge clothes they were pulled in with (4-lounge), or in the
         // latent-space battle coat (5-battle) that the white door's mirror shows. Each has a fighting stance of
@@ -186,6 +256,7 @@ namespace SystemPrompt.Dungeon
             this.stance = stance;
             this.carriesPhone = carriesPhone;
             Root = Parts.Node(model, parent);
+            SeaShade.Add(Root, true); // its shadow on the seabed and its rim (SeaShade.cs)
             var path = "Models/Characters/" + model;
             var prefab = Resources.Load<GameObject>(path);
             if (prefab == null) throw new InvalidOperationException($"找不到角色模型 Resources/{path}");
@@ -276,6 +347,7 @@ namespace SystemPrompt.Dungeon
                     tailHeading[i] = way.sqrMagnitude > 1e-8f ? way.normalized : Vector3.back;
                 }
                 hipsAhead = Animator.GetBoneTransform(HumanBodyBones.Hips).InverseTransformDirection(Root.forward);
+                carriedRest = tail[0].localRotation;
                 tailSide = new Vector3[tail.Length];
                 for (var i = 0; i < tail.Length; i++)
                 {
@@ -292,7 +364,10 @@ namespace SystemPrompt.Dungeon
             layers.SetInputWeight(0, 1f);
             actions = AnimationMixerPlayable.Create(graph, 2);
             graph.Connect(actions, 0, layers, 1);
-            layers.SetLayerMaskFromAvatarMask(2, UpperBody);
+            // Added over the pose, not laid over it: the arms (in muscle space hung off the chest) go with the chest and
+            // keep what they hold, the phone too.
+            layers.SetLayerMaskFromAvatarMask(2, Torso);
+            layers.SetLayerAdditive(2, true);
             AnimationPlayableOutput.Create(graph, model, Animator).SetSourcePlayable(layers);
             idle = Connect(Idle(idleOf ?? model), 0);
             walk = Connect(Motion("Walk"), 1);
@@ -301,9 +376,22 @@ namespace SystemPrompt.Dungeon
             graph.Evaluate(0f);
             var springData = Resources.Load<TextAsset>(path + "_Springs");
             if (springData != null) springs = new SeaSprings(body.transform, Root, springData.text);
+            if (springs != null) tailSpring = springs.Find("Tail_0");
 
             // The face box in the idle's first frame, in Root's space (x right, y up, z ahead), then fixed to the head.
             head = Animator.GetBoneTransform(HumanBodyBones.Head);
+            neck = Animator.GetBoneTransform(HumanBodyBones.Neck);
+            Transform leftEye = Animator.GetBoneTransform(HumanBodyBones.LeftEye), rightEye = Animator.GetBoneTransform(HumanBodyBones.RightEye);
+            if (leftEye != null && rightEye != null)
+            {
+                eyes = new[] { leftEye, rightEye };
+                eyeRest = new[] { leftEye.localRotation, rightEye.localRotation };
+            }
+            feet = new[] { Animator.GetBoneTransform(HumanBodyBones.LeftFoot), Animator.GetBoneTransform(HumanBodyBones.RightFoot) };
+            footRest = Mathf.Min(Root.InverseTransformPoint(feet[0].position).y, Root.InverseTransformPoint(feet[1].position).y);
+            spine = Animator.GetBoneTransform(HumanBodyBones.Spine);
+            chest = Animator.GetBoneTransform(HumanBodyBones.Chest);
+            leanWas = Root.position;
             var at = Root.InverseTransformPoint(head.position);
             float span = FaceSpan * this.height, depth = FaceDepth * this.height, centre = at.y + faceRise * this.height, front = at.z + FaceFront * this.height;
             // Seen from the front: u runs from the figure's right to its left, v up, w from the front plane in.
@@ -343,6 +431,8 @@ namespace SystemPrompt.Dungeon
             m.SetFloat("_RimPower", RimPower);
             m.SetFloat("_CameraLight", 1f);
             m.SetFloat("_OutlineWidth", Outline);
+            // Hair and cloth cut out at _Cutoff leave MSAA their edge as coverage, or their tips stay stair-stepped.
+            if (part.GetFloat("_Cutoff") > 0f && part.GetFloat("_ZWrite") > 0.5f) m.SetFloat("_AlphaToMask", 1f);
             return m;
         }
 
@@ -365,6 +455,15 @@ namespace SystemPrompt.Dungeon
         // While talking the mouth opens and closes.
         public bool Talking { get; set; }
 
+        // What the head turns to while exploring (Explorer) or in battle (Attentive): a point, or null to look where the
+        // motion looks; quick for a threat, which it snaps round to, idle for something only kept an eye on.
+        public void LookAt(Vector3? point, bool quick = false, bool idle = false)
+        {
+            lookPoint = point;
+            lookQuick = quick;
+            lookIdle = idle;
+        }
+
         void ShowFace()
         {
             var blinking = blinkLeft > 0f && face.eyes != EyesHappy && face.eyes != EyesClosed;
@@ -385,21 +484,28 @@ namespace SystemPrompt.Dungeon
             look.SetVector("_FaceForward", head.TransformDirection(faceForward).normalized);
         }
 
-        // In battle the fighting stance stands in for the model's own idle. Called once the face box is set,
-        // which is taken from the model's idle.
-        public void Stance()
+        // In battle the fighting stance stands in for the model's own idle, `phase` (0 to 1) of the way round its loop
+        // and at `pace` times its speed, so two figures on the same loop don't move as one. Called once the face box
+        // is set, which is taken from the model's idle.
+        public void Stance(float phase = 0f, float pace = 1f)
         {
             graph.Disconnect(mixer, 0);
             idle.Destroy();
-            idle = Connect(Motion(stance), 0);
+            var clip = Motion(stance);
+            idle = Connect(clip, 0);
+            idle.SetTime(phase * clip.length);
+            idle.SetSpeed(pace);
+            settlePhase = phase;
+            settleTime = phase * 7.3f;
             inStance = true;
             if (carriesPhone && phone == null) phone = BuildPhone();
         }
 
         // Plays one of the motions once over whatever the figure is doing (a loop until Stop), speed times its
-        // own pace; returns how long it plays, in seconds. One played while another is still on takes over from
-        // it in FadeIn, so a run of them (a roll into a jab into a cross) flows on without jumping.
-        public float Play(string motion, float speed = 1f)
+        // own pace, from `from` seconds into it, fading in and out over those seconds, at most `weight` of the pose;
+        // returns how long it plays, in seconds. One played while another is still on takes over from it in its
+        // fade in, so a run of them (a roll into a jab into a cross) flows on without jumping.
+        public float Play(string motion, float speed = 1f, float from = 0f, float fadeIn = FadeIn, float fadeOut = FadeOut, float weight = 1f)
         {
             var clip = Motion(motion);
             if (leaving.IsValid()) Release(ref leaving, leavingInput);
@@ -410,6 +516,7 @@ namespace SystemPrompt.Dungeon
                 {
                     leaving = action;
                     leavingInput = actionInput;
+                    leavingMax = actionMax;
                     input = 1 - actionInput;
                     handover = 0f;
                 }
@@ -418,19 +525,61 @@ namespace SystemPrompt.Dungeon
             action = AnimationClipPlayable.Create(graph, clip);
             action.SetApplyFootIK(false);
             action.SetSpeed(speed);
+            if (from > 0f) action.SetTime(from);
             graph.Connect(action, 0, actions, input);
             actionInput = input;
+            actionName = motion;
             actionTime = 0f;
-            actionLength = clip.isLooping ? float.PositiveInfinity : clip.length / speed;
+            actionFadeIn = Mathf.Max(fadeIn, 0.01f);
+            actionFadeOut = Mathf.Max(fadeOut, 0.01f);
+            actionMax = weight;
+            actionSpeed = speed;
+            holdTo = -1f;
+            actionLength = clip.isLooping ? float.PositiveInfinity : Mathf.Max(0f, clip.length - from) / speed;
             // Straight from one motion into the next, without dipping back into the idle between them.
             if (actionWeight > 0f) actionWeight = Mathf.Max(actionWeight, 0.5f);
-            return clip.isLooping ? float.PositiveInfinity : actionLength;
+            return actionLength;
+        }
+
+        // The motion playing kept on between `clipFrom` and `clipTo` (seconds of its clip) until Release or Stop: it
+        // goes round that stretch, so a pose holds and breathes (an action's two ends there are the same pose), or a
+        // last frame stays put.
+        public void Hold(float clipFrom, float clipTo)
+        {
+            if (!action.IsValid()) return;
+            holdFrom = clipFrom;
+            holdTo = Mathf.Max(clipTo, clipFrom + 0.001f);
+            actionLength = float.PositiveInfinity;
+        }
+
+        // The motion playing held on its last `seconds` (a pose it ends in: down on one knee, lying on the seabed).
+        public void HoldEnd(float seconds = 0.05f)
+        {
+            if (!action.IsValid()) return;
+            var end = action.GetAnimationClip().length;
+            Hold(end - seconds, end);
+        }
+
+        // A held motion let go: on from the end of what it held to its own end, taken over from where the hold had got
+        // to in a moment, so it doesn't jump. Returns how long it has left, in seconds.
+        public float Release()
+        {
+            if (!action.IsValid()) return 0f;
+            if (holdTo < 0f) return Mathf.Max(0f, actionLength - actionTime);
+            var length = Play(actionName, actionSpeed, holdTo, 0.12f, actionFadeOut, actionMax);
+            return length;
         }
 
         // One of the battle's actions struck in place (Guard, Item, Think) as posed for this figure's stance
         // (Editor/StancePoser.cs makes GuardPlayer, GuardPlayerFemale, GuardDeepSeek and so on), played once over
-        // it; returns how long it plays, in seconds.
-        public float Act(string action) => Play(action + stance.Substring("Stance".Length));
+        // it, or held in the pose (PoseTimes) until Release; returns how long it plays, in seconds.
+        public float Act(string action, bool hold = false)
+        {
+            var length = Play(action + stance.Substring("Stance".Length));
+            if (!hold || !PoseTimes.TryGetValue(action, out var times)) return length;
+            Hold(times.Rise, times.Rise + times.Seconds);
+            return float.PositiveInfinity;
+        }
 
         // The 白米饭 as a rice ball, held for seconds over whatever the figure is doing (the 道具 action): in the
         // player's left hand, the phone being in their right, or in both of DeepSeek's.
@@ -463,6 +612,12 @@ namespace SystemPrompt.Dungeon
         // Which way is up on the phone's screen, for the picture it takes (BattleStage.Photo).
         public Vector3 ScreenUp => phone != null && phone.gameObject.activeSelf ? phone.up : Root.up;
 
+        // The phone's lens, where its flash goes off (SeaAvatar's map strike).
+        public Vector3 PhoneLens => phone != null ? phone.position + phone.forward * (0.01f * height / 1.7f) : Root.position;
+
+        // The player: the phone stays in their right hand in the stance, so they throw with the left.
+        public bool CarriesPhone => carriesPhone;
+
         // The 饭勺 in DeepSeek's right hand (her normal attack), coming into it while wield, going when not.
         public void Wield(bool wield)
         {
@@ -473,15 +628,19 @@ namespace SystemPrompt.Dungeon
         // The end of the 饭勺's bowl, for the trail its swing leaves.
         public Transform SpoonTip => (spoon != null ? spoon : spoon = BuildSpoon()).Find("Tip");
 
+        // The 饭勺's bowl, where the blade of water its swing leaves starts (BattleEffects.Swipe).
+        public Transform SpoonBowl => (spoon != null ? spoon : spoon = BuildSpoon()).Find("Bowl");
+
         void Release(ref AnimationClipPlayable playable, int input)
         {
             graph.Disconnect(actions, input);
             playable.Destroy();
         }
 
-        // One of the hit reactions (HitChest, HitHead) jolting the figure from the waist up, speed times its own
-        // pace, over whatever it is doing: the legs keep their stance.
-        public void Flinch(string motion, float speed = 1f)
+        // One of the hit reactions (HitChest, HitHead) jolting the chest and head, speed times its own pace, weight
+        // of it, added over whatever the figure is doing: the legs keep their stance, the arms what they hold. The
+        // clips' reference is their last frame (Editor/BattleMotions.cs), the pose they come back to.
+        public void Flinch(string motion, float speed = 1f, float weight = 1f)
         {
             if (flinch.IsValid())
             {
@@ -495,26 +654,58 @@ namespace SystemPrompt.Dungeon
             graph.Connect(flinch, 0, layers, 2);
             flinchTime = 0f;
             flinchLength = clip.length / speed;
+            flinchWeight = weight;
         }
 
-        // The spine, head and arms, not the legs nor where the body stands.
-        static AvatarMask UpperBody
+        // The spine, chest and head, not the arms, the legs nor where the body stands.
+        static AvatarMask Torso
         {
             get
             {
-                if (upperBody != null) return upperBody;
-                upperBody = new AvatarMask { name = "Upper Body", hideFlags = HideFlags.DontUnloadUnusedAsset };
+                if (torso != null) return torso;
+                torso = new AvatarMask { name = "Torso", hideFlags = HideFlags.DontUnloadUnusedAsset };
                 for (var part = AvatarMaskBodyPart.Root; part < AvatarMaskBodyPart.LastBodyPart; part++)
-                    upperBody.SetHumanoidBodyPartActive(part, part is AvatarMaskBodyPart.Body or AvatarMaskBodyPart.Head
-                        or AvatarMaskBodyPart.LeftArm or AvatarMaskBodyPart.RightArm or AvatarMaskBodyPart.LeftFingers or AvatarMaskBodyPart.RightFingers);
-                return upperBody;
+                    torso.SetHumanoidBodyPartActive(part, part is AvatarMaskBodyPart.Body or AvatarMaskBodyPart.Head);
+                return torso;
             }
         }
 
-        // Fades the motion playing back into the idle.
-        public void Stop()
+        // Fades the motion playing back into the idle over fadeOut, held or not.
+        public void Stop(float fadeOut = FadeOut)
         {
-            if (action.IsValid()) actionLength = Mathf.Min(actionLength, actionTime + FadeOut);
+            if (!action.IsValid() || actionLength <= actionTime) return;
+            actionFadeOut = Mathf.Max(fadeOut, 0.01f);
+            actionLength = Mathf.Min(actionLength, actionTime + actionFadeOut);
+        }
+
+        // The pelvis pushed by metres (a blow, a start) and back, over rise then fall seconds; the feet stay put.
+        public void Nudge(Vector3 metres, float rise, float fall)
+        {
+            nudge = metres;
+            nudgeTime = 0f;
+            nudgeRise = Mathf.Max(rise, 0.01f);
+            nudgeFall = Mathf.Max(fall, 0.01f);
+        }
+
+        // Back to the plain idle at once, out of whatever it was in the middle of and with nothing in its hands: a map
+        // strike cut off out of sight under the battle's wipe.
+        public void Rest()
+        {
+            if (leaving.IsValid()) Release(ref leaving, leavingInput);
+            if (action.IsValid()) Release(ref action, actionInput);
+            actionWeight = actionShare = 0f;
+            holdTo = -1f;
+            nudge = Vector3.zero;
+            if (flinch.IsValid())
+            {
+                graph.Disconnect(layers, 2);
+                flinch.Destroy();
+            }
+            phoneLength = phoneWeight = 0f;
+            riceLength = 0f;
+            if (riceBall != null) riceBall.gameObject.SetActive(false);
+            wielding = false;
+            spoonShown = 0f;
         }
 
         // speed in metres per second: idle when still, the walk while picking up speed, then the run.
@@ -532,26 +723,36 @@ namespace SystemPrompt.Dungeon
             if (action.IsValid())
             {
                 actionTime += dt;
-                var target = actionTime < actionLength - FadeOut ? 1f : 0f;
-                actionWeight = Mathf.MoveTowards(actionWeight, target, dt / (target > 0f ? FadeIn : FadeOut));
-                handover = Mathf.MoveTowards(handover, 1f, dt / FadeIn);
+                var target = actionTime < actionLength - actionFadeOut ? 1f : 0f;
+                actionWeight = Mathf.MoveTowards(actionWeight, target, dt / (target > 0f ? actionFadeIn : actionFadeOut));
+                handover = Mathf.MoveTowards(handover, 1f, dt / actionFadeIn);
                 if (leaving.IsValid() && handover >= 1f) Release(ref leaving, leavingInput);
                 if (actionTime >= actionLength && actionWeight <= 0f)
                 {
                     Release(ref action, actionInput);
                     if (leaving.IsValid()) Release(ref leaving, leavingInput);
+                    holdTo = -1f;
+                }
+                else if (holdTo >= 0f)
+                {
+                    // Held: where this frame takes the clip kept within the stretch held, going round it.
+                    var next = (float)action.GetTime() + dt * actionSpeed;
+                    if (next >= holdTo) action.SetTime(holdFrom + Mathf.Repeat(next - holdFrom, holdTo - holdFrom) - dt * actionSpeed);
                 }
             }
             else actionWeight = 0f;
+            // Eased in and out rather than straight lines, so a motion doesn't start or land with a jerk.
+            var over = SmoothStep(handover);
             for (var i = 0; i < 2; i++)
-                actions.SetInputWeight(i, !leaving.IsValid() ? (i == actionInput ? 1f : 0f) : i == actionInput ? handover : 1f - handover);
+                actions.SetInputWeight(i, !leaving.IsValid() ? (i == actionInput ? 1f : 0f) : i == actionInput ? over : 1f - over);
+            actionShare = !action.IsValid() ? 0f : SmoothStep(actionWeight) * (leaving.IsValid() ? Mathf.Lerp(leavingMax, actionMax, over) : actionMax);
             layers.SetInputWeight(0, 1f);
-            layers.SetInputWeight(1, actionWeight);
+            layers.SetInputWeight(1, actionShare);
             if (flinch.IsValid())
             {
                 flinchTime += dt;
                 // In at once, out over the last of it.
-                layers.SetInputWeight(2, FlinchWeight * Mathf.Clamp01(Mathf.Min(flinchTime / 0.04f, (flinchLength - flinchTime) / FlinchOut)));
+                layers.SetInputWeight(2, flinchWeight * Mathf.Clamp01(Mathf.Min(flinchTime / 0.04f, (flinchLength - flinchTime) / FlinchOut)));
                 if (flinchTime >= flinchLength)
                 {
                     graph.Disconnect(layers, 2);
@@ -559,6 +760,8 @@ namespace SystemPrompt.Dungeon
                 }
             }
             graph.Evaluate(dt);
+            if (Explorer) Lean(dt, speed);
+            else if (inStance) Settle(dt, speed);
 
             if (phoneLength > 0f)
             {
@@ -570,12 +773,18 @@ namespace SystemPrompt.Dungeon
             else phoneWeight = 0f;
             var inHand = inStance && carriesPhone;
             if (phone != null) phone.gameObject.SetActive(phoneWeight > 0f || inHand);
+            // Ready before the chest while only the stance plays; a motion's own arms, a walk or the 截图 take it over.
+            var ready = Ready && inHand ? (1f - actionShare) * (1f - Mathf.Clamp01(speed / WalkSpeed)) : 0f;
+            readyShare = Mathf.MoveTowards(readyShare, ready, dt / 0.25f);
+            if (readyShare > 0f) HoldReady(Ease.InOutCubic(readyShare) * (1f - Ease.InOutCubic(phoneWeight)));
             if (phoneWeight > 0f) HoldPhone(Ease.InOutCubic(phoneWeight));
             else if (inHand)
             {
                 InHand(out var at, out var turn);
-                phone.SetPositionAndRotation(at, turn);
+                var w = Ease.InOutCubic(readyShare);
+                phone.SetPositionAndRotation(Vector3.Lerp(at, readyAt, w), Quaternion.Slerp(turn, readyTurn, w));
             }
+            if (Explorer || Attentive) Look(dt);
             if (spoon != null)
             {
                 spoonShown = Mathf.MoveTowards(spoonShown, wielding ? 1f : 0f, dt / RiceGrow);
@@ -600,8 +809,10 @@ namespace SystemPrompt.Dungeon
                 }
                 if (riceTime >= riceLength) riceLength = 0f;
             }
+            if (Explorer) Sway(dt, speed);
             LayTail(dt);
             springs?.Step(dt);
+            if (Explorer) Steps(dt, speed);
 
             // A blink every few seconds, now and then a double one.
             blinkLeft -= dt;
@@ -728,10 +939,17 @@ namespace SystemPrompt.Dungeon
                 turn = Quaternion.LookRotation(facing, Vector3.Cross(facing, right));
                 look = low ? (ahead + 0.2f * up).normalized : (ahead - 0.1f * up).normalized;
             }
-            // Up out of the right hand in the stance, or out of nowhere between the hands.
+            // Up out of the right hand in the stance (from before the chest, held ready there), or out of nowhere
+            // between the hands.
             var from = (leftHand.position + rightHand.position) / 2f;
             var fromTurn = Quaternion.LookRotation(ahead, up);
-            if (inStance && carriesPhone) InHand(out from, out fromTurn);
+            if (inStance && carriesPhone)
+            {
+                InHand(out from, out fromTurn);
+                var ready = Ease.InOutCubic(readyShare);
+                from = Vector3.Lerp(from, readyAt, ready);
+                fromTurn = Quaternion.Slerp(fromTurn, readyTurn, ready);
+            }
             phone.SetPositionAndRotation(Vector3.Lerp(from, at, w), Quaternion.Slerp(fromTurn, turn, w));
             // The wrists just past the phone's two ends, a little below and behind its middle; held out, the right
             // one alone, the left staying in the stance.
@@ -747,6 +965,82 @@ namespace SystemPrompt.Dungeon
 
             // The head up and out over the phone, or along the arm to it.
             head.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(FaceForward, look), w * 0.8f) * head.rotation;
+        }
+
+        // The stance's phone held ready (Ready), w of the way: landscape before the chest a forearm out and a hand
+        // under the shoulders, tipped back a little so its lens looks at the noise bodies, a hand on each end with the
+        // elbows down. Set off the shoulders, so it rides the stance's breathing and turns with the chest.
+        void HoldReady(float w)
+        {
+            var up = Root.up;
+            var s = height / 1.7f;
+            Transform left = Bone(HumanBodyBones.LeftUpperArm), right = Bone(HumanBodyBones.RightUpperArm);
+            var chest = Vector3.ProjectOnPlane(Vector3.Cross(right.position - left.position, up), up);
+            if (chest.sqrMagnitude < 1e-6f) chest = Root.forward;
+            chest.Normalize();
+            var side = Vector3.Cross(up, chest);
+            var facing = Quaternion.AngleAxis(-14f, side) * chest;
+            readyAt = (left.position + right.position) * 0.5f + (chest * 0.3f - up * 0.2f) * s;
+            readyTurn = Quaternion.LookRotation(facing, Vector3.Cross(facing, side));
+            if (w <= 0f) return;
+            Vector3 End(float end) => readyAt + readyTurn * new Vector3(end * 0.095f, -0.04f, -0.015f) * s;
+            Reach(HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, Bone(HumanBodyBones.RightHand), End(1f), side, w);
+            Grip(HumanBodyBones.RightHand, HumanBodyBones.RightIndexProximal, HumanBodyBones.RightLittleProximal, HumanBodyBones.RightMiddleProximal, side, readyTurn, w);
+            Reach(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, Bone(HumanBodyBones.LeftHand), End(-1f), -side, w);
+            Grip(HumanBodyBones.LeftHand, HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftMiddleProximal, -side, readyTurn, w);
+        }
+
+        // The head turned over the pose onto LookAt's point, the neck taking 0.4 of the turn: up to 70 degrees aside, 20 up
+        // and 30 down, a point further round than 110 let go (in battle 40 aside, 15 down, so the shots framed on the
+        // figures stay as they are). A VRoid face's eyes get there first and make up what the head can't, 10 degrees
+        // aside and 6 up or down. Easing in and out over 0.3 s, and out while the phone is up, which has the head
+        // (HoldPhone), or in battle while a motion plays. Before the springs, so the hair goes with it, and the drawn
+        // face's box.
+        void Look(float dt)
+        {
+            float aside = lookYaw, rise = lookPitch, want = 0f;
+            float most = Explorer ? 70f : 40f, down = Explorer ? 30f : 15f;
+            if (lookPoint.HasValue)
+            {
+                var to = Root.InverseTransformDirection(lookPoint.Value - FaceCentre);
+                var level = new Vector2(to.x, to.z).magnitude;
+                var round = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+                if (level > 0.05f && Mathf.Abs(round) < 110f)
+                {
+                    aside = round;
+                    rise = Mathf.Atan2(to.y, level) * Mathf.Rad2Deg;
+                    want = Explorer ? 1f - phoneWeight : phoneWeight > 0f || actionShare > 0.2f ? 0f : 1f;
+                }
+            }
+            var k = 1f - Mathf.Pow(0.5f, dt / (lookQuick ? 0.08f : lookIdle ? 0.4f : 0.25f));
+            lookYaw = Mathf.Lerp(lookYaw, Mathf.Clamp(aside, -most, most), k);
+            lookPitch = Mathf.Lerp(lookPitch, Mathf.Clamp(rise, -down, 20f), k);
+            var quick = 1f - Mathf.Pow(0.5f, dt / 0.04f);
+            eyeYaw = Mathf.Lerp(eyeYaw, Mathf.Clamp(aside - lookYaw, -10f, 10f), quick);
+            eyePitch = Mathf.Lerp(eyePitch, Mathf.Clamp(rise - lookPitch, -6f, 6f), quick);
+            lookWeight = Mathf.MoveTowards(lookWeight, want, dt / 0.3f);
+            if (eyes != null)
+                for (var i = 0; i < eyes.Length; i++) eyes[i].localRotation = eyeRest[i];
+            if (lookWeight <= 0f) return;
+
+            // The way the face looks now, and the turn still to make onto the wanted way.
+            var w = Ease.InOutCubic(lookWeight);
+            var face = Root.InverseTransformDirection(FaceForward);
+            var faceLevel = new Vector2(face.x, face.z).magnitude;
+            var turnAside = Mathf.DeltaAngle(Mathf.Atan2(face.x, face.z) * Mathf.Rad2Deg, lookYaw) * w;
+            var turnUp = (lookPitch - Mathf.Atan2(face.y, faceLevel) * Mathf.Rad2Deg) * w;
+            var up = Root.up;
+            var across = Vector3.Cross(up, Root.TransformDirection(new Vector3(face.x, 0f, face.z)));
+            if (across.sqrMagnitude < 1e-6f) return;
+            across.Normalize();
+            var neckTurn = Quaternion.AngleAxis(0.4f * turnAside, up) * Quaternion.AngleAxis(-0.4f * turnUp, across);
+            if (neck != null) neck.rotation = neckTurn * neck.rotation;
+            else head.rotation = neckTurn * head.rotation;
+            across = neckTurn * across;
+            head.rotation = Quaternion.AngleAxis(0.6f * turnAside, up) * Quaternion.AngleAxis(-0.6f * turnUp, across) * head.rotation;
+            if (eyes == null) return;
+            var eyeTurn = Quaternion.AngleAxis(eyeYaw * w, up) * Quaternion.AngleAxis(-eyePitch * w, Quaternion.AngleAxis(0.6f * turnAside, up) * across);
+            foreach (var eye in eyes) eye.rotation = eyeTurn * eye.rotation;
         }
 
         // The 饭勺 out of DeepSeek's right palm along the forearm, its bowl's face turned up off the arm. Her battle
@@ -803,9 +1097,150 @@ namespace SystemPrompt.Dungeon
             hand.rotation = Quaternion.Slerp(Quaternion.identity, want * Quaternion.Inverse(now), w) * hand.rotation;
         }
 
+        // The stance's settle (Crouch): the pelvis lowered, breathing (±1 cm at 0.27 Hz), its weight drifting from foot
+        // to foot (±1.4 cm at 0.09 Hz, out of step with the 2 s loop) and nudged (Nudge), the feet then put back where
+        // the motion has them so only the knees take it. Less as a motion takes over or the figure walks off.
+        void Settle(float dt, float speed)
+        {
+            settleTime += dt;
+            nudgeTime += dt;
+            var w = (1f - actionShare) * (1f - Mathf.Clamp01(speed / WalkSpeed));
+            if (w <= 0f) return;
+            Transform hips = Bone(HumanBodyBones.Hips), left = feet[0], right = feet[1];
+            Vector3 leftAt = left.position, rightAt = right.position;
+            Quaternion leftTurn = left.rotation, rightTurn = right.rotation;
+            var bob = -Crouch + 0.01f * Mathf.Sin(2f * Mathf.PI * 0.27f * settleTime);
+            var shift = 0.014f * Mathf.Sin(2f * Mathf.PI * (0.09f * settleTime + settlePhase));
+            var push = nudgeTime < nudgeRise ? Ease.OutCubic(nudgeTime / nudgeRise)
+                : 1f - Mathf.SmoothStep(0f, 1f, (nudgeTime - nudgeRise) / nudgeFall);
+            hips.position += (Root.up * bob + Root.right * shift + nudge * Mathf.Clamp01(push)) * w;
+            Plant(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, left, leftAt, leftTurn);
+            Plant(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, right, rightAt, rightTurn);
+        }
+
+        // Bends the leg from upper so its foot comes back to target and turn, the knee kept the way the pose has it
+        // (only how far it bends changes).
+        void Plant(HumanBodyBones upperBone, HumanBodyBones lowerBone, Transform foot, Vector3 target, Quaternion turn)
+        {
+            Transform upper = Bone(upperBone), lower = Bone(lowerBone);
+            var hip = upper.position;
+            float a = Vector3.Distance(hip, lower.position), b = Vector3.Distance(lower.position, foot.position);
+            var to = target - hip;
+            var d = Mathf.Clamp(to.magnitude, Mathf.Abs(a - b) + 0.001f, (a + b) * 0.999f);
+            var dir = to.normalized;
+            var bend = Vector3.ProjectOnPlane(lower.position - (hip + foot.position) * 0.5f, dir);
+            if (bend.sqrMagnitude < 1e-6f) bend = Vector3.ProjectOnPlane(Root.forward, dir);
+            var along = (a * a + d * d - b * b) / (2f * d);
+            var knee = hip + dir * along + bend.normalized * Mathf.Sqrt(Mathf.Max(0f, a * a - along * along));
+            upper.rotation = Quaternion.FromToRotation(lower.position - hip, knee - hip) * upper.rotation;
+            lower.rotation = Quaternion.FromToRotation(foot.position - lower.position, hip + dir * d - lower.position) * lower.rotation;
+            foot.rotation = turn;
+        }
+
+        static float SmoothStep(float x) => x * x * (3f - 2f * x);
+
         Transform Bone(HumanBodyBones bone) => Animator.GetBoneTransform(bone);
 
+        public Transform Hips => Bone(HumanBodyBones.Hips);
+
         Vector3 TailPoint(int i) => i < tail.Length ? tail[i].position : tail[tail.Length - 1].TransformPoint(tailEnd);
+
+        // A flick of the tail (in battle): thrown about `degrees` toward the figure's right (its left below 0) and
+        // springing back. A tail flicks by the speed it is given, about 14 times the degrees it then swings out.
+        public void Flick(float degrees) => flickSpeed += 14.4f * degrees;
+
+        // A wag of the tail (exploring), in and out over its seconds.
+        public void Wag(float seconds = 1.6f)
+        {
+            wagTime = 0f;
+            wagLength = seconds;
+        }
+
+        void Sway(float dt, float speed)
+        {
+            swayTime += dt;
+            swayShare = 1f - 0.7f * Mathf.Clamp01(speed / 6f);
+            wagShare = 0f;
+            if (wagLength > 0f)
+            {
+                wagTime += dt;
+                wagShare = Mathf.Sin(Mathf.PI * Mathf.Clamp01(wagTime / wagLength));
+                if (wagTime >= wagLength) wagLength = 0f;
+            }
+            if (tailSpring < 0) return;
+            for (var i = 0; i < SwayLinks; i++) springs.Swing(tailSpring + i, Swayed(i, 4f, 12f));
+        }
+
+        // Degrees aside for the tail's joint i this frame, sway at most `sway` and the wag `wag`, each a little later
+        // down the tail.
+        float Swayed(int i, float sway, float wag) =>
+            sway * swayShare * Mathf.Sin(2f * Mathf.PI * SwayHz * swayTime - 0.6f * i)
+            + wag * wagShare * Mathf.Sin(2f * Mathf.PI * WagHz * wagTime - 0.6f * i);
+
+        // Degrees forward from Root's flat acceleration (eased over 0.08 s), clamped to 9 forward and 7 back; aside into it,
+        // up to 10 and only at a run; none while a motion or the phone has the body. A jump in Root's place (put
+        // somewhere new) is not a speed.
+        void Lean(float dt, float speed)
+        {
+            if (dt <= 0f) return;
+            var moved = Root.position - leanWas;
+            moved.y = 0f;
+            leanWas = Root.position;
+            var velocity = moved.sqrMagnitude < 1f ? moved / dt : Vector3.zero;
+            var accel = moved.sqrMagnitude < 1f ? (velocity - leanVelocity) / dt : Vector3.zero;
+            leanVelocity = velocity;
+            leanAccel = Vector3.SmoothDamp(leanAccel, accel, ref leanAccelChange, 0.08f, Mathf.Infinity, dt);
+            var free = 1f - Mathf.Max(phoneWeight, actionWeight);
+            var pitch = free * Mathf.Clamp(Vector3.Dot(leanAccel, Root.forward) * 0.22f, -7f, 9f);
+            var roll = free * Mathf.Clamp(-Vector3.Dot(leanAccel, Root.right) * 0.6f, -10f, 10f) * Mathf.Clamp01(speed / 6.2f);
+            // The springs step at most a 30th of a second: past ~0.09 s this stiff and this little damped they blow up,
+            // and a hitch (a talk or a menu opening) can hand a follower a frame several times that long.
+            var step = Mathf.Min(dt, 1f / 30f);
+            Spring(ref leanPitch, ref leanPitchSpeed, pitch, step);
+            Spring(ref leanRoll, ref leanRollSpeed, roll, step);
+            if (spine == null) return;
+            var turn = Quaternion.AngleAxis(leanPitch * (chest != null ? 0.5f : 1f), Root.right)
+                * Quaternion.AngleAxis(leanRoll * (chest != null ? 0.5f : 1f), Root.forward);
+            spine.rotation = turn * spine.rotation;
+            if (chest != null) chest.rotation = turn * chest.rotation;
+            // The head kept half as level, so the lean reads in the body.
+            head.rotation = Quaternion.AngleAxis(-0.5f * leanRoll, Root.forward) * head.rotation;
+        }
+
+        // Put down somewhere new (a teleport, beside the player after a strike, a scene's spot): the lean takes Root's
+        // new place as standing still there, instead of reading the move as a burst of speed.
+        public void Placed()
+        {
+            leanWas = Root.position;
+            leanVelocity = leanAccel = leanAccelChange = Vector3.zero;
+            leanPitch = leanPitchSpeed = leanRoll = leanRollSpeed = 0f;
+        }
+
+        static void Spring(ref float x, ref float v, float target, float dt)
+        {
+            v += (LeanSpring * LeanSpring * (target - x) - 2f * LeanDamping * LeanSpring * v) * dt;
+            x += v * dt;
+        }
+
+        // A foot down where it stops sinking within a few centimetres of its height at rest, going above a walk; each
+        // foot at most once a stride, so a heel's and then a toe's low point is one step.
+        void Steps(float dt, float speed)
+        {
+            var low = footRest + 0.06f * height / 1.7f;
+            for (var i = 0; i < 2; i++)
+            {
+                var h = Root.InverseTransformPoint(feet[i].position).y;
+                footSince[i] += dt;
+                if (footFalling[i] && h >= footWas[i] && footWas[i] < low && speed > 1.5f && footSince[i] > 0.18f)
+                {
+                    footSince[i] = 0f;
+                    var at = feet[i].position;
+                    Footfall?.Invoke(new Vector3(at.x, Root.position.y, at.z), speed);
+                }
+                footFalling[i] = h < footWas[i];
+                footWas[i] = h;
+            }
+        }
 
         // The tail bent back down onto the floor over the pose, in Root's space (y up from the floor).
         void LayTail(float dt)
@@ -817,6 +1252,7 @@ namespace SystemPrompt.Dungeon
             var ahead = Root.InverseTransformDirection(Bone(HumanBodyBones.Hips).TransformDirection(hipsAhead));
             ahead.y = 0f;
             var turn = ahead.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.forward, ahead.normalized) : Quaternion.identity;
+            if (!Explorer) SwayCarried(dt);
             for (var i = 1; i < tailRest.Length; i++)
             {
                 var from = Root.InverseTransformPoint(TailPoint(i - 1));
@@ -827,8 +1263,11 @@ namespace SystemPrompt.Dungeon
                     tailWas[i] = TailPoint(i);
                     continue;
                 }
-                // Toward where it was last frame, unless it was never placed or the figure jumped (into a battle).
+                // Toward where it was last frame, unless it was never placed or the figure jumped (into a battle); the
+                // way it eases back to swung aside by the sway, more toward the end (along the floor, so it stays on it).
                 var across = turn * tailHeading[i];
+                // (The wag well over what should show: the ease below takes about 40% off at its pace.)
+                if (Explorer) across = Quaternion.AngleAxis((0.4f + 0.6f * i / tailRest.Length) * Swayed(i, 10f, 32f), Vector3.up) * across;
                 var trail = Root.InverseTransformPoint(tailWas[i]) - from;
                 trail.y = 0f;
                 if (trail.sqrMagnitude > 1e-8f && trail.sqrMagnitude < 9f * length * length)
@@ -849,6 +1288,22 @@ namespace SystemPrompt.Dungeon
                 }
                 tailWas[i] = Root.TransformPoint(to);
             }
+        }
+
+        // The carried joints turned about the hips' forward axis: Tail1 from its pose at rest, which swings Tail2 out
+        // with it. Tail2's own bone is aimed at the third point along the floor right after (LayTail), so turning it
+        // here would come to nothing; the joints laid on the floor follow where Tail2 is put, trailing.
+        void SwayCarried(float dt)
+        {
+            var step = Mathf.Min(dt, 1f / 30f);
+            carriedTime += dt;
+            carriedSway = Mathf.MoveTowards(carriedSway, Lying ? 0f : 1f, 2f * dt);
+            flickSpeed += (-FlickStiffness * flick - FlickDamping * flickSpeed) * step;
+            flick += flickSpeed * step;
+            var wave = 5f * carriedSway * Mathf.Sin(2f * Mathf.PI * CarriedSwayHz * carriedTime);
+            var axis = Bone(HumanBodyBones.Hips).TransformDirection(hipsAhead);
+            tail[0].localRotation = carriedRest;
+            tail[0].rotation = Quaternion.AngleAxis(Mathf.Clamp(wave + flick, -FlickMost, FlickMost), axis) * tail[0].rotation;
         }
 
         // No foot IK on any motion: the stances are posed in the muscles alone and have no foot goals, so a

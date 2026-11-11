@@ -265,7 +265,7 @@ Shader "SystemPrompt/Rack"
                 if (part > 1.5 && part < 2.5)
                 {
                     col += Edge(i) * front * (smoothstep(0.025, 0.008, abs(i.uv.y - 0.035)) * 1.4 + 0.12);
-                    col += _SeaSurfaceColor.rgb * SeaCaustics(i.world.xz * 0.5, _SeaTime) * 0.3 * saturate(n0.y);
+                    col += _SeaSurfaceColor.rgb * SeaCaustic(i.world) * 0.3 * saturate(n0.y);
                 }
                 return col;
             }
@@ -296,7 +296,7 @@ Shader "SystemPrompt/Rack"
                 float ao = lerp(0.45, 1.0, saturate(r0 / 0.05 + 1.0));
                 float3 col = Shade(_Base.rgb * 0.85, n, i.world, ao, 1.0);
                 col += Edge(i) * smoothstep(0.18, 0.0, edge) * 0.8;
-                col += _SeaSurfaceColor.rgb * SeaCaustics(i.uv * 0.5, _SeaTime) * 0.2;
+                col += _SeaSurfaceColor.rgb * SeaCaustic(i.world) * 0.2;
                 return col;
             }
 
