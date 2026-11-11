@@ -731,8 +731,9 @@ namespace SystemPrompt.UI
                         unit.Charged = false;
                         card?.Refresh();
                     }
-                    var stamped = hits.Any(h => h.Item2.Affinity == Affinity.Weak);
-                    if (stamped) WeakStamp(hits.Select(h => h.t), 0.16f);
+                    // A blow that misses shows nothing of the weakness it would have found: the stamp went up over a MISS.
+                    var stamped = hits.Any(h => h.Item2.Affinity == Affinity.Weak && !h.Item2.Missed);
+                    if (stamped) WeakStamp(hits.Where(h => !h.Item2.Missed).Select(h => h.t), 0.16f);
                     var anyDown = false;
                     foreach (var (t, hit) in hits)
                     {
@@ -802,10 +803,15 @@ namespace SystemPrompt.UI
                 await stage.Toss(member, enemies.IndexOf(view), fire, hit.Missed);
                 game.Audio.Sfx(fire ? "whoosh" : "water", 0.8f);
             }
-            game.Audio.Sfx("crack");
-            if (view != null) Fx.Shake(view.Root, 16f, 0.25f);
-            if (hit.Affinity == Affinity.Weak) WeakStamp(new[] { target }, 0.16f);
-            await ApplyHit(target, hit, hit.Affinity == Affinity.Weak, true);
+            // Thrown wide (hit.Missed) it bursts on nothing: no crack, no jolt, and no stamp for the weakness it missed.
+            var weak = hit.Affinity == Affinity.Weak && !hit.Missed;
+            if (!hit.Missed)
+            {
+                game.Audio.Sfx("crack");
+                if (view != null) Fx.Shake(view.Root, 16f, 0.25f);
+            }
+            if (weak) WeakStamp(new[] { target }, 0.16f);
+            await ApplyHit(target, hit, weak, true);
             await Aftermath(0.3f);
             return hit.KnockedDown;
         }

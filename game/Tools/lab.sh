@@ -3,7 +3,7 @@
 # 写到 <game>/E2E/lab-<时间>/，index.md 列出每个场景拍了什么、间隔多少、期间的错误和警告。最后一行输出目录。退出码 0 = 选中的场景全部拍到且没有错误日志。
 #
 #   game/Tools/lab.sh                       全部场景
-#   game/Tools/lab.sh battle                只跑一族（battle / sea / deep），也可以写场景 id 或前缀，空格分开：lab.sh battle-shot sea-run
+#   game/Tools/lab.sh battle                只跑一族（battle / sea / deep / girl），也可以写场景 id 或前缀，空格分开：lab.sh battle-shot sea-run
 #   game/Tools/lab.sh --no-build sea        不重新构建，用上次的 Builds/E2E/SystemPromptLab.app
 #   game/Tools/lab.sh --out /path/dir ...   指定输出目录（目录里旧的 png、index.md、日志会先删掉）
 #

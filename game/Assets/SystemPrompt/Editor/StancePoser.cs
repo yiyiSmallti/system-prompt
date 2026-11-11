@@ -108,14 +108,6 @@ namespace SystemPrompt.EditorTools
             }),
         };
 
-        // The boy in his lounge clothes (PlayerMaleLounge, made in VRoid) has no idle of his own and took the one
-        // in the Tripo daily model's file, whose feet stand almost together: there his wide trouser legs went
-        // 11 cm into each other. IdlePlayerMaleLounge is that idle with both thighs opened by LoungeLegsOut, the
-        // least at which the two legs no longer meet (at 0.1 they still crossed 3 cm at the knees).
-        const string LoungeIdleSource = "Assets/SystemPrompt/Resources/Models/Characters/PlayerMale.fbx";
-        const string LoungeIdleName = "IdlePlayerMaleLounge";
-        const float LoungeLegsOut = 0.15f;
-
         // ------------------------------------------------------------------ the actions (Name + the stance's kind)
 
         // 防御, the player (guard-player.png): dropped low with the feet wide, the left shoulder leading and the
@@ -635,7 +627,7 @@ namespace SystemPrompt.EditorTools
         // muscles, its x and its yaw and roll negated), both thighs closed in by legsIn, looping whatever its
         // own flag says (Sword_Idle is an idle without _Loop in its name), with the phone hand's fingers curled
         // round it, and each of offsets added to its muscle (named as after the mirror) over the whole loop.
-        static AnimationClip Fitted(AnimationClip source, string name, float legsIn, bool phoneFist, bool mirror = false, (string muscle, float add)[] offsets = null,
+        internal static AnimationClip Fitted(AnimationClip source, string name, float legsIn, bool phoneFist, bool mirror = false, (string muscle, float add)[] offsets = null,
             float yaw = 0f)
         {
             var clip = UnityEngine.Object.Instantiate(source);
@@ -784,32 +776,6 @@ namespace SystemPrompt.EditorTools
             Debug.Log($"待机调查：{file}");
         }
 
-        // Not part of Run (which would also rewrite the stances): from the menu, or in batchmode with
-        // -executeMethod SystemPrompt.EditorTools.StancePoser.MakeLoungeIdle.
-        [MenuItem("System Prompt/生成男主角家居服待机")]
-        public static void MakeLoungeIdle()
-        {
-            var source = AssetDatabase.LoadAllAssetsAtPath(LoungeIdleSource).OfType<AnimationClip>()
-                .FirstOrDefault(c => !c.name.StartsWith("__preview__"))
-                ?? throw new InvalidOperationException($"{LoungeIdleSource} 里没有待机动作");
-            var clip = UnityEngine.Object.Instantiate(source);
-            clip.name = LoungeIdleName;
-            foreach (var side in new[] { "Left", "Right" })
-            {
-                var binding = EditorCurveBinding.FloatCurve("", typeof(Animator), $"{side} Upper Leg In-Out");
-                var curve = AnimationUtility.GetEditorCurve(clip, binding)
-                    ?? throw new InvalidOperationException($"{LoungeIdleSource} 的待机里没有曲线 {binding.propertyName}");
-                var keys = curve.keys;
-                for (var i = 0; i < keys.Length; i++) keys[i].value += LoungeLegsOut;
-                curve.keys = keys;
-                AnimationUtility.SetEditorCurve(clip, binding, curve);
-            }
-            Save(clip);
-            AssetDatabase.SaveAssets();
-            Debug.Log($"{LoungeIdleName}：来自 {source.name}，{clip.length:F2} 秒，循环 {AnimationUtility.GetAnimationClipSettings(clip).loopTime}"
-                + $"（原动作 {AnimationUtility.GetAnimationClipSettings(source).loopTime}），双腿外张 {LoungeLegsOut}");
-        }
-
         // The muscle's name as an animation curve calls it: the fingers' go under their hand.
         static string CurveName(string muscle)
         {
@@ -848,7 +814,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // A humanoid clip's pose at a time, read straight from its curves.
-        static HumanPose PoseAt(AnimationClip clip, float time)
+        internal static HumanPose PoseAt(AnimationClip clip, float time)
         {
             float At(string property)
             {
@@ -921,7 +887,7 @@ namespace SystemPrompt.EditorTools
             return (lo + hi) / 2f;
         }
 
-        static GameObject Instantiate(string model, out Animator animator)
+        internal static GameObject Instantiate(string model, out Animator animator)
         {
             var prefab = Resources.Load<GameObject>("Models/Characters/" + model);
             var body = UnityEngine.Object.Instantiate(prefab);
@@ -1065,7 +1031,7 @@ namespace SystemPrompt.EditorTools
 
         // Shots of whatever is posed at the origin, left to right on grey, each from a way round it, orthographic
         // so they set beside the drawn sheets.
-        sealed class Sheet : IDisposable
+        internal sealed class Sheet : IDisposable
         {
             readonly Camera cam;
             readonly RenderTexture rt;

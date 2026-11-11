@@ -90,7 +90,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // Bump when the import below changes, so the models and textures already in the library are redone.
-        public override uint GetVersion() => 9;
+        public override uint GetVersion() => 13;
 
         // Tripo's rig has no bones for a tail, a bag or hair down the back, and gives their vertices to the limb
         // nearest in the T-pose: casual DeepSeek's whale tail went to her feet and right thigh, the hair down her
@@ -390,8 +390,148 @@ namespace SystemPrompt.EditorTools
         // again by Tools/face_eyes.py as <model>_Eyes.png, the base colour's size and transparent but where it
         // repaints: laid over the corrected colour, which it was painted against, with the painted texels'
         // skin share judged again from their colour.
+        // DeepSeek's battle dress was generated with shade baked into its skin: the band of thigh between stocking
+        // and skirt and the side of the face came out a flat brown (about #8A6F68, half the skin's texels), which
+        // on the figure read as a tan line across the cheek and brown thighs under a pale face. The toon shader
+        // shades the skin itself, so before the correction those texels are taken back to the skin as it is where
+        // no shade fell (Unshade); only on the models named in BakedShade, whose brown is nothing but skin (on
+        // another model the same brown could be leather).
+        static readonly string[] BakedShade = { "DeepSeek" };
+
+        // The lounge tops are VRoid's hoodie with its hood and strings rubbed out and the rest filled one grey. What
+        // was left of the hoodie's own dark paint shows on the figures as flaws: a wedge at each corner of the collar
+        // (the hood's root), a dark line down each sleeve's seam, a notch by each armhole, and the hem's ribbing, drawn
+        // as a row of near-black teeth, which under a lifted thigh read as the shorts coming through the cloth. Every
+        // texel much darker than the top's one colour is given that colour (Plain); its alpha, which cuts the cloth's
+        // outline, is left as it is.
+        static readonly string[] PlainTops =
+        {
+            "Assets/SystemPrompt/Characters/PlayerFemaleLounge/N00_005_01_Tops_01_CLOTH.png",
+            "Assets/SystemPrompt/Characters/PlayerMaleLounge/N00_005_01_Tops_01_CLOTH.png",
+        };
+
+        static void Plain(Texture2D texture, string path)
+        {
+            var pixels = texture.GetPixels32();
+            // The one colour: the commonest among the opaque texels, to 5 bits a channel.
+            var seen = new Dictionary<int, int>();
+            foreach (var p in pixels)
+            {
+                if (p.a < 250) continue;
+                var key = (p.r >> 3) << 10 | (p.g >> 3) << 5 | p.b >> 3;
+                seen[key] = seen.TryGetValue(key, out var n) ? n + 1 : 1;
+            }
+            if (seen.Count == 0) return;
+            var most = seen.OrderByDescending(kv => kv.Value).First().Key;
+            long r = 0, g = 0, b = 0, count = 0;
+            foreach (var p in pixels)
+            {
+                if (p.a < 250 || ((p.r >> 3) << 10 | (p.g >> 3) << 5 | p.b >> 3) != most) continue;
+                r += p.r; g += p.g; b += p.b; count++;
+            }
+            var plain = new Color32((byte)(r / count), (byte)(g / count), (byte)(b / count), 255);
+            var level = 0.75f * (plain.r + plain.g + plain.b);
+            var changed = 0;
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                var p = pixels[i];
+                if (p.r + p.g + p.b >= level) continue; // the clear texels too: the cut edge is filtered across them
+                pixels[i] = new Color32(plain.r, plain.g, plain.b, p.a);
+                changed++;
+            }
+            Knit(pixels, texture.width, texture.height);
+            texture.SetPixels32(pixels);
+            texture.Apply(true);
+            Debug.Log($"{path}：{changed} 个深色像素填成上衣的颜色 #{ColorUtility.ToHtmlStringRGB(plain)}，再画成炭灰色的针织面料");
+        }
+
+        // The plain top painted as the design has it (assets/characters/protagonist-*-outfits.jpg, the lounge clothes):
+        // charcoal, not the mid grey it was filled with; the weave as a fine grain and long soft folds down it; ribbing
+        // (a darker band with fine upright lines, a seam where it is sewn on) along the hem, the cuffs and round the
+        // neck. Places are those of VRoid's hoodie layout on a texture 2048 across, rows counted from the top: the body
+        // across the lower half with its hem band from row 1956, a sleeve in each upper corner with its cuff from row
+        // 880, the neck a notch in the body's top edge between columns 820 and 1230.
+        static readonly Color32 Charcoal = new Color32(58, 59, 67, 255);
+
+        static void Knit(Color32[] pixels, int width, int height)
+        {
+            var unit = width / 2048f;
+            int At(int x, int row) => (height - 1 - row) * width + x;
+            // How far each texel of the neck's surround is from the cloth's edge there, in texels (up to the collar's width).
+            int collar = Mathf.RoundToInt(30 * unit), x0 = Mathf.RoundToInt(780 * unit), x1 = Mathf.RoundToInt(1270 * unit),
+                r0 = Mathf.RoundToInt(900 * unit), r1 = Mathf.RoundToInt(1140 * unit);
+            var edge = new int[(x1 - x0) * (r1 - r0)];
+            for (var i = 0; i < edge.Length; i++) edge[i] = pixels[At(x0 + i % (x1 - x0), r0 + i / (x1 - x0))].a < 128 ? 0 : int.MaxValue;
+            for (var step = 1; step <= collar + 5; step++)
+                for (var i = 0; i < edge.Length; i++)
+                {
+                    if (edge[i] != int.MaxValue) continue;
+                    int x = i % (x1 - x0), r = i / (x1 - x0);
+                    if ((x > 0 && edge[i - 1] == step - 1) || (x + 1 < x1 - x0 && edge[i + 1] == step - 1)
+                        || (r > 0 && edge[i - (x1 - x0)] == step - 1) || (r + 1 < r1 - r0 && edge[i + (x1 - x0)] == step - 1)) edge[i] = step;
+                }
+            int hem = Mathf.RoundToInt(1956 * unit), cuff = Mathf.RoundToInt(880 * unit), cuffEnd = Mathf.RoundToInt(1012 * unit),
+                sleeveLeft = Mathf.RoundToInt(640 * unit), sleeveRight = Mathf.RoundToInt(1410 * unit), seam = Mathf.Max(2, Mathf.RoundToInt(5 * unit)),
+                rib = Mathf.Max(3, Mathf.RoundToInt(7 * unit));
+            for (var row = 0; row < height; row++)
+                for (var x = 0; x < width; x++)
+                {
+                    var i = At(x, row);
+                    // The weave: a grain texel by texel, and folds a hand wide running down the cloth.
+                    var grain = Mathf.Repeat(Mathf.Sin(x * 12.9898f + row * 78.233f) * 43758.5453f, 1f) - 0.5f;
+                    var fold = Mathf.Sin(x / (41f * unit) + 1.7f * Mathf.Sin(row / (330f * unit))) * Mathf.Sin(x / (97f * unit) + row / (610f * unit));
+                    var shade = 1f + 0.05f * grain + 0.06f * fold;
+                    var ribbed = false;
+                    var sewn = false;
+                    if (row >= hem) { ribbed = true; sewn = row < hem + seam; }
+                    else if ((x < sleeveLeft || x > sleeveRight) && row >= cuff && row < cuffEnd) { ribbed = true; sewn = row < cuff + seam; }
+                    else if (x >= x0 && x < x1 && row >= r0 && row < r1)
+                    {
+                        var d = edge[(row - r0) * (x1 - x0) + (x - x0)];
+                        ribbed = d <= collar;
+                        sewn = d > collar && d <= collar + seam;
+                    }
+                    if (ribbed) shade *= x / rib % 2 == 0 ? 0.8f : 0.9f;
+                    if (sewn) shade *= 0.62f;
+                    pixels[i] = new Color32((byte)Mathf.Clamp(Charcoal.r * shade, 0f, 255f), (byte)Mathf.Clamp(Charcoal.g * shade, 0f, 255f),
+                        (byte)Mathf.Clamp(Charcoal.b * shade, 0f, 255f), pixels[i].a);
+                }
+        }
+
+        // The girl's lounge shorts have white piping round each leg in the design; the texture (VRoid's shorts, black)
+        // has none. A band of rows at each leg's hem, as fractions of the texture's height from the top, is painted
+        // off-white where the cloth is.
+        static readonly Dictionary<string, Vector2> Piped = new Dictionary<string, Vector2>
+        {
+            ["Assets/SystemPrompt/Characters/PlayerFemaleLounge/N00_001_01_Bottoms_01_CLOTH.png"] = new Vector2(0.316f, 0.3275f),
+        };
+
+        static void Pipe(Texture2D texture, Vector2 rows)
+        {
+            var pixels = texture.GetPixels32();
+            int from = Mathf.RoundToInt(rows.x * texture.height), to = Mathf.RoundToInt(rows.y * texture.height);
+            for (var row = from; row < to; row++)
+                for (var x = 0; x < texture.width; x++)
+                {
+                    var i = (texture.height - 1 - row) * texture.width + x;
+                    if (pixels[i].a >= 128) pixels[i] = new Color32(232, 234, 240, pixels[i].a);
+                }
+            texture.SetPixels32(pixels);
+            texture.Apply(true);
+        }
+
         void OnPostprocessTexture(Texture2D texture)
         {
+            if (Array.IndexOf(PlainTops, assetPath) >= 0)
+            {
+                Plain(texture, assetPath);
+                return;
+            }
+            if (Piped.TryGetValue(assetPath, out var piping))
+            {
+                Pipe(texture, piping);
+                return;
+            }
             if (!assetPath.StartsWith(ModelRoot + "Characters/") || !assetPath.EndsWith("_BaseColor.png")) return;
             var eyesPath = assetPath.Replace("_BaseColor.png", "_Eyes.png");
             context.DependsOnSourceAsset(eyesPath);
@@ -405,6 +545,7 @@ namespace SystemPrompt.EditorTools
                 UnityEngine.Object.DestroyImmediate(painted);
             }
             var pixels = texture.GetPixels();
+            if (Array.Exists(BakedShade, model => assetPath.EndsWith("/" + model + "_BaseColor.png"))) Unshade(pixels, texture.width, texture.height);
             for (var i = 0; i < pixels.Length; i++)
             {
                 Color.RGBToHSV(pixels[i], out var h, out var s, out var v);
@@ -432,6 +573,100 @@ namespace SystemPrompt.EditorTools
             }
             texture.SetPixels(pixels);
             texture.Apply(true); // the mips from the corrected top level
+        }
+
+        // Skin in baked shade (a dull red-brown: hue within 14 to 20 degrees of 6, saturation 0.16 to 0.38, value
+        // 0.38 to 0.58, each with a soft edge) taken to the mean of the plainly light skin, a little of how dark it
+        // was kept as form. By colour alone that also took the dark side of the gold (buttons, seams, buckles, the
+        // garter's charm), which came out speckled pale, and stray texels of the neck: so only where the brown lies
+        // in a patch of its own, MinPatch of the texture or more (ten patches hold three quarters of it: the thighs'
+        // bands and the side of the face; the gold is in scraps of a few hundred texels at most). Round each patch
+        // kept, three texels out, whatever is still skin-coloured goes with it, or the patch keeps a brown rim where
+        // its edge was blended with what lies next to it.
+        const float MinPatch = 0.00024f;
+
+        static void Unshade(Color[] pixels, int width, int height)
+        {
+            Vector3 sum = default;
+            var count = 0;
+            var weight = new float[pixels.Length];
+            var near = new float[pixels.Length]; // how far a texel by a kept patch is taken with it
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                var p = pixels[i];
+                Color.RGBToHSV(p, out var h, out var s, out var v);
+                if (v > 0.68f && s >= 0.05f && s <= 0.3f && Mathf.Abs(Mathf.DeltaAngle(10f, h * 360f)) <= 25f)
+                {
+                    sum += new Vector3(p.r, p.g, p.b);
+                    count++;
+                }
+                var warm = 1f - Step(14f, 20f, Mathf.Abs(Mathf.DeltaAngle(6f, h * 360f)));
+                weight[i] = warm * Step(0.1f, 0.16f, s) * (1f - Step(0.38f, 0.46f, s)) * Step(0.28f, 0.38f, v) * (1f - Step(0.58f, 0.66f, v));
+                near[i] = warm * Step(0.05f, 0.09f, s) * (1f - Step(0.46f, 0.52f, s)) * Step(0.28f, 0.38f, v);
+            }
+            if (count == 0) return;
+            var light = sum / count;
+
+            // The patches: texels over 0.2 joined to their neighbours, each counted by its texels over 0.5.
+            var patch = new int[pixels.Length];
+            var kept = new List<bool> { false };
+            var open = new Stack<int>();
+            var minimum = Mathf.Max(1, Mathf.RoundToInt(pixels.Length * MinPatch));
+            for (var start = 0; start < pixels.Length; start++)
+            {
+                if (weight[start] <= 0.2f || patch[start] != 0) continue;
+                var id = kept.Count;
+                var solid = 0;
+                patch[start] = id;
+                open.Push(start);
+                while (open.Count > 0)
+                {
+                    var i = open.Pop();
+                    if (weight[i] > 0.5f) solid++;
+                    int x = i % width, y = i / width;
+                    for (var k = 0; k < 4; k++)
+                    {
+                        int nx = x + (k == 0 ? -1 : k == 1 ? 1 : 0), ny = y + (k == 2 ? -1 : k == 3 ? 1 : 0);
+                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                        var n = ny * width + nx;
+                        if (weight[n] <= 0.2f || patch[n] != 0) continue;
+                        patch[n] = id;
+                        open.Push(n);
+                    }
+                }
+                kept.Add(solid >= minimum);
+            }
+
+            // A kept patch's texels, then three rings of texels round them.
+            var inside = new bool[pixels.Length];
+            for (var i = 0; i < pixels.Length; i++) inside[i] = patch[i] != 0 && kept[patch[i]];
+            var reach = (bool[])inside.Clone();
+            for (var ring = 0; ring < 3; ring++)
+            {
+                var grown = (bool[])reach.Clone();
+                for (var y = 0; y < height; y++)
+                    for (var x = 0; x < width; x++)
+                    {
+                        var i = y * width + x;
+                        if (reach[i]) continue;
+                        grown[i] = (x > 0 && reach[i - 1]) || (x + 1 < width && reach[i + 1]) || (y > 0 && reach[i - width]) || (y + 1 < height && reach[i + width]);
+                    }
+                reach = grown;
+            }
+
+            int changed = 0, patches = 0;
+            foreach (var k in kept) if (k) patches++;
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                if (!reach[i]) continue;
+                var share = inside[i] ? weight[i] : near[i];
+                if (share <= 0f) continue;
+                Color.RGBToHSV(pixels[i], out _, out _, out var v);
+                var form = inside[i] ? 1f - 0.08f * (1f - Mathf.InverseLerp(0.44f, 0.58f, v)) : 1f;
+                pixels[i] = Color.Lerp(pixels[i], new Color(light.x * form, light.y * form, light.z * form, pixels[i].a), share);
+                if (share > 0.5f) changed++;
+            }
+            Debug.Log($"皮肤上烘进去的阴影：{patches} 块、{changed} 个像素（{100f * changed / pixels.Length:F2}%）提回亮面的肤色 #{ColorUtility.ToHtmlStringRGB(new Color(light.x, light.y, light.z))}");
         }
 
         static float Step(float from, float to, float x)

@@ -503,8 +503,8 @@ namespace SystemPrompt.Dungeon
         const float HalfAngle = 55f;
         const float DozeRange = 0.5f;   // of Range, while dozing
         const float DozeHalfAngle = 35f;
-        const float PatrolSpeed = 2.3f, ReturnSpeed = 3f;
-        public float ChaseSpeed = 5.1f; // metres a second after the player; the deep layer's run faster (DungeonDef.ChaseSpeed)
+        const float PatrolSpeed = 1.7f, ReturnSpeed = 2.2f;
+        public float ChaseSpeed = 3.8f; // metres a second after the player; the deep layer's run faster (DungeonDef.ChaseSpeed)
         const float GiveUpSeconds = 3f;
         public const float TouchDistance = 1.3f;
         const float Lift = 0.55f; // metres a strike's flash lifts one caught unawares

@@ -21,23 +21,59 @@ namespace SystemPrompt.Dungeon
     {
         const float WalkSpeed = 1.6f;   // m/s by which the walk has taken over from the idle
         const float RunFrom = 3.2f;     // the run has fully taken over by here
-        // How fast the planted foot of the walk and of the run goes back at their own pace, per metre of the avatar's
-        // human scale (about its hips' height): Quaternius' Walk_Loop and Jog_Fwd_Loop, measured over each footfall
-        // on the VRoid models.
-        const float WalkPace = 0.87f, RunPace = 5.7f;
+        const float SprintFrom = 4.9f, SprintFull = 6.3f; // the sprint takes over from the run between these (the party runs at 4.6, sprints at 6.6)
+        // How fast the foot pressed to the ground goes back in the walk, the run and the sprint at their own pace, per
+        // metre of the avatar's human scale (about its hips' height), as Editor/GaitMotions.cs makes and measures them:
+        // each plays at the rate that takes its foot back as fast as the ground goes by, so the feet don't slip.
+        const float WalkPace = 1.0f, RunPace = 4.17f, SprintPace = 4.6f;
         const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds, unless told otherwise
         const float FlinchOut = 0.2f; // a hit's jolt easing off at the end, seconds
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
         const float RiceGrow = 0.15f; // the 道具's rice ball coming into the hand and going, in seconds
         static readonly Color Shade = new Color(0.78f, 0.74f, 0.8f);
         static readonly Color SkinShade = new Color(0.93f, 0.78f, 0.75f); // peach in shadow, not mauve
+        // A VRoid model's skin has clean normals and can turn to shade round the terminator, softly and a little deeper:
+        // left lit all over (as a generated face has to be) a hand read as a mitten and a leg as a flat paddle.
+        static readonly Color SkinShadeOwn = new Color(0.9f, 0.73f, 0.7f);
+        static readonly Vector4 SkinEdgeOwn = new Vector4(-0.15f, 0.3f, 0f, 0f);
+        // The light's edge on a figure's cloth, wider than the scenery's: at 0.05 it followed the cloth's triangles
+        // in saw teeth down a sleeve.
+        const float ClothWrap = 0.2f;
+        // What a model wears under something else, by its material, and how far behind itself it is drawn (Toon.shader's
+        // _Sink), in metres: DeepSeek's shirt showed through her whale hoodie's front in patches.
+        // The lounge tops are VRoid's hoodie with the hood rubbed out, long and loose over the thighs. By its material:
+        // how thick the legs under it are taken to be, metres at the top of the thigh and at the knee, so the hem
+        // lies over a lifted thigh instead of standing still while it comes through (Toon.shader's _Legs; the boy's
+        // trousers are wide). Its inside is lit as its outside (_BackLit): drawn in shade, the inside of the neck
+        // showed at the collar's corners as dark wedges and its drawstring eyelets as dark dots.
+        static readonly Dictionary<string, Vector2> OverLegs = new Dictionary<string, Vector2>
+        {
+            ["PlayerFemaleLounge/N00_005_01_Tops_01_CLOTH"] = new Vector2(0.11f, 0.08f), // her shorts are loose at the leg
+            ["PlayerMaleLounge/N00_005_01_Tops_01_CLOTH"] = new Vector2(0.115f, 0.095f),
+        };
+        const float LegFrom = 0.25f; // of the way down the thigh the cone starts: at the hip itself it would push the top's sides out as she stands
+        static readonly Dictionary<string, float> Under = new Dictionary<string, float>
+        {
+            ["DeepSeekUniform/N00_007_02_Tops_01_CLOTH"] = 0.012f, // no further: at 3 cm her bare belly came through the shirt's lower half
+        };
         static readonly Color Rim = new Color(0.5f, 0.92f, 1f, 0.35f);
         // A dense mesh turns grazing faces to the camera all over its folds and hair; a high power keeps
         // the rim to the silhouette.
         const float RimPower = 8f;
-        // No ink outline: on a generated mesh the inverted hull of the fringe and the jaw showed through as
-        // thick black strokes across the eyes and cheeks.
+        // No outline as the scenery has it (a hull some centimetres out): on a generated mesh the hull of the fringe
+        // and the jaw showed through as thick black strokes across the eyes and cheeks.
         const float Outline = 0f;
+        // A figure has an ink line instead (Toon.shader's _OutlinePx): as wide on the picture wherever it stands, in
+        // each part's own colour darkened, brown round skin. A drawing's line: without it the figures were patches of
+        // flat colour with nothing to part an arm from the body behind it. Not on the parts laid over a face (eyes,
+        // brows, lashes, mouth), and on a generated model not on its skin (_OutlineBare).
+        const float Line = 1.25f;
+        // The band of light round the hair (Toon.shader's _HairGloss), by model; the default for black hair.
+        static readonly Color HairGloss = new Color(0.27f, 0.32f, 0.47f);
+        static readonly Dictionary<string, Color> HairGlossOf = new Dictionary<string, Color>
+        {
+            ["DeepSeekUniform"] = new Color(0.36f, 0.56f, 0.82f),
+        };
 
         static readonly Dictionary<string, AnimationClip> motions = new Dictionary<string, AnimationClip>();
 
@@ -80,7 +116,7 @@ namespace SystemPrompt.Dungeon
         readonly AnimationMixerPlayable mixer;
         readonly AnimationLayerMixerPlayable layers; // the idle, walk and run under the motion playing over them, a flinch added over both
         readonly AnimationMixerPlayable actions; // the motion playing, and the one it is taking over from
-        readonly AnimationClipPlayable walk, run;
+        readonly AnimationClipPlayable walk, run, sprint;
         readonly float stride; // the avatar's human scale in metres as the model is sized, which the paces scale by
         AnimationClipPlayable idle, action, leaving;
         int actionInput, leavingInput; // their inputs on actions
@@ -109,6 +145,9 @@ namespace SystemPrompt.Dungeon
         // breathing, its weight drifting from foot to foot, nudged by a blow or a start (Nudge), and the feet put back
         // where the motion has them, so only the knees take it. The breath and the drift start at the stance's phase.
         public float Crouch;
+        // And leant toward what it faces by Forward degrees, half at the pelvis and half up the back, the hips set
+        // back under it and the head kept up: the library's stances stand hips forward and shoulders back, at ease.
+        public float Forward;
         // In the stance the phone held ready before the chest in both hands (HoldReady), rather than out at arm's
         // length as the library's stance has it.
         public bool Ready;
@@ -135,6 +174,9 @@ namespace SystemPrompt.Dungeon
         readonly float height;
         readonly string stance;
         readonly bool carriesPhone; // the player: in the stance the phone is in their right hand
+        readonly List<(Material look, Vector2 radii)> overLegs = new List<(Material, Vector2)>(); // the tops kept out of the legs, and how thick those are
+        readonly List<Material> necks = new List<Material>(); // the body's skin of a VRoid figure, which takes the chin's shade (Toon.shader's _Chin)
+        Vector3 headUp, headAhead; // up and ahead of the head, in the head bone's own space, as the model stands in its file
         bool inStance;
         Transform phone;
         float phoneTime, phoneLength, phoneWeight;
@@ -156,17 +198,22 @@ namespace SystemPrompt.Dungeon
         readonly Transform neck;
         readonly Transform[] eyes;            // a VRoid face's eye bones, or none (a drawn face)
         readonly Quaternion[] eyeRest;
-        // Exploring, DeepSeek's tail sways of itself, slowly and less as she runs, and wags for a moment (Wag): the
+        // Exploring, DeepSeek's tail sways of itself, slowly and less as she runs, where it swims instead (a quicker
+        // wave down it from side to side), and wags for a moment (Wag): the
         // battle dress's as it is laid (LayTail), the uniform's spring by turning its first links' pull (SeaSprings.Swing).
         const float SwayHz = 0.35f, WagHz = 1.8f;
+        // At a run the tail swims instead (Swum): a quicker wave down it from side to side. The uniform's spring takes
+        // it in its pull; the battle dress's, which at a run is dragged out straight behind her however its heading
+        // is swung, has it laid over where the drag leaves it.
+        const float SwimHz = 1.4f, SwimFrom = 1.5f, SwimFull = 4.5f;
         const int SwayLinks = 4;
         readonly int tailSpring = -1;         // the uniform tail's first link in the springs, or -1
-        float swayTime, swayShare, wagTime, wagLength, wagShare; // the wag's length 0 with none
+        float swayTime, swayShare, swimShare, wagTime, wagLength, wagShare; // the wag's length 0 with none
         // Exploring, each foot set down at a walk or a run: where on the seabed, and how fast the figure is going. The
         // clips carry no events, so it is found as the low point of the foot's height over Root, near its height at rest.
         public event Action<Vector3, float> Footfall;
         readonly Transform[] feet;
-        readonly float footRest;
+        float footRest;
         readonly float[] footWas = new float[2], footSince = new float[2];
         readonly bool[] footFalling = new bool[2];
         // Exploring, the body leans with how Root speeds up, slows and turns: forward pushing off, back pulling up, into
@@ -204,17 +251,20 @@ namespace SystemPrompt.Dungeon
         float carriedSway = 1f;               // how much of the sway shows: none while lying
         readonly Quaternion carriedRest;      // Tail1's local rotation at rest
         public bool Lying;
+        // Lying, a forearm the pose leaves standing on its elbow is laid down (Rest): the sprawl is one pose in muscle
+        // space for three rigs, and on the battle dress's one forearm stood up with the hand open, as if waving.
+        float restShare;
+        readonly Vector3[] handAlong = new Vector3[2]; // the way each hand's fingers run from its wrist, in the hand's own space
 
         // The player of the chosen gender: in the lounge clothes they were pulled in with (4-lounge), or in the
         // latent-space battle coat (5-battle) that the white door's mirror shows. Each has a fighting stance of
         // their own, both with the phone in the right hand. The lounge models are made in VRoid and keep their own
-        // size (162 and 175 cm, a few more to the tip of the ahoge); having no idle of their own, they take that of
-        // the Tripo models they replaced, the boy's with the legs opened so his wide trousers don't meet
-        // (Motions/IdlePlayerMaleLounge, Editor/StancePoser.cs), and their face box sits as DeepSeek's VRoid one does.
+        // size (162 and 175 cm, a few more to the tip of the ahoge); they stand as Editor/GaitMotions.cs makes each
+        // (Motions/Idle<model>), and their face box sits as DeepSeek's VRoid one does.
         public static SeaFigure Player(string gender, bool battle, Transform parent) =>
             gender == "female"
                 ? battle ? new SeaFigure("PlayerFemaleBattle", parent, 1.62f, "StancePlayerFemale", true)
-                    : new SeaFigure("PlayerFemaleLounge", parent, 0f, "StancePlayerFemale", true, 0.05f, "PlayerFemale")
+                    : new SeaFigure("PlayerFemaleLounge", parent, 0f, "StancePlayerFemale", true, 0.05f)
                 : battle ? new SeaFigure("PlayerMaleBattle", parent, 1.72f, "StancePlayer", true)
                     : new SeaFigure("PlayerMaleLounge", parent, 0f, "StancePlayer", true, 0.05f);
 
@@ -222,18 +272,16 @@ namespace SystemPrompt.Dungeon
         // her battle dress (4-battle) after; the Tripo weekend hoodie dress (3-casual, DeepSeekCasual) is no longer
         // used. The battle dress is rigged in Blender, whose head bone sits at the top of the neck, lower under
         // the face than Tripo's: its face box rises further above the bone. The VRoid model keeps its own size
-        // (151 cm, 1.64 m to the tip of the ahoge) and takes the battle dress's idle, having none of its own.
+        // (151 cm, 1.64 m to the tip of the ahoge).
         public static SeaFigure DeepSeek(bool awakened, Transform parent) =>
             awakened ? new SeaFigure("DeepSeek", parent, 1.58f, "StanceDeepSeek", false, 0.075f)
-                : new SeaFigure("DeepSeekUniform", parent, 0f, "StanceDeepSeek", false, 0.05f, "DeepSeek");
+                : new SeaFigure("DeepSeekUniform", parent, 0f, "StanceDeepSeek", false, 0.05f);
 
         // What Player(gender, false) and DeepSeek(awakened) read from Resources, the same models as above, so a
         // maze can read it in the background before building them.
         public static IEnumerable<(string path, Type type)> Files(string gender, bool deepSeekAwakened)
         {
-            var player = gender == "female" ? ("PlayerFemaleLounge", "PlayerFemale") : ("PlayerMaleLounge", (string)null);
-            var deepSeek = deepSeekAwakened ? ("DeepSeek", (string)null) : ("DeepSeekUniform", "DeepSeek");
-            foreach (var (model, idleOf) in new[] { player, deepSeek })
+            foreach (var model in new[] { gender == "female" ? "PlayerFemaleLounge" : "PlayerMaleLounge", deepSeekAwakened ? "DeepSeek" : "DeepSeekUniform" })
             {
                 var path = "Models/Characters/" + model;
                 yield return (path, typeof(GameObject));
@@ -241,17 +289,17 @@ namespace SystemPrompt.Dungeon
                 yield return (path + "_Faces", typeof(Texture2D));
                 yield return (path + "_FaceDepth", typeof(Texture2D));
                 yield return (path + "_Springs", typeof(TextAsset));
-                yield return ("Models/Motions/Idle" + (idleOf ?? model), typeof(AnimationClip));
-                yield return ("Models/Characters/" + (idleOf ?? model), typeof(AnimationClip));
+                yield return ("Models/Motions/Idle" + model, typeof(AnimationClip));
             }
             yield return ("Models/Motions/Walk", typeof(AnimationClip));
             yield return ("Models/Motions/Run", typeof(AnimationClip));
+            yield return ("Models/Motions/Sprint", typeof(AnimationClip));
         }
 
         // height: from the soles to the top, 0 for the model's own; stance: the fighting stance it takes in battle
         // (Resources/Models/Motions, Editor/StancePoser.cs), and whether it holds the 截图's phone there; faceRise:
-        // the face box's centre above the head bone, of the height; idleOf: the model whose idle it takes.
-        public SeaFigure(string model, Transform parent, float height, string stance, bool carriesPhone, float faceRise = FaceRise, string idleOf = null)
+        // the face box's centre above the head bone, of the height.
+        public SeaFigure(string model, Transform parent, float height, string stance, bool carriesPhone, float faceRise = FaceRise)
         {
             this.stance = stance;
             this.carriesPhone = carriesPhone;
@@ -278,6 +326,10 @@ namespace SystemPrompt.Dungeon
             {
                 look = SeaArt.Toon(Color.white, Shade, Rim, default, Outline);
                 look.SetFloat("_RimPower", RimPower);
+                look.SetFloat("_Wrap", ClothWrap);
+                look.SetFloat("_OutlinePx", Line);
+                look.SetFloat("_OutlineTint", 1f);
+                look.SetFloat("_OutlineBare", 1f);
                 look.SetColor("_SkinShade", SkinShade);
                 look.SetFloat("_SkinMask", 1f);
                 look.SetFloat("_CameraLight", 1f); // faces stay lit whichever way the figure turns
@@ -298,7 +350,21 @@ namespace SystemPrompt.Dungeon
                     low = Mathf.Min(low, y);
                     high = Mathf.Max(high, y);
                 }
-                if (own) r.sharedMaterials = Array.ConvertAll(r.sharedMaterials, Dress);
+                if (own)
+                {
+                    var parts = r.sharedMaterials;
+                    var dressed = Array.ConvertAll(parts, part => Dress(part, model));
+                    r.sharedMaterials = dressed;
+                    for (var i = 0; i < parts.Length; i++)
+                    {
+                        if (OverLegs.TryGetValue(model + "/" + parts[i].name, out var radii)) overLegs.Add((dressed[i], radii));
+                        if (parts[i].name.Contains("Body_00_SKIN"))
+                        {
+                            dressed[i].SetFloat("_Chin", 1f);
+                            necks.Add(dressed[i]);
+                        }
+                    }
+                }
                 else
                 {
                     var looks = new Material[mesh.subMeshCount];
@@ -318,6 +384,17 @@ namespace SystemPrompt.Dungeon
             body.transform.localPosition = new Vector3(0f, -low * scale, 0f);
             stride = Animator.humanScale * body.transform.lossyScale.y;
 
+            var skull = Animator.GetBoneTransform(HumanBodyBones.Head);
+            headUp = skull.InverseTransformDirection(Root.up);
+            headAhead = skull.InverseTransformDirection(Root.forward);
+            // As the model stands in its file its arms are straight, so each hand runs on the way its forearm does
+            // (the battle dress has no finger bones to tell by).
+            for (var side = 0; side < 2; side++)
+            {
+                Transform lower = Animator.GetBoneTransform(side == 0 ? HumanBodyBones.LeftLowerArm : HumanBodyBones.RightLowerArm),
+                    hand = Animator.GetBoneTransform(side == 0 ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand);
+                handAlong[side] = hand.InverseTransformDirection((hand.position - lower.position).normalized);
+            }
             // The tail at rest, as the file has it: down from the hips and along the floor behind the figure.
             var tailBones = new List<Transform>();
             foreach (var t in body.GetComponentsInChildren<Transform>())
@@ -358,7 +435,7 @@ namespace SystemPrompt.Dungeon
 
             graph = PlayableGraph.Create("Figure " + model);
             graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
-            mixer = AnimationMixerPlayable.Create(graph, 3);
+            mixer = AnimationMixerPlayable.Create(graph, 4);
             layers = AnimationLayerMixerPlayable.Create(graph, 3);
             graph.Connect(mixer, 0, layers, 0);
             layers.SetInputWeight(0, 1f);
@@ -369,9 +446,14 @@ namespace SystemPrompt.Dungeon
             layers.SetLayerMaskFromAvatarMask(2, Torso);
             layers.SetLayerAdditive(2, true);
             AnimationPlayableOutput.Create(graph, model, Animator).SetSourcePlayable(layers);
-            idle = Connect(Idle(idleOf ?? model), 0);
+            // A drawn face's box is taken in the pose its pictures were drawn for (Editor/FaceCapture.cs): the stand the
+            // model had then, kept as Motions/Face<model> where the stand has since been changed. In another pose the
+            // box sits askew on the head and no expression lands on the face.
+            var facePose = Resources.Load<AnimationClip>("Models/Motions/Face" + model);
+            idle = Connect(facePose != null ? facePose : Idle(model), 0);
             walk = Connect(Motion("Walk"), 1);
             run = Connect(Motion("Run"), 2);
+            sprint = Connect(Motion("Sprint"), 3);
             mixer.SetInputWeight(0, 1f);
             graph.Evaluate(0f);
             var springData = Resources.Load<TextAsset>(path + "_Springs");
@@ -410,6 +492,15 @@ namespace SystemPrompt.Dungeon
                 look.SetTexture("_FaceDepth", faceDepth);
                 look.SetFloat("_FaceOn", 1f);
             }
+            if (facePose != null)
+            {
+                graph.Disconnect(mixer, 0);
+                idle.Destroy();
+                idle = Connect(Idle(model), 0);
+                mixer.SetInputWeight(0, 1f);
+                graph.Evaluate(0f);
+                footRest = Mathf.Min(Root.InverseTransformPoint(feet[0].position).y, Root.InverseTransformPoint(feet[1].position).y);
+            }
             if (faceMesh != null)
                 foreach (var cell in faceShapes)
                 {
@@ -422,15 +513,31 @@ namespace SystemPrompt.Dungeon
         }
 
         // A VRoid part's own toon material, shaded as the other figures are, its colour's tint in the shade too.
-        static Material Dress(Material part)
+        static Material Dress(Material part, string model)
         {
             var m = new Material(part);
             m.SetColor("_ShadeColor", Shade * part.GetColor("_Color"));
-            m.SetColor("_SkinShade", SkinShade);
+            m.SetColor("_SkinShade", SkinShadeOwn);
+            m.SetVector("_SkinEdge", SkinEdgeOwn);
+            m.SetFloat("_Wrap", ClothWrap);
+            if (Under.TryGetValue(model + "/" + part.name, out var sink)) m.SetFloat("_Sink", sink);
+            if (OverLegs.ContainsKey(model + "/" + part.name))
+            {
+                m.SetFloat("_Legs", 1f);
+                m.SetFloat("_BackLit", 1f);
+            }
             m.SetColor("_RimColor", Rim);
             m.SetFloat("_RimPower", RimPower);
             m.SetFloat("_CameraLight", 1f);
             m.SetFloat("_OutlineWidth", Outline);
+            var overlay = part.GetFloat("_ZWrite") < 0.5f || part.name.Contains("_EYE") || part.name.Contains("_FACE");
+            m.SetFloat("_OutlinePx", overlay ? 0f : Line);
+            m.SetFloat("_OutlineTint", 1f);
+            if (part.name.Contains("_HAIR"))
+            {
+                m.SetFloat("_HairGloss", 1f);
+                m.SetColor("_HairGlossColor", HairGlossOf.TryGetValue(model, out var gloss) ? gloss : HairGloss);
+            }
             // Hair and cloth cut out at _Cutoff leave MSAA their edge as coverage, or their tips stay stair-stepped.
             if (part.GetFloat("_Cutoff") > 0f && part.GetFloat("_ZWrite") > 0.5f) m.SetFloat("_AlphaToMask", 1f);
             return m;
@@ -708,18 +815,23 @@ namespace SystemPrompt.Dungeon
             spoonShown = 0f;
         }
 
-        // speed in metres per second: idle when still, the walk while picking up speed, then the run.
+        // speed in metres per second: idle when still, the walk while picking up speed, then the run, and the sprint.
         public void Animate(float dt, float speed)
         {
             var moving = Mathf.Clamp01(speed / WalkSpeed);
             var running = Mathf.Clamp01((speed - WalkSpeed) / (RunFrom - WalkSpeed));
+            var sprinting = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((speed - SprintFrom) / (SprintFull - SprintFrom)));
             mixer.SetInputWeight(0, 1f - moving);
             mixer.SetInputWeight(1, moving * (1f - running));
-            mixer.SetInputWeight(2, moving * running);
-            // Each at the rate whose planted foot keeps up with the ground going by, so the feet don't slide: the run
-            // 1.1 to 1.25 times its own pace at 6.2 m/s, 1.6 to 1.8 at the 9 m/s sprint.
-            walk.SetSpeed(Mathf.Clamp(speed / (WalkPace * stride), 0.6f, 2.2f));
-            run.SetSpeed(Mathf.Clamp(speed / (RunPace * stride), 0.6f, 1.9f));
+            mixer.SetInputWeight(2, moving * running * (1f - sprinting));
+            mixer.SetInputWeight(3, moving * running * sprinting);
+            // Each at the rate whose planted foot keeps up with the ground going by, so the feet don't slide. The run
+            // and the sprint are one loop at two reaches: they play at one rate and one time, so they blend in step.
+            walk.SetSpeed(Mathf.Clamp(speed / (WalkPace * stride), 0.6f, 1.9f));
+            var rate = Mathf.Clamp(speed / (Mathf.Lerp(RunPace, SprintPace, sprinting) * stride), 0.6f, 1.7f);
+            run.SetSpeed(rate);
+            sprint.SetSpeed(rate);
+            sprint.SetTime(run.GetTime());
             if (action.IsValid())
             {
                 actionTime += dt;
@@ -762,6 +874,7 @@ namespace SystemPrompt.Dungeon
             graph.Evaluate(dt);
             if (Explorer) Lean(dt, speed);
             else if (inStance) Settle(dt, speed);
+            Rest(dt);
 
             if (phoneLength > 0f)
             {
@@ -824,6 +937,31 @@ namespace SystemPrompt.Dungeon
             }
             talkTime = Talking ? talkTime + dt : 0f;
             ShowFace();
+            LegsUnder();
+        }
+
+        // What the materials are told of the pose each frame: the legs as posed now, for the tops that hang over them
+        // (OverLegs), each thigh from LegFrom of the way down it to the knee; and the head, for its shade on the neck.
+        void LegsUnder()
+        {
+            var size = Animator.transform.lossyScale.y;
+            foreach (var m in necks)
+            {
+                var at = head.position;
+                m.SetVector("_ChinAt", new Vector4(at.x, at.y, at.z, size));
+                m.SetVector("_ChinUp", head.TransformDirection(headUp));
+                m.SetVector("_ChinAhead", head.TransformDirection(headAhead));
+            }
+            if (overLegs.Count == 0) return;
+            foreach (var (m, radii) in overLegs)
+                for (var side = 0; side < 2; side++)
+                {
+                    Vector3 hip = Bone(side == 0 ? HumanBodyBones.LeftUpperLeg : HumanBodyBones.RightUpperLeg).position,
+                        knee = Bone(side == 0 ? HumanBodyBones.LeftLowerLeg : HumanBodyBones.RightLowerLeg).position,
+                        top = Vector3.Lerp(hip, knee, LegFrom);
+                    m.SetVector(side == 0 ? "_LegTop0" : "_LegTop1", new Vector4(top.x, top.y, top.z, radii.x * size));
+                    m.SetVector(side == 0 ? "_LegEnd0" : "_LegEnd1", new Vector4(knee.x, knee.y, knee.z, radii.y * size));
+                }
         }
 
         public void Dispose()
@@ -831,12 +969,19 @@ namespace SystemPrompt.Dungeon
             if (graph.IsValid()) graph.Destroy();
         }
 
-        // A phone held landscape, its lens toward +z and its lit screen toward the one holding it.
+        // A phone held landscape, its lens toward +z and its lit screen toward the one holding it. Its case is pale
+        // with a dark lens ringed in the sea's light: a dark one could not be told from the dark clothes behind it.
         Transform BuildPhone()
         {
             var s = height / 1.7f;
             var body = Parts.Shape("Phone", Root, SeaArt.Box(new Vector3(0.15f, 0.072f, 0.011f) * s),
-                SeaArt.Toon(new Color(0.16f, 0.17f, 0.21f), new Color(0.09f, 0.1f, 0.13f), Rim, default, 0f));
+                SeaArt.Toon(new Color(0.78f, 0.84f, 0.92f), new Color(0.5f, 0.56f, 0.7f), Rim, default, 0f));
+            var lens = Parts.Shape("Lens", body.transform, SeaArt.Cylinder(0.011f * s, 0.011f * s, 0.004f * s, 14),
+                SeaArt.Toon(new Color(0.08f, 0.09f, 0.12f), new Color(0.04f, 0.05f, 0.07f), Rim, default, 0f), new Vector3(0.05f, 0.016f, 0.0055f) * s);
+            lens.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            var ring = Parts.Shape("Lens Ring", body.transform, SeaArt.Cylinder(0.014f * s, 0.014f * s, 0.002f * s, 14),
+                SeaArt.Toon(new Color(0.4f, 0.85f, 0.95f), new Color(0.4f, 0.85f, 0.95f), Rim, new Color(0.1f, 0.3f, 0.36f), 0f), new Vector3(0.05f, 0.016f, 0.0055f) * s);
+            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             Parts.Shape("Screen", body.transform, SeaArt.Quad(0.138f * s, 0.062f * s),
                 SeaArt.Toon(new Color(0.55f, 0.85f, 0.95f), new Color(0.55f, 0.85f, 0.95f), Rim, new Color(0.12f, 0.3f, 0.38f), 0f), new Vector3(0f, 0f, -0.0062f * s));
             body.gameObject.SetActive(false);
@@ -1114,8 +1259,61 @@ namespace SystemPrompt.Dungeon
             var push = nudgeTime < nudgeRise ? Ease.OutCubic(nudgeTime / nudgeRise)
                 : 1f - Mathf.SmoothStep(0f, 1f, (nudgeTime - nudgeRise) / nudgeFall);
             hips.position += (Root.up * bob + Root.right * shift + nudge * Mathf.Clamp01(push)) * w;
+            if (Forward != 0f)
+            {
+                var half = Quaternion.AngleAxis(Forward * 0.5f * w, Root.right);
+                hips.rotation = half * hips.rotation;
+                spine.rotation = half * spine.rotation;
+                neck.rotation = Quaternion.AngleAxis(-Forward * 0.6f * w, Root.right) * neck.rotation;
+                hips.position -= Root.forward * (0.2f * Mathf.Sin(Forward * Mathf.Deg2Rad) * height / 1.7f * w);
+            }
             Plant(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, left, leftAt, leftTurn);
             Plant(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, right, rightAt, rightTurn);
+        }
+
+        // Lying with the hips down on the floor, each hand held up off it is brought down: the forearm turned about
+        // the elbow the way it already points along the floor (or, standing straight up, on along the upper arm);
+        // and a hand whose wrist is down but which stands up on it, fingers in the air, is laid level.
+        void Rest(float dt)
+        {
+            var s = height / 1.7f;
+            // Only while the fall's end is held: getting up, the arms are the motion's again.
+            var down = Lying && holdTo >= 0f && Root.InverseTransformPoint(Bone(HumanBodyBones.Hips).position).y < 0.3f * height;
+            restShare = Mathf.MoveTowards(restShare, down ? 1f : 0f, dt / 0.25f);
+            if (restShare <= 0f) return;
+            var w = Mathf.SmoothStep(0f, 1f, restShare);
+            var floor = Root.position.y + 0.035f * s;
+            var arms = new[]
+            {
+                (HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand),
+                (HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand),
+            };
+            for (var side = 0; side < 2; side++)
+            {
+                var (upperBone, lowerBone, handBone) = arms[side];
+                Transform lower = Bone(lowerBone), hand = Bone(handBone);
+                var fore = hand.position - lower.position;
+                var length = fore.magnitude;
+                if (length < 1e-4f) continue;
+                if (hand.position.y >= floor + 0.04f * s)
+                {
+                    var flat = Vector3.ProjectOnPlane(fore, Vector3.up);
+                    if (flat.magnitude < 0.4f * length) flat = Vector3.ProjectOnPlane(lower.position - Bone(upperBone).position, Vector3.up);
+                    if (flat.sqrMagnitude >= 1e-8f)
+                    {
+                        var drop = Mathf.Clamp(floor - lower.position.y, -length, length);
+                        var want = flat.normalized * Mathf.Sqrt(length * length - drop * drop) + Vector3.up * drop;
+                        lower.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(fore, want), w) * lower.rotation;
+                    }
+                }
+                // The hand itself: its fingers level, the way they already point over the floor (or on along the forearm).
+                var fingers = hand.TransformDirection(handAlong[side]);
+                if (Mathf.Abs(fingers.y) < 0.15f) continue;
+                var level = Vector3.ProjectOnPlane(fingers, Vector3.up);
+                if (level.magnitude < 0.4f) level = Vector3.ProjectOnPlane(hand.position - lower.position, Vector3.up);
+                if (level.sqrMagnitude < 1e-8f) continue;
+                hand.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(fingers, level.normalized), w) * hand.rotation;
+            }
         }
 
         // Bends the leg from upper so its foot comes back to target and turn, the knee kept the way the pose has it
@@ -1159,7 +1357,8 @@ namespace SystemPrompt.Dungeon
         void Sway(float dt, float speed)
         {
             swayTime += dt;
-            swayShare = 1f - 0.7f * Mathf.Clamp01(speed / 6f);
+            swayShare = 1f - 0.7f * Mathf.Clamp01(speed / 4.5f);
+            swimShare = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(SwimFrom, SwimFull, speed));
             wagShare = 0f;
             if (wagLength > 0f)
             {
@@ -1168,7 +1367,7 @@ namespace SystemPrompt.Dungeon
                 if (wagTime >= wagLength) wagLength = 0f;
             }
             if (tailSpring < 0) return;
-            for (var i = 0; i < SwayLinks; i++) springs.Swing(tailSpring + i, Swayed(i, 4f, 12f));
+            for (var i = 0; i < SwayLinks; i++) springs.Swing(tailSpring + i, Swayed(i, 4f, 12f) + Swum(i, 10f));
         }
 
         // Degrees aside for the tail's joint i this frame, sway at most `sway` and the wag `wag`, each a little later
@@ -1176,6 +1375,9 @@ namespace SystemPrompt.Dungeon
         float Swayed(int i, float sway, float wag) =>
             sway * swayShare * Mathf.Sin(2f * Mathf.PI * SwayHz * swayTime - 0.6f * i)
             + wag * wagShare * Mathf.Sin(2f * Mathf.PI * WagHz * wagTime - 0.6f * i);
+
+        // Degrees aside for the tail's joint i from its swimming at a run, `most` at most.
+        float Swum(int i, float most) => most * swimShare * Mathf.Sin(2f * Mathf.PI * SwimHz * swayTime - 0.9f * i);
 
         // Degrees forward from Root's flat acceleration (eased over 0.08 s), clamped to 9 forward and 7 back; aside into it,
         // up to 10 and only at a run; none while a motion or the phone has the body. A jump in Root's place (put
@@ -1192,7 +1394,7 @@ namespace SystemPrompt.Dungeon
             leanAccel = Vector3.SmoothDamp(leanAccel, accel, ref leanAccelChange, 0.08f, Mathf.Infinity, dt);
             var free = 1f - Mathf.Max(phoneWeight, actionWeight);
             var pitch = free * Mathf.Clamp(Vector3.Dot(leanAccel, Root.forward) * 0.22f, -7f, 9f);
-            var roll = free * Mathf.Clamp(-Vector3.Dot(leanAccel, Root.right) * 0.6f, -10f, 10f) * Mathf.Clamp01(speed / 6.2f);
+            var roll = free * Mathf.Clamp(-Vector3.Dot(leanAccel, Root.right) * 0.6f, -10f, 10f) * Mathf.Clamp01(speed / 4.6f);
             // The springs step at most a 30th of a second: past ~0.09 s this stiff and this little damped they blow up,
             // and a hitch (a talk or a menu opening) can hand a follower a frame several times that long.
             var step = Mathf.Min(dt, 1f / 30f);
@@ -1276,6 +1478,14 @@ namespace SystemPrompt.Dungeon
                 var to = Mathf.Abs(drop) >= length
                     ? from + Vector3.down * (Mathf.Sign(drop) * length)
                     : from + across * Mathf.Sqrt(length * length - drop * drop) + Vector3.down * drop;
+                tailWas[i] = Root.TransformPoint(to);
+                // Swimming at a run, the joint is laid aside of where the drag has left it; what it trails from next
+                // frame is still the place without, or the swing would add to itself.
+                if (Explorer && swimShare > 0f && Mathf.Abs(drop) < length)
+                {
+                    var swum = Quaternion.AngleAxis((0.4f + 0.6f * i / tailRest.Length) * Swum(i, 24f), Vector3.up) * across;
+                    to = from + swum * Mathf.Sqrt(length * length - drop * drop) + Vector3.down * drop;
+                }
                 var bone = tail[i - 1];
                 var along = Root.TransformVector(to - from);
                 bone.rotation = Quaternion.FromToRotation(Root.TransformVector(posed), along) * bone.rotation;
@@ -1286,7 +1496,6 @@ namespace SystemPrompt.Dungeon
                     var side = bone.TransformDirection(tailSide[i - 1]);
                     bone.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(side, level, along), along) * bone.rotation;
                 }
-                tailWas[i] = Root.TransformPoint(to);
             }
         }
 
@@ -1323,9 +1532,8 @@ namespace SystemPrompt.Dungeon
             return clip;
         }
 
-        // The model's idle: Motions/Idle<model> where there is one (DeepSeek's battle dress, rigged in Blender, keeps
-        // the idle of the Tripo model it replaced), else the take in its file (Tripo exports one per model). The VRoid
-        // models have neither and ask for another model's (idleOf).
+        // The model's idle: Motions/Idle<model> (the stand Editor/GaitMotions.cs makes for each figure that explores),
+        // else the take in its file (the battle coats the mirror shows, which Tripo exported with one each).
         static AnimationClip Idle(string model)
         {
             var own = Resources.Load<AnimationClip>("Models/Motions/Idle" + model);

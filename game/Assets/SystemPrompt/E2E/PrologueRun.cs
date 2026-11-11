@@ -834,8 +834,16 @@ namespace SystemPrompt.E2E
                 Check(game.State.ItemCount("ice_soda") == sodasBefore - 1, $"扔出了冰镇汽水（{sodasBefore} → {game.State.ItemCount("ice_soda")}）");
                 var exposed = Now;
                 while (!finished && game.InBattle && Now - exposed < 15f && !ui.Query<Label>(className: "sp-enemy__weak-text").ToList().Any(l => Visible(l) && l.text.StartsWith("弱点：冰"))) yield return null;
-                // A miss (5%) leaves it to the second turn, which gives it away too.
-                Check(ui.Query<Label>(className: "sp-enemy__weak-text").ToList().Any(l => l.text.StartsWith("弱点：冰")), "标题党型的假弱点碎掉，露出「弱点：冰」");
+                // A throw that misses (5% of them) shows nothing of the weakness, and outside the tutorial no second turn
+                // gives the tag away either: while there is a soda left, the next one is thrown at the next turn.
+                var shown = ui.Query<Label>(className: "sp-enemy__weak-text").ToList().Any(l => l.text.StartsWith("弱点：冰"));
+                if (!shown && game.InBattle && game.State.ItemCount("ice_soda") > 0)
+                {
+                    Debug.Log("[E2E] 冰镇汽水没扔中（MISS），下一回合再扔一瓶");
+                    quiet = Now;
+                    continue;
+                }
+                Check(shown, "标题党型的假弱点碎掉，露出「弱点：冰」");
                 yield break;
             }
         }
@@ -900,11 +908,11 @@ namespace SystemPrompt.E2E
         {
             var w = World;
             Check(dozing.State == NoiseState.Doze && Vector3.Dot(dozing.Forward, w.PlayerPosition - dozing.Position) < 0f, "发呆的噪声体背对起点");
-            // Let go 3 m out: braking carries the avatar to about 2.5 m, inside the 2.6 m reach and outside
+            // Let go 2.85 m out: braking (a third of a metre from a run) carries the avatar to about 2.5 m, inside the 2.6 m reach and outside
             // the 1.8 m where even a dozing one notices. The keys only steer in eight directions, so coming
             // in at a slant it can stop just short; then it creeps on in single-frame taps.
             var t0 = Now;
-            while (!finished && Vector3.Distance(w.PlayerPosition, dozing.Position) > 3f && Now - t0 < StepTimeout)
+            while (!finished && Vector3.Distance(w.PlayerPosition, dozing.Position) > 2.85f && Now - t0 < StepTimeout)
             {
                 if (!Maze.Exploring)
                 {

@@ -11,6 +11,12 @@ namespace SystemPrompt.Dungeon
     // of the body's spheres. The motions move the humanoid bones only, so each joint is turned afresh every frame
     // from its rest. A spring with a centre (VRoid's own: the model's Root) moves with the figure, so running and
     // turning don't drag its hair behind; the tail and the hip fins have none and trail in the world.
+    // Neither is how something moves through water. Carried with the figure, long hair hung straight down at a
+    // full run, a wall in front of her arm; trailing in the world with a drag near a half each frame, the tail was
+    // pulled out level behind her as a rod. So each link is pushed back by a share of its own joint's way through
+    // the water this frame (Air): hair streams and lifts with the run and settles as she stops, cloth a little,
+    // and the tail and fins trail by that share instead of their whole drag, sinking as they do (Droop), so the
+    // tail runs out behind her in an arc that hangs.
     // Turning a joint the shortest way to its tip leaves its roll to chance, and as the tail swung round behind
     // the figure the fin stood up on edge, its white belly to the camera; a spring marked level (the tail) has each
     // joint rolled about itself after, so its crosswise axis lies level as at rest, as SeaFigure does to the Tripo tail.
@@ -67,10 +73,17 @@ namespace SystemPrompt.Dungeon
             public Vector3 tip, was; // where the tip is and was a frame ago, in the centre's space
             public (Transform bone, Collider shape)[] colliders;
             public float swing;      // degrees its pull is turned aside about the figure's up (Swing)
+            public float air;        // the share of its joint's way through the water that pushes it back
+            public Vector3 headWas;  // where its joint was a frame ago, in the world
         }
 
         const float LongestStep = 0.05f; // a hitch is taken as this long, so the hair doesn't fly off
         const float Jump = 1f;           // the figure moved further than this in a frame (into a battle): start again
+        // The share by what the link is: hair most; skirts, hems and strings a little (a hem has nothing to keep it
+        // out of the body); a chest none; what trails in the world (tail, fins) AirLoose, sinking Droop for each
+        // metre gone.
+        const float AirHair = 0.16f, AirCloth = 0.04f, AirLoose = 0.2f, Droop = 0.14f;
+        const float Fastest = 9f;        // m/s of a joint's way that still counts (a lunge, a throw)
 
         readonly List<Link> links = new List<Link>();
         readonly Transform root;
@@ -109,6 +122,7 @@ namespace SystemPrompt.Dungeon
                         anchor = anchor,
                         hang = level ? anchor.InverseTransformDirection(across.normalized) : Vector3.zero,
                         colliders = colliders,
+                        air = center == null ? AirLoose : bone.name.Contains("Hair") ? AirHair : bone.name.Contains("Bust") ? 0f : AirCloth,
                     });
                 }
             }
@@ -129,6 +143,7 @@ namespace SystemPrompt.Dungeon
             foreach (var link in links)
             {
                 link.tip = link.was = Into(link, link.bone.TransformPoint(link.restTip));
+                link.headWas = link.bone.position;
             }
             rootWas = root.position;
         }
@@ -139,6 +154,8 @@ namespace SystemPrompt.Dungeon
             if (dt <= 0f) return;
             if ((root.position - rootWas).sqrMagnitude > Jump * Jump) Reset();
             rootWas = root.position;
+            // A hitch counts as LongestStep for the forces, so of the way a joint went in it only that share pushes.
+            var counted = Mathf.Min(dt, LongestStep) / dt;
             dt = Mathf.Min(dt, LongestStep);
             foreach (var link in links)
             {
@@ -150,6 +167,12 @@ namespace SystemPrompt.Dungeon
                 var pull = link.swing != 0f ? Quaternion.AngleAxis(link.swing, root.up) * aim : aim;
                 Vector3 tip = Out(link, link.tip), was = Out(link, link.was);
                 var next = tip + (tip - was) * (1f - joint.drag) + (pull * joint.stiffness + joint.gravityDir * joint.gravity) * (dt * scale);
+                var gone = Vector3.ClampMagnitude((head - link.headWas) * counted, Fastest * dt);
+                link.headWas = head;
+                // Carried with the figure, the water pushes it back; trailing in the world, its drag already holds it
+                // back by the whole of it, so it is carried on by all but the share.
+                if (link.center != null) next -= gone * link.air;
+                else next += gone * Mathf.Max(joint.drag - link.air, 0f) + Vector3.down * (gone.magnitude * Droop);
                 next = head + (next - head).normalized * link.length;
                 foreach (var (bone, shape) in link.colliders)
                 {

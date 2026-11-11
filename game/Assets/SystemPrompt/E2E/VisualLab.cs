@@ -272,7 +272,7 @@ namespace SystemPrompt.E2E
         // hips and chest point (degrees about the up axis, 0 along +z), how far its head is turned off its chest, and
         // how high its ankles are over its root. Read afterwards against the film it was taken in (the tag): which way
         // a figure faces as against the way it moves or what it stands before, whether its feet float or sink.
-        readonly StringBuilder poses = new StringBuilder("t\ttag\tfigure\tx\ty\tz\troot\thips\tchest\tleftFoot\trightFoot\thipsY\tlean\tside\theadY\tleftHand\trightHand\tleftArm\trightArm\thead\tleftReach\trightReach\tshoulderY\n");
+        readonly StringBuilder poses = new StringBuilder("t\ttag\tfigure\tx\ty\tz\troot\thips\tchest\tleftFoot\trightFoot\thipsY\tlean\tside\theadY\tleftHand\trightHand\tleftArm\trightArm\thead\tleftReach\trightReach\tshoulderY\tleftFootX\tleftFootZ\trightFootX\trightFootZ\n");
         readonly List<Animator> posed = new List<Animator>();
         string poseTag = "";
         float poseScan;
@@ -322,7 +322,10 @@ namespace SystemPrompt.E2E
                     // How far each hand is held out ahead of the hips, along the root's facing, and the shoulders' height.
                     .Append(Vector3.Dot(lh.position - hips.position, root.forward).ToString("0.000")).Append('\t')
                     .Append(Vector3.Dot(rh.position - hips.position, root.forward).ToString("0.000")).Append('\t')
-                    .Append(((la.position.y + ra.position.y) * 0.5f - at.y).ToString("0.000")).Append('\n');
+                    .Append(((la.position.y + ra.position.y) * 0.5f - at.y).ToString("0.000")).Append('\t')
+                    // Where each ankle is over the floor, in the world: a planted foot's should not move.
+                    .Append(lf.position.x.ToString("0.000")).Append('\t').Append(lf.position.z.ToString("0.000")).Append('\t')
+                    .Append(rf.position.x.ToString("0.000")).Append('\t').Append(rf.position.z.ToString("0.000")).Append('\n');
             }
         }
 
@@ -409,9 +412,11 @@ namespace SystemPrompt.E2E
                 Def(p, p + "-zones", $"{layer}每个区域一张：传送到位、镜头和同伴停稳后的实际游戏画面（静帧，带界面）");
                 Def(p, p + "-wide", $"{layer}远景：抬高的自由镜头（静帧，不带界面）");
                 Def(p, p + "-idle", $"{layer}站立待机 3 秒：游戏镜头 + 南侧 3.5 米、髋高的跟拍侧面镜头");
-                Def(p, p + "-walk", $"{layer}慢走：起步 → 匀速 → 停下（左摇杆推到约 1/4）");
+                Def(p, p + "-walk", $"{layer}慢走：起步 → 匀速 → 停下（左摇杆推到约 1/3）");
                 Def(p, p + "-run", $"{layer}跑：起步 → 匀速 → 停下");
                 Def(p, p + "-sprint", $"{layer}冲刺（按住冲刺）：起步 → 匀速 → 停下");
+                Def(p, p + "-model", $"{layer}人物模型近看（整窗静帧）：主角和{follower}站着时的全身五个方向、脸、后脑、上半身、双手、腰以下和脚，以及跑动中的侧面、身后和斜前方");
+                Def(p, p + "-gait", $"{layer}步态近景：慢走、跑、冲刺各一段匀速时的胶片（1/15 秒一帧，1.6 秒），2.6 米外跟拍主角的侧面、身后和斜前方，以及{follower}的侧面和身后");
                 Def(p, p + "-turn", $"{layer}跑动中 180° 掉头");
                 Def(p, p + "-halt", $"{layer}全速跑时操作被收走（如同区域节点触发）：刹住滑停半米左右，不是一帧变站立（1/30 秒一帧）");
                 Def(p, p + "-circle", $"{layer}跑圈（半径 2.5 米），侧面镜头固定在圈外跟着转");
@@ -480,6 +485,9 @@ namespace SystemPrompt.E2E
             groups.Add((female, BattleFemale));
             groups.Add(("sea", Sea));
             groups.Add(("deep", Deep));
+            Def("girl", "girl-gait", "女主角的步态近景（浅层）：站立、慢走、跑、冲刺，镜头同 sea-gait");
+            Def("girl", "girl-model", "女主角的模型近看（浅层，整窗静帧），镜头同 sea-model");
+            groups.Add(("girl", Girl));
 
             if (only != null)
                 foreach (var t in only)
@@ -753,6 +761,7 @@ namespace SystemPrompt.E2E
 
         IEnumerator Shoot(Scenario sc, string name, string what, Camera cam = null, Func<CamPose> pose = null)
         {
+            poseTag = name; // the pose log's rows from here are this still's, not the last film's
             var s = new Still { Sc = sc, Name = name, What = what, Cam = cam, Pose = pose };
             Begin(sc);
             if (!sc.Selected)
@@ -1435,6 +1444,25 @@ namespace SystemPrompt.E2E
             yield return Wait(0.6f); // the camera settles over the shoulder
             var f = StartFilm(sc, null, 0.2f, 16, ScreenView("指令镜头（游戏画面）"), SideView(member, side, "侧面检查镜头")());
             yield return WaitFilm(f);
+            // The stance from close by, the size of the window: the whole figure from ahead and to the side it holds
+            // its hands out on, the hands and what they hold, and from behind as the battle's cameras see it.
+            var st = Stage;
+            CamPose From(Vector3 way, float metres, float height, float fov) => new CamPose
+            {
+                At = st.MemberPoint(member) + way.normalized * metres + Vector3.up * (height - 1.15f), Look = st.MemberPoint(member) + Vector3.up * (height - 1.15f), Fov = fov,
+            };
+            // The hands and the face where the figure has them (the stance leans, and DeepSeek is a head shorter).
+            CamPose Onto(Vector3 point, Vector3 way, float metres, float fov) => new CamPose { At = point + way.normalized * metres, Look = point, Fov = fov };
+            Vector3 Hands() => (st.MemberBone(member, HumanBodyBones.LeftHand) + st.MemberBone(member, HumanBodyBones.RightHand)) * 0.5f;
+            Vector3 ahead = st.transform.forward, out_ = st.transform.right * side;
+            foreach (var (name, what, pose) in new (string, string, Func<CamPose>)[]
+            {
+                ("close-front", "战斗待机：前方偏侧全身", () => From(ahead + out_ * 0.7f, 2.4f, 0.9f, 42f)),
+                ("close-hands", "战斗待机：双手和手里的东西", () => Onto(Hands(), ahead + out_ * 0.9f + Vector3.up * 0.2f, 1.0f, 34f)),
+                ("close-face", "战斗待机：脸", () => Onto(st.MemberBone(member, HumanBodyBones.Head) + Vector3.up * 0.06f, ahead + out_ * 0.4f, 0.8f, 30f)),
+                ("close-back", "战斗待机：身后偏侧全身", () => From(-ahead + out_ * 0.6f, 2.4f, 0.9f, 42f)),
+            })
+                yield return Shoot(sc, $"{sc.Id}-{name}", what, st.Camera, pose);
         }
 
         IEnumerator Decline()
@@ -1888,6 +1916,13 @@ namespace SystemPrompt.E2E
                 yield return WaitFilm(faint);
                 yield return Shoot(S("battle-faint"), "battle-faint-lying", "倒下后躺着的姿势：从脚边上方俯看（整窗）", st.Camera, () => LyingView(1, 1f));
                 yield return Shoot(S("battle-faint"), "battle-faint-lying-side", "倒下后躺着的姿势：右侧平视（整窗）", st.Camera, () => BattleSide(1, 1f));
+                // Her face from straight ahead of it, and the face the stage has her show (eyes shut: cell 0).
+                yield return Shoot(S("battle-faint"), "battle-faint-face", "倒下后的脸：正对着脸（整窗）", st.Camera, () =>
+                {
+                    var (at, forward) = st.MemberFaceAt(1);
+                    return new CamPose { At = at + forward * 0.7f, Look = at, Fov = 30f };
+                });
+                S("battle-faint").Notes.Add($"倒下后的表情格（眼、嘴、腮红，-1 为原样）：{st.MemberFace(1)}");
             }
             finally
             {
@@ -1988,6 +2023,113 @@ namespace SystemPrompt.E2E
         };
 
         View SideTrack(Vector3 side) => CamView("side", "南侧 3.5 米、髋高的跟拍镜头", World.Camera, Track(side));
+
+        // Close on a figure as it moves: `from` of it, 2.6 m off at hip height, the whole figure filling the frame's height.
+        View Close(string tag, string what, Func<Vector3> who, Vector3 from) => CamView(tag, what, World.Camera, () =>
+        {
+            var p = who();
+            return new CamPose { At = p + from.normalized * 2.6f + Vector3.up * 0.9f, Look = p + Vector3.up * 0.85f, Fov = 40f };
+        });
+
+        // The figures themselves from close by, as stills the size of the window: the player and the companion standing,
+        // from five sides and close on the face, the back of the head, the bust, each hand, the legs and the feet; then
+        // both at a run, from beside, behind and ahead. For looking at the models, not at what they do.
+        IEnumerator ModelSheet(Ground g)
+        {
+            var id = g.P + "-model";
+            var sc = S(id);
+            if (!sc.Selected) yield break;
+            Teleport(World.Map.World(g.Lane), 90f);
+            yield return Wait(2.5f);
+            var up = Vector3.up;
+            foreach (var (who, label, root) in new[] { ("player", "主角", World.Avatar.Root), ("her", "同伴", World.Companion?.Root) })
+            {
+                if (root == null) continue;
+                var a = root.GetComponentInChildren<Animator>();
+                Transform head = a.GetBoneTransform(HumanBodyBones.Head), leftHand = a.GetBoneTransform(HumanBodyBones.LeftHand),
+                    rightHand = a.GetBoneTransform(HumanBodyBones.RightHand), leftFoot = a.GetBoneTransform(HumanBodyBones.LeftFoot),
+                    rightFoot = a.GetBoneTransform(HumanBodyBones.RightFoot);
+                CamPose Body(Vector3 from) => new CamPose { At = root.position + from.normalized * 2.4f + up * 0.95f, Look = root.position + up * 0.85f, Fov = 42f };
+                // The figure's side the other one is not standing on.
+                Vector3 Clear(Transform figure)
+                {
+                    var other = figure == World.Avatar.Root ? (World.Companion != null ? World.Companion.Root : null) : World.Avatar.Root;
+                    return other != null && Vector3.Dot(other.position - figure.position, figure.right) > 0f ? -figure.right : figure.right;
+                }
+                CamPose Near(Vector3 at, Vector3 from, float metres, float fov = 32f) => new CamPose { At = at + from.normalized * metres, Look = at, Fov = fov };
+                foreach (var (name, what, pose) in new (string, string, Func<CamPose>)[]
+                {
+                    ("front", "正面全身", () => Body(root.forward)),
+                    ("front34", "右前方全身", () => Body(root.forward + root.right)),
+                    ("side", "侧面全身（同伴不在的一侧）", () => Body(Clear(root))),
+                    ("back34", "左后方全身", () => Body(-root.forward - root.right)),
+                    ("back", "背面全身", () => Body(-root.forward)),
+                    ("face", "脸（正面）", () => Near(head.position + up * 0.06f, root.forward + up * 0.05f, 0.7f)),
+                    ("face34", "脸（右前方）", () => Near(head.position + up * 0.06f, root.forward + root.right * 0.9f, 0.7f)),
+                    ("head-back", "后脑和头发", () => Near(head.position + up * 0.05f, -root.forward + up * 0.25f, 0.9f)),
+                    ("bust", "上半身", () => Near(head.position - up * 0.25f, root.forward + root.right * 0.3f, 1.2f, 36f)),
+                    ("hand-left", "左手", () => Near(leftHand.position, root.forward - root.right * 0.6f + up * 0.2f, 0.45f)),
+                    ("hand-right", "右手", () => Near(rightHand.position, root.forward + root.right * 0.6f + up * 0.2f, 0.45f)),
+                    ("legs", "腰以下", () => Near(root.position + up * 0.45f, root.forward + root.right * 0.4f, 1.5f, 38f)),
+                    ("feet", "脚", () => Near((leftFoot.position + rightFoot.position) * 0.5f, root.forward + root.right * 0.5f + up * 0.5f, 0.8f)),
+                })
+                    yield return Shoot(sc, $"{id}-{who}-{name}", $"{label}：{what}", World.Camera, pose);
+            }
+            Stick(StickFor(Vector3.right, 1f), false);
+            yield return Wait(0.9f);
+            Func<Vector3> player = () => World.PlayerPosition;
+            Func<Vector3> her = () => World.Companion != null ? World.Companion.Root.position : World.PlayerPosition;
+            foreach (var (name, what, who, from) in new (string, string, Func<Vector3>, Vector3)[]
+            {
+                ("run-player-side", "主角跑动：侧面", player, Vector3.forward), ("run-player-back", "主角跑动：身后", player, Vector3.left),
+                ("run-player-front", "主角跑动：斜前方", player, Vector3.right + Vector3.back * 0.6f),
+                ("run-her-side", "同伴跑动：侧面", her, Vector3.back), ("run-her-back", "同伴跑动：身后", her, Vector3.left),
+                ("run-her-front", "同伴跑动：斜前方", her, Vector3.right + Vector3.back * 0.6f),
+            })
+                yield return Shoot(sc, $"{id}-{name}", what, World.Camera, () =>
+                {
+                    var p = who();
+                    return new CamPose { At = p + from.normalized * 2.3f + up * 0.95f, Look = p + up * 0.85f, Fov = 42f };
+                });
+            Release();
+            yield return Wait(0.6f);
+        }
+
+        // The gaits at a steady pace, close up: a slow walk, the run and the sprint heading east, each filmed over a
+        // second from beside, behind and ahead of the player, and from beside and behind the companion. With `idle`,
+        // standing first.
+        IEnumerator Gait(Ground g, bool idle)
+        {
+            var id = g.P + "-gait";
+            var sc = S(id);
+            Vector3 east = Vector3.right, south = Vector3.back;
+            var lane = World.Map.World(g.Lane);
+            Func<Vector3> player = () => World.PlayerPosition;
+            Func<Vector3> her = () => World.Companion != null ? World.Companion.Root.position : World.PlayerPosition;
+            View[] Views() => new[]
+            {
+                // The player from the north: the companion runs on their south, and from there she fills the picture.
+                Close("side", "主角侧面", player, -south), Close("back", "主角身后", player, -east), Close("front", "主角斜前方", player, east - south * 0.6f),
+                Close("her-side", "同伴侧面", her, south), Close("her-back", "同伴身后", her, -east),
+            };
+            if (idle)
+            {
+                Teleport(lane, 90f);
+                yield return Wait(1.5f);
+                yield return WaitFilm(StartFilm(sc, id + "-idle", 0.2f, 8, Views()));
+            }
+            foreach (var (name, push, sprint, lead) in new[] { ("walk", 0.35f, false, 1.0f), ("run", 1f, false, 0.7f), ("sprint", 1f, true, 0.7f) })
+            {
+                Teleport(lane, 90f);
+                yield return Wait(1.2f);
+                Stick(StickFor(east, push), sprint);
+                yield return Wait(lead);
+                var f = StartFilm(sc, id + "-" + name, 1f / 15f, 24, Views());
+                yield return WaitFilm(f);
+                Release();
+                yield return Wait(0.5f);
+            }
+        }
 
         View FixedView(string tag, string what, Vector3 at, Vector3 look, float fov = 50f) => CamView(tag, what, World.Camera, Fixed(at, look, fov));
 
@@ -2182,11 +2324,15 @@ namespace SystemPrompt.E2E
                 Teleport(w.Map.World(border), YawOf(borderWay));
                 yield return Wait(2.5f);
                 SetMode("Explore");
-                var f = StartFilm(S(p + "-border"), null, 0.4f, 16, ScreenView());
+                // Run on until the avatar is in the next zone and its air has had 2.6 s to ease in (14 s at most): a
+                // time set for one running speed stopped short of the border at another.
+                var f = StartFilm(S(p + "-border"), null, 0.4f, 24, ScreenView());
                 yield return Wait(0.4f);
-                var end = Time.unscaledTime + 5.6f;
-                while (Time.unscaledTime < end)
+                var from = w.Zone;
+                float end = Time.unscaledTime + 14f, crossed = -1f;
+                while (Time.unscaledTime < end && (crossed < 0f || Time.unscaledTime - crossed < 2.6f))
                 {
+                    if (crossed < 0f && w.Zone != from) crossed = Time.unscaledTime;
                     Stick(StickFor(borderWay, 1f), false);
                     yield return null;
                 }
@@ -2236,7 +2382,7 @@ namespace SystemPrompt.E2E
                 yield return Wait(1.2f);
                 var f = StartFilm(S(p + "-walk"), null, 0.167f, 16, ScreenView(), SideTrack(south));
                 yield return Wait(0.17f);
-                Stick(StickFor(east, 0.26f), false);
+                Stick(StickFor(east, 0.35f), false);
                 yield return Wait(1.9f);
                 Release();
                 yield return WaitFilm(f);
@@ -2253,6 +2399,8 @@ namespace SystemPrompt.E2E
                 Release();
                 yield return WaitFilm(f);
             }
+            if (S(p + "-gait").Selected) yield return Gait(g, false);
+            yield return ModelSheet(g);
             if (S(p + "-halt").Selected)
             {
                 // A node firing mid-run: the screen takes the controls (Busy) with the stick still held.
@@ -2518,6 +2666,21 @@ namespace SystemPrompt.E2E
 
         // ------------------------------------------------------------------ 缓存海·浅层
 
+        // The girl in the shallows, for her gaits alone (every other scenario there is filmed with the boy).
+        IEnumerator Girl()
+        {
+            Prepare("female", false, false);
+            UnityEngine.Random.InitState(2101);
+            yield return Dive("cache_sea_shallows", "潜入浅层（女主角）");
+            SetMode("Busy");
+            foreach (var e in World.Enemies) e.Remove();
+            SetMode("Explore");
+            var g = new Ground { P = "girl", Lane = new Vector2Int(11, 7) };
+            if (S("girl-gait").Selected) yield return Gait(g, true);
+            yield return ModelSheet(g);
+            yield return Surface("离开浅层");
+        }
+
         IEnumerator Sea()
         {
             Prepare("male", false, false);
@@ -2553,7 +2716,7 @@ namespace SystemPrompt.E2E
                     ("reef", "气泡礁（起点 S）遇敌：第一个指令镜头", 14, 20, 0f),
                     ("graveyard", "删帖墓地遇敌：第一个指令镜头", 5, 8, 0f),
                 }), "sea-perf", "sea-airless", "sea-shade", "sea-border", "sea-battle-zones");
-            yield return Block("浅层动作", () => Motion(g),"sea-idle", "sea-walk", "sea-run", "sea-sprint", "sea-halt", "sea-turn", "sea-circle", "sea-follow", "sea-look", "sea-tail", "sea-steps");
+            yield return Block("浅层动作", () => Motion(g),"sea-idle", "sea-walk", "sea-run", "sea-sprint", "sea-gait", "sea-model", "sea-halt", "sea-turn", "sea-circle", "sea-follow", "sea-look", "sea-tail", "sea-steps");
             yield return Block("浅层机关", SeaProps, "sea-pearl", "sea-beacon", "sea-chest", "sea-bump", "sea-block", "sea-gate", "sea-firewall", "sea-terminal");
             yield return Block("浅层噪声体", () => SeaNoises(g), "sea-noise-rest", "sea-noise1-notice", "sea-noise1-strike", "sea-noise4-notice", "sea-noise4-strike", "sea-noise4-counter", "sea-noise4-ambush", "sea-lamp");
             yield return Block("浅层镜头", SeaCamera, "sea-near", "sea-lookup", "sea-wall");
@@ -2661,18 +2824,18 @@ namespace SystemPrompt.E2E
                 var wall = Cell(12, 17).z - 2f;
                 Teleport(new Vector3(Cell(12, 17).x, 0f, wall + 0.9f), 0f);
                 yield return Wait(1.0f);
-                var f = StartFilm(S("sea-wall"), null, 0.1f, 80, ScreenView());
+                var f = StartFilm(S("sea-wall"), null, 0.1f, 92, ScreenView());
                 yield return Wait(0.6f);
                 yield return Until(() =>
                 {
-                    Stick(StickFor(Vector3.forward, 0.5f), false);
+                    Stick(StickFor(Vector3.forward, 0.68f), false);
                     return w.PlayerPosition.z > wall + 8.5f;
                 }, 6f, "从墙前走到空地");
                 Release();
                 yield return Wait(0.8f);
                 yield return Until(() =>
                 {
-                    Stick(StickFor(Vector3.back, 0.5f), false);
+                    Stick(StickFor(Vector3.back, 0.68f), false);
                     return w.PlayerPosition.z < wall + 1.1f;
                 }, 6f, "退回墙前");
                 Release();
@@ -2920,7 +3083,7 @@ namespace SystemPrompt.E2E
                 }), "deep-perf", "deep-airless", "deep-shade", "deep-border", "deep-battle-zones");
             yield return Block("深层珍珠", DeepPearl, "deep-pearl");
             yield return Block("深层机柜", DeepRack, "deep-rack");
-            yield return Block("深层动作", () => Motion(g), "deep-idle", "deep-walk", "deep-run", "deep-sprint", "deep-halt", "deep-turn", "deep-circle", "deep-follow", "deep-look", "deep-tail", "deep-steps");
+            yield return Block("深层动作", () => Motion(g), "deep-idle", "deep-walk", "deep-run", "deep-sprint", "deep-gait", "deep-model", "deep-halt", "deep-turn", "deep-circle", "deep-follow", "deep-look", "deep-tail", "deep-steps");
             yield return Block("深层噪声体", () => DeepNoises(g), "deep-noise-rest", "deep-noise1-notice", "deep-noise1-strike", "deep-noise2-notice", "deep-noise2-strike", "deep-noise2-counter", "deep-noise2-ambush", "deep-noise5-notice", "deep-noise5-strike");
             yield return Block("深层超时", DeepTimeout, "deep-timeout", "deep-calm");
             yield return Block("深层机关", DeepProps, "deep-plate", "deep-exit", "deep-mirror-hurry", "deep-mirror", "deep-leave");
@@ -3122,7 +3285,7 @@ namespace SystemPrompt.E2E
                 Teleport(Cell(11, 2), 0f);
                 yield return Wait(1.0f);
                 var steps = WatchSteps(w.Companion.Root);
-                var walk = StartFilm(sc, sc.Id + "-walk", 0.1f, 32, ScreenView());
+                var walk = StartFilm(sc, sc.Id + "-walk", 0.1f, 54, ScreenView());
                 yield return Wait(0.1f);
                 yield return Await(game.Dungeon.MirrorWalk(), 10f, "走到白门前");
                 var walked = Time.unscaledTime - steps.Start;

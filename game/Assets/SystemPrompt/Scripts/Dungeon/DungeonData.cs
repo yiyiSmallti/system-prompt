@@ -70,7 +70,7 @@ namespace SystemPrompt.Dungeon
         public bool Meter;        // 维护进度 runs (100% ends the night)
         public string Music = "sea"; // Resources/Audio/BGM
         public float MeterStart;
-        public float ChaseSpeed = 5.1f; // the noise bodies' speed after the player, metres a second (SeaNoise)
+        public float ChaseSpeed = 3.8f; // the noise bodies' speed after the player, metres a second (SeaNoise): outrun at a run (4.6)
         public Color Lighthouse;  // the lamp's colour: cold white while the shadow is there
         public Vector2 LighthouseCell; // may lie outside the map
         // Degrees the lighthouse's two beams point down from level: tilted, they come down to the seabed and sweep
@@ -289,7 +289,7 @@ namespace SystemPrompt.Dungeon
                 },
                 Meter = true,
                 MeterStart = 15f,
-                ChaseSpeed = 6.5f,
+                ChaseSpeed = 4.8f, // faster than the player runs: only a sprint gets away
                 Lighthouse = new Color(0.45f, 0.72f, 1f),
                 LighthouseCell = new Vector2(14f, 29f),
                 Departure = Departure.Column,

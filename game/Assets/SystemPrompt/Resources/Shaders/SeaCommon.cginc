@@ -215,6 +215,18 @@ inline float3 SeaBeam(float3 world)
 // figure out of step from one 4 m cell to the next. A head well past len moves whole, without bending; the phase
 // creeps up the height a little so a stalk or blade bends as it goes. Works on static-batched meshes, whose
 // vertices are already in the world.
+// A point kept out of a rounded cone from a to b (xyz, w its radius there): inside it, the point is moved straight
+// out from the axis onto the surface. A loose hem laid over the leg under it (Toon.shader's _Legs).
+inline float3 SeaOutOf(float3 p, float4 a, float4 b)
+{
+    float3 along = b.xyz - a.xyz;
+    float t = saturate(dot(p - a.xyz, along) / max(dot(along, along), 1e-6));
+    float3 on = a.xyz + along * t;
+    float3 off = p - on;
+    float d = length(off), r = lerp(a.w, b.w, t);
+    return d < r ? on + off / max(d, 1e-5) * r : p;
+}
+
 inline float3 SeaSway(float3 world, float amp, float anchor, float len)
 {
     if (amp <= 0) return world;
@@ -240,7 +252,7 @@ inline float3 SeaPulse(float3 worldPos)
 // The figures' and noise bodies' shadows on the seabed (Dungeon/SeaShade.cs draws them from above into a map round the
 // player, or round the battle field's middle, before a sea camera draws). All 0, as outside a map and for any camera
 // without SeaShade, is no shadow at all.
-sampler2D _SeaShadeTex; // their depth from above, metres along the light; 1e4 where nothing is
+sampler2D _SeaShadeSoft; // how much of the seabed's light they take, seen along the shadows' light: r close under them, g what stands higher (ShadeSoft.shader)
 float4x4 _SeaShadeView; // world to the map's view, looking down along the light
 float4 _SeaShade;       // x: 1 / the map's width in metres; y: one texel of it in uv; w: how dark a shadow is (0: none)
 
@@ -253,23 +265,15 @@ inline float SeaShadeCover(float3 world)
     return smoothstep(0.0, 0.1, min(e.x, e.y));
 }
 
-// How much light a point of the seabed keeps under them, 1 - w to 1. Soft at the edges, softer the higher up what casts it
-// is (the gap under it read from the middle tap), and lighter too, so a noise body flung up casts a fainter, wider shade.
+// How much light a point of the seabed keeps under them, 1 - w to 1: soft at the edges, wider and fainter the higher up
+// what casts it is, so a noise body flung up casts a pale, wide shade.
 inline float SeaShadow(float3 world)
 {
     float cover = SeaShadeCover(world);
     if (cover <= 0) return 1;
-    float3 s = mul(_SeaShadeView, float4(world, 1)).xyz;
-    float2 uv = s.xy * _SeaShade.x + 0.5;
-    float depth = -s.z;
-    float gap = max(depth - tex2Dlod(_SeaShadeTex, float4(uv, 0, 0)).r, 0.0);
-    float spread = _SeaShade.y * (1.5 + min(gap, 4.0) * 3.0);
-    static const float2 taps[8] = { float2(1, 0), float2(-1, 0), float2(0, 1), float2(0, -1),
-                                    float2(0.7, 0.7), float2(-0.7, 0.7), float2(0.7, -0.7), float2(-0.7, -0.7) };
-    float shade = step(0.05, gap);
-    for (int k = 0; k < 8; k++)
-        shade += step(0.05, depth - tex2Dlod(_SeaShadeTex, float4(uv + taps[k] * spread, 0, 0)).r);
-    return 1.0 - shade / 9.0 * saturate(1.2 - gap * 0.2) * _SeaShade.w * cover;
+    float2 uv = mul(_SeaShadeView, float4(world, 1)).xy * _SeaShade.x + 0.5;
+    float2 shade = tex2Dlod(_SeaShadeSoft, float4(uv, 0, 0)).rg;
+    return 1.0 - saturate(shade.r + shade.g) * _SeaShade.w * cover;
 }
 
 // The maze's own lights nearest the player (Dungeon/SeaLights.cs: a beacon, a pearl, a firewall, the rift's cracks), four at

@@ -284,13 +284,13 @@ namespace SystemPrompt.E2E
             yield return Wait(1.2f);
         }
 
-        // As PrologueRun jumps it: let go 3 m out, braking carries the avatar to about 2.5 m, inside the 2.6 m
+        // As PrologueRun jumps it: let go 2.85 m out, braking carries the avatar to about 2.5 m, inside the 2.6 m
         // reach and outside the 1.8 m where even a dozing one notices; short of it, creep on in single-frame taps.
         IEnumerator Sneak(SeaNoise dozing)
         {
             var w = World;
             var end = Time.realtimeSinceStartup + 30f;
-            while (Vector3.Distance(w.PlayerPosition, dozing.Position) > 3f && Time.realtimeSinceStartup < end)
+            while (Vector3.Distance(w.PlayerPosition, dozing.Position) > 2.85f && Time.realtimeSinceStartup < end)
             {
                 if (!Maze.Exploring)
                 {

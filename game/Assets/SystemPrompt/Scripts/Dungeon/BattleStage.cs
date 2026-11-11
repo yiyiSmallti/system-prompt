@@ -143,9 +143,12 @@ namespace SystemPrompt.Dungeon
                 var home = new Vector3((i - (partyIds.Count - 1) / 2f) * 2f - 0.3f, 0f, i * -0.2f);
                 var root = Parts.Node(partyIds[i], transform, home);
                 var figure = partyIds[i] == "DeepSeek" ? SeaFigure.DeepSeek(true, root) : SeaFigure.Player(playerGender, false, root);
-                // Out of step with each other, and down into the knees: the player's wide stance lower than the caster's.
+                // Out of step with each other, and down into the knees: the player lower than the caster, and leant
+                // toward the noise bodies over the phone (as the library has it the stance stands straight-legged,
+                // leaning back).
                 figure.Stance(i * 0.37f, 1f - 0.035f * i);
-                figure.Crouch = partyIds[i] != "DeepSeek" ? 0.035f : 0.02f;
+                figure.Crouch = partyIds[i] != "DeepSeek" ? 0.06f : 0.02f;
+                figure.Forward = partyIds[i] != "DeepSeek" ? 9f : 0f;
                 figure.Attentive = true;
                 // The player, boy or girl, holds the phone ready before the chest in both hands.
                 figure.Ready = partyIds[i] != "DeepSeek";
@@ -850,6 +853,13 @@ namespace SystemPrompt.Dungeon
         // Where a member's hips are, standing or lying where they fell.
         public Vector3 MemberHips(int member) => party[member].Figure.Hips.position;
 
+        // A bone of a member as posed now, for the lab's close-ups of a face or a pair of hands.
+        public Vector3 MemberBone(int member, HumanBodyBones bone) => party[member].Figure.Animator.GetBoneTransform(bone).position;
+
+        // The face a member shows now, as SeaFigure.FaceCells (eyes, mouth, blush; -1 none), and where it is and looks.
+        public Vector4 MemberFace(int member) => party[member].Figure.FaceCells;
+        public (Vector3 at, Vector3 forward) MemberFaceAt(int member) => (party[member].Figure.FaceCentre, party[member].Figure.FaceForward);
+
         // Where a blow or a heal lands on a member: MemberPoint while they stand, their chest while they lie (knocked
         // down or gone down: Knockback and Faint carry the body back and down off that spot, so a blow aimed there
         // would burst in the air over them).
@@ -1531,7 +1541,7 @@ namespace SystemPrompt.Dungeon
                 // its shutter going at each noise body they pass; DeepSeek cutting as she goes.
                 m.Yaw = 90f * dir;
                 m.Lean = 14f;
-                if (phone) m.Figure.Play("Run", 1.8f, fadeIn: 0.05f);
+                if (phone) m.Figure.Play("Sprint", 1.3f, fadeIn: 0.05f);
                 else
                 {
                     m.Figure.Wield(true);

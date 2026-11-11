@@ -63,7 +63,7 @@ namespace SystemPrompt.Dungeon
                 var away = Flat() * 0.3f;
                 Emit(silt, at + away * 0.3f + Vector3.up * 0.08f, away + Vector3.up * 0.08f, 0.25f, Random.Range(0.45f, 0.6f), SiltColor);
             }
-            if (speed < 4f) return;
+            if (speed < 3f) return;
             var n = Random.Range(2, 4);
             for (var i = 0; i < n; i++)
                 Emit(bubbles, at + Vector3.up * 0.06f + Flat() * 0.08f, Vector3.up * Random.Range(0.6f, 1.2f) + Flat() * 0.2f,
@@ -73,7 +73,7 @@ namespace SystemPrompt.Dungeon
         // Each frame for the player going `speed` metres a second, `back` the way behind them: a sprint's trail of bubbles.
         public void Sprint(Vector3 hips, Vector3 back, float speed, float dt)
         {
-            if (speed < 7.5f)
+            if (speed < 5.6f)
             {
                 wakeIn = 0f;
                 return;

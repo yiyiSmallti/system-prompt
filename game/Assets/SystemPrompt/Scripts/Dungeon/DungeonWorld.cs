@@ -13,7 +13,10 @@ namespace SystemPrompt.Dungeon
     [DefaultExecutionOrder(50)]
     public sealed class DungeonWorld : MonoBehaviour
     {
-        const float RunSpeed = 6.2f, SprintSpeed = 9f, Acceleration = 42f;
+        // A jog and a dash for someone 1.6 m tall (the run was 6.2 m/s and the sprint 9, a sprinter's and beyond: no
+        // run looked right at them, the feet either slipping or bounding 2.5 m a step). The noise bodies' speeds
+        // (SeaNoise, DungeonDef.ChaseSpeed) are set against these.
+        const float RunSpeed = 4.6f, SprintSpeed = 6.6f, Acceleration = 31f;
         const float CameraDistance = 7f, CameraHeight = 1.55f, KeyTurnSpeed = 110f, CameraFov = 52f;
         public static readonly Color FogColor = Palette.Hex("#061428");
         // How much of the surface's light net reaches the seabed: the last area's (DungeonDef.Caustics), which a battle
@@ -997,7 +1000,7 @@ namespace SystemPrompt.Dungeon
         // and the door shows round it; the player stands left of its middle and DeepSeek right, a step from it: the
         // side she keeps to following them in (SeaCompanion's Beside, the camera's right), so she is not put across
         // in front of them when it comes on.
-        const float MirrorWidth = 5.7f, MirrorHeight = 7.2f, MirrorFov = 46f, DoorWalkSpeed = 4.5f;
+        const float MirrorWidth = 5.7f, MirrorHeight = 7.2f, MirrorFov = 46f, DoorWalkSpeed = 3.3f;
         static readonly Color MistColor = new Color(0.8f, 0.88f, 1f, 0.5f);
         static readonly Vector3 HerFacing = new Vector3(-0.25f, 0f, 1f); // a little in toward the player, as if to look at them in it
 
@@ -1678,7 +1681,7 @@ namespace SystemPrompt.Dungeon
                 focus.y = target.y; // the seabed is flat
                 var behind = new Vector3(focus.x - target.x, 0f, focus.z - target.z);
                 if (behind.sqrMagnitude > 0.49f) focus = target + behind.normalized * 0.7f;
-                var fast = speed > 7.2f ? 1f : 0f;
+                var fast = speed > Mathf.Lerp(RunSpeed, SprintSpeed, 0.36f) ? 1f : 0f;
                 sprinting = Mathf.SmoothDamp(sprinting, fast, ref sprintingVelocity, fast > sprinting ? 0.35f : 0.5f, Mathf.Infinity, dt);
             }
             var yaw = (CameraYaw + (struck != null ? punchSwing : 0f)) * Mathf.Deg2Rad;
@@ -1867,7 +1870,7 @@ namespace SystemPrompt.Dungeon
         // Pulled up out of a run (over 5 m/s) to near standing within half a second: silt kicked out round the feet.
         void Pulled(ref float sinceRun, float speed, Vector3 at, float dt)
         {
-            if (speed > 5f) sinceRun = 0f;
+            if (speed > 0.8f * RunSpeed) sinceRun = 0f;
             else if (speed < 1f && sinceRun < 0.5f)
             {
                 sinceRun = 9f;
