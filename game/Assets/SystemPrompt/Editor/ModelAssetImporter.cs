@@ -90,7 +90,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // Bump when the import below changes, so the models and textures already in the library are redone.
-        public override uint GetVersion() => 13;
+        public override uint GetVersion() => 14;
 
         // Tripo's rig has no bones for a tail, a bag or hair down the back, and gives their vertices to the limb
         // nearest in the T-pose: casual DeepSeek's whale tail went to her feet and right thigh, the hair down her
@@ -131,10 +131,64 @@ namespace SystemPrompt.EditorTools
             foreach (var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>())
             {
                 if (onePiece) KeepBody(skin.sharedMesh);
+                MarkUnderside(skin);
                 if (blender) continue;
                 RoundChin(skin);
                 Unhook(skin);
             }
+        }
+
+        // A tail's underside marked in the mesh's vertex colours: red 0 where a vertex is wholly underside, 1 anywhere
+        // else, for Toon.shader's _Lift. The generated texture has the back of DeepSeek's battle tail bright and starry
+        // and its underside a third as bright (no picture the model was made from shows that side), and hooked up
+        // beside her the underside is what faces anyone in front of her. A vertex is the tail's by its bones' names
+        // (Tail...), and underside by its normal against the tail's own back there: across the bone, in her middle
+        // plane, on the side behind her where the tail hangs and above it where it lies. Models with no such bones
+        // are left as they are.
+        static void MarkUnderside(SkinnedMeshRenderer skin)
+        {
+            var mesh = skin.sharedMesh;
+            if (mesh == null) return;
+            var bones = skin.bones;
+            var tail = Enumerable.Range(0, bones.Length).Where(i => bones[i] != null && bones[i].name.Contains("Tail")).ToList();
+            var hips = Array.FindIndex(bones, b => b != null && b.name.EndsWith("Hips"));
+            var head = Array.FindIndex(bones, b => b != null && b.name.EndsWith("Head"));
+            if (tail.Count < 2 || hips < 0 || head < 0) return;
+            var binds = mesh.bindposes;
+            Vector3 At(int bone) => binds[bone].inverse.MultiplyPoint(Vector3.zero);
+            var up = (At(head) - At(hips)).normalized;
+            var behind = Vector3.ProjectOnPlane(At(tail[tail.Count - 1]) - At(hips), up).normalized;
+            var across = Vector3.Cross(up, behind);
+            var back = new Dictionary<int, Vector3>();
+            for (var i = 0; i < tail.Count; i++)
+            {
+                var along = i + 1 < tail.Count ? At(tail[i + 1]) - At(tail[i]) : At(tail[i]) - At(tail[i - 1]);
+                back[tail[i]] = Vector3.Cross(along.normalized, across).normalized;
+            }
+            var normals = mesh.normals;
+            var weights = mesh.boneWeights;
+            var colors = new Color32[mesh.vertexCount];
+            var marked = 0;
+            for (var v = 0; v < colors.Length; v++)
+            {
+                var w = weights[v];
+                float share = 0f;
+                var its = Vector3.zero;
+                void Add(int bone, float weight)
+                {
+                    if (weight <= 0f || !back.TryGetValue(bone, out var b)) return;
+                    share += weight;
+                    its += b * weight;
+                }
+                Add(w.boneIndex0, w.weight0); Add(w.boneIndex1, w.weight1); Add(w.boneIndex2, w.weight2); Add(w.boneIndex3, w.weight3);
+                var under = 0f;
+                if (share > 0.5f && its.sqrMagnitude > 1e-6f)
+                    under = Mathf.Clamp01((-Vector3.Dot(normals[v], its.normalized) - 0.1f) / 0.5f) * Mathf.Clamp01((share - 0.5f) / 0.3f);
+                if (under > 0f) marked++;
+                colors[v] = new Color32((byte)Mathf.RoundToInt(255f * (1f - under)), 255, 255, 255);
+            }
+            mesh.colors32 = colors;
+            Debug.Log($"{mesh.name}: 尾巴腹面标了 {marked} 个顶点");
         }
 
         // Keeps the triangles of the largest connected part. Vertices split along uv and normal seams are joined

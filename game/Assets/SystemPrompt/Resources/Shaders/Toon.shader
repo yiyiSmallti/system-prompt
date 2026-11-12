@@ -44,6 +44,7 @@ Shader "SystemPrompt/Toon"
         _Breathe ("Breathes slowly as a crack", Float) = 0
         _Wrap ("How far the light's edge spreads either side of the terminator", Float) = 0.05
         _Sink ("Drawn this far behind where it is, metres (under another layer)", Float) = 0
+        _Lift ("Brighter by this much where the mesh's vertex colour is red 0 (a generated tail's dark underside)", Float) = 0
         _BackLit ("The inside of a two-sided part lit as its outside", Float) = 0
         _Legs ("Kept out of the legs under it (_LegTop0.._LegEnd1)", Float) = 0
         _Inner ("Lighter toward the middle, facing the eye", Float) = 0
@@ -166,7 +167,7 @@ Shader "SystemPrompt/Toon"
             float4 _MainTex_ST;
             float4 _Color, _ShadeColor, _SkinShade, _RimColor, _Emission;
             float _RimPower, _SkinMask, _CameraLight, _Cutoff, _AlphaToMask, _ZWrite, _Lamp, _Fade, _FootDark, _Gloss, _Caustic, _Blink, _Breathe;
-            float _Wrap, _Sink, _BackLit, _Legs, _Inner, _Sheen, _HairGloss, _Chin, _SwayAmp, _SwayAnchor, _SwayLength;
+            float _Wrap, _Sink, _Lift, _BackLit, _Legs, _Inner, _Sheen, _HairGloss, _Chin, _SwayAmp, _SwayAnchor, _SwayLength;
             float4 _InnerColor, _SkinEdge, _LegTop0, _LegEnd0, _LegTop1, _LegEnd1, _HairGlossColor, _ChinAt, _ChinUp, _ChinAhead;
             sampler2D _Faces, _FaceDepth;
             float _FaceOn;
@@ -202,12 +203,14 @@ Shader "SystemPrompt/Toon"
             sampler2D _SeaFigureDepth;
             float _SeaFigureRim;
 
-            struct v2f { float4 pos : SV_POSITION; float3 world : TEXCOORD0; float3 normal : TEXCOORD1; float2 uv : TEXCOORD2; float4 screen : TEXCOORD3; };
+            struct v2f { float4 pos : SV_POSITION; float3 world : TEXCOORD0; float3 normal : TEXCOORD1; float2 uv : TEXCOORD2; float4 screen : TEXCOORD3; float lift : TEXCOORD4; };
 
-            v2f vert(appdata_base v)
+            v2f vert(appdata_full v)
             {
                 v2f o;
                 o.uv = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
+                // A mesh with no colours of its own reads as white: no lift.
+                o.lift = _Lift * (1.0 - v.color.r);
                 o.world = SeaSway(mul(unity_ObjectToWorld, v.vertex).xyz, _SwayAmp, _SwayAnchor, _SwayLength);
                 if (_Legs > 0.5) o.world = SeaOutOf(SeaOutOf(o.world, _LegTop0, _LegEnd0), _LegTop1, _LegEnd1);
                 o.normal = normalize(mul((float3x3)unity_ObjectToWorld, v.normal));
@@ -255,6 +258,7 @@ Shader "SystemPrompt/Toon"
                 float3 toLight = normalize(lerp(normalize(_SeaLightDir.xyz), key, _CameraLight));
                 float ndl = dot(n, toLight);
                 float4 albedo = tex2D(_MainTex, i.uv);
+                albedo.rgb *= 1.0 + i.lift;
                 // A cut-out part of a VRoid figure (hair, cloth; Dungeon/SeaFigure.cs) hands its edge to MSAA as
                 // coverage, its alpha sharpened to a ramp a pixel wide round _Cutoff, instead of a stair-stepped cut.
                 float cover = saturate((albedo.a - _Cutoff) / max(fwidth(albedo.a), 1e-4) + 0.5);

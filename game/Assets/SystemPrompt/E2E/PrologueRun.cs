@@ -846,7 +846,10 @@ namespace SystemPrompt.E2E
                     quiet = Now;
                     continue;
                 }
-                Check(shown, "标题党型的假弱点碎掉，露出「弱点：冰」");
+                // With every soda thrown and missed there is nothing left to show it with: said as that, so the failed run
+                // is not read as the weakness tag being broken (two misses running, about one run in a few hundred).
+                Check(shown, shown || game.State.ItemCount("ice_soda") > 0 ? "标题党型的假弱点碎掉，露出「弱点：冰」"
+                    : "标题党型的假弱点碎掉，露出「弱点：冰」（这一局没验证到：冰镇汽水全都扔偏了，不是游戏的问题，重跑一遍）");
                 yield break;
             }
         }

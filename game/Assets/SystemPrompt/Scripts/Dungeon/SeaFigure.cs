@@ -96,7 +96,15 @@ namespace SystemPrompt.Dungeon
         static readonly Dictionary<string, float> Under = new Dictionary<string, float>
         {
             ["DeepSeekUniform/N00_007_02_Tops_01_CLOTH"] = 0.012f, // no further: at 3 cm her bare belly came through the shirt's lower half
+            // The tail too: running, its stalk trails out through the back of the skirt, and drawn where it is it lay on
+            // top of the pleats from its root down. Set back, the skirt covers it for as long as it is within this of
+            // the cloth, and it comes out from under the hem.
+            ["DeepSeekUniform/WhaleTail"] = 0.025f,
         };
+        // How much brighter a generated model's tail is drawn on its underside (Toon.shader's _Lift, where
+        // Editor/ModelAssetImporter.cs has marked the mesh): the battle dress's tail is textured a third as bright
+        // underneath as on its back, and hooked up it shows that side to anyone in front of her.
+        const float UndersideLift = 1.6f;
         static readonly Color Rim = new Color(0.5f, 0.92f, 1f, 0.35f);
         // A dense mesh turns grazing faces to the camera all over its folds and hair; a high power keeps
         // the rim to the silhouette.
@@ -281,15 +289,15 @@ namespace SystemPrompt.Dungeon
         // back it stood between her legs from the game's camera), and the points after the carried ones keep heights
         // of their own (TailLaid, shares of Tail1's height as it is now, so the whole curve sinks with her into a
         // crouch, lies flat when she lies, and rises with her in a leap; never under TailLow of her height): down to
-        // her calf by the fourth joint, then up again, the fluke (the last link) standing nearly upright with its end
-        // at the height of her thigh; it has not the length to go down to her ankles and up to her hand both. Seen
-        // from above it goes back behind her as it comes down, then round to her left and forward again as it rises
-        // (TailCurl, degrees each point's link heads round from straight back), so the fluke stands beside her left
-        // leg and across her, face on from ahead and behind as it is drawn; headed one way all along, a hook this
-        // deep would stand most of a metre out from her. Its bright back is to whoever stands behind her, which is
-        // where the game's cameras are. The tail is 1.1 m long in the file where the drawing's is half as long again
-        // and thicker than her thigh: its first bone is scaled TailSize, the rest with it, and the fifth (the fluke's
-        // root) TailFlukeSize: the fluke is wider than her shoulders as modelled.
+        // her calf by the fourth joint, then up again, the fluke (the last two links) standing with its end above
+        // her knee. Seen from above it goes back behind her as it comes down, then round to her left and forward
+        // again as it rises (TailCurl, degrees each point's link heads round from straight back), so the fluke
+        // stands beside her left leg and across her, face on from ahead and behind as it is drawn; headed one way
+        // all along, a hook this deep would stand half a metre out from her. Its bright back is to whoever stands
+        // behind her, which is where the game's cameras are. The fluke is 73 cm across as modelled, twice the width
+        // of her shoulders: the fifth bone, where it begins to widen, is scaled TailFlukeSize and the fluke with it.
+        // (The drawing's tail is half as long again as the model's 1.1 m and thicker than her thigh, and for a while
+        // the whole of it was scaled up to match, fluke and all: far too much tail. It is the model's own size now.)
         // Lying on the floor she lay on it: laid flat the hook is a ring that runs back under her and round to her
         // head. So while she lies (Lying) every link heads TailLain degrees round instead: straight out to her left.
         // (Laid along the floor in a curl with the fluke flat, as it was first reworked, it read from the side as a
@@ -304,9 +312,9 @@ namespace SystemPrompt.Dungeon
         // bunched against her shin. A wag lifts the fluke as it swings.
         // In battle the hook goes round to whichever side has no one standing (TailTo, BattleStage): beside the
         // player it stood in front of their feet from every camera behind the party.
-        const float TailTilt = 16f, TailOut = 14f, TailLow = 0.03f, TailSize = 1.2f, TailFlukeSize = 0.7f, TailLain = 90f;
+        const float TailTilt = 16f, TailOut = 14f, TailLow = 0.03f, TailFlukeSize = 0.6f, TailLain = 90f;
         const float TailStreamFrom = 0.3f, TailStreamFull = 1.4f, TailStreamTime = 0.35f;
-        static readonly float[] TailLaid = { 1f, 0f, 0.42f, 0.26f, 0.23f, 0.41f, 0.6f };
+        static readonly float[] TailLaid = { 1f, 0f, 0.45f, 0.22f, 0.26f, 0.36f, 0.48f };
         static readonly float[] TailStreamed = { 1f, 0f, 0.6f, 0.47f, 0.4f, 0.36f, 0.4f };
         static readonly float[] TailCurl = { 0f, 0f, 50f, 90f, 133f, 167f, 177f };
         float tailSpeed;  // how fast she goes, for LayTail
@@ -414,6 +422,7 @@ namespace SystemPrompt.Dungeon
                 look.SetColor("_SkinShade", SkinShade);
                 look.SetFloat("_SkinMask", 1f);
                 look.SetFloat("_CameraLight", 1f); // faces stay lit whichever way the figure turns
+                look.SetFloat("_Lift", UndersideLift);
                 look.mainTexture = texture;
             }
 
@@ -500,11 +509,7 @@ namespace SystemPrompt.Dungeon
                 tail[0].rotation = Quaternion.AngleAxis(TailOut, Root.forward) * Quaternion.AngleAxis(TailTilt, Root.right) * hung;
                 carriedRestRight = tail[0].localRotation;
                 tail[0].rotation = Quaternion.AngleAxis(-TailOut, Root.forward) * Quaternion.AngleAxis(TailTilt, Root.right) * hung;
-                if (tail.Length + 1 == TailLaid.Length)
-                {
-                    tail[0].localScale *= TailSize;
-                    tail[4].localScale *= TailFlukeSize;
-                }
+                if (tail.Length + 1 == TailLaid.Length) tail[4].localScale *= TailFlukeSize;
                 var end = tail[tail.Length - 1];
                 tailEnd = end.InverseTransformPoint(end.position + (end.position - tail[tail.Length - 2].position));
                 tailRest = new float[tail.Length + 1];
