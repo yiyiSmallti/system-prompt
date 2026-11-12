@@ -10,19 +10,16 @@ namespace SystemPrompt.Dungeon
     // toward where the pose above it puts it and by gravity, stays a bone's length from the joint and is pushed out
     // of the body's spheres. The motions move the humanoid bones only, so each joint is turned afresh every frame
     // from its rest. A spring with a centre (VRoid's own: the model's Root) moves with the figure, so running and
-    // turning don't drag its hair behind; the tail and the hip fins have none and trail in the world.
+    // turning don't drag its hair behind; one with none (the tail, the hip fins) trails in the world.
     // Neither is how something moves through water. Carried with the figure, long hair hung straight down at a
-    // full run, a wall in front of her arm; trailing in the world with a drag near a half each frame, the tail was
+    // full run, a wall in front of her arm; trailing in the world with a drag near a half each frame, a chain was
     // pulled out level behind her as a rod. So each link is pushed back by a share of its own joint's way through
     // the water this frame (Air): hair streams and lifts with the run and settles as she stops, cloth a little,
-    // and the tail and fins trail by that share instead of their whole drag, sinking as they do (Droop), so the
-    // tail runs out behind her in an arc that hangs.
-    // Turning a joint the shortest way to its tip leaves its roll to chance, and as the tail swung round behind
-    // the figure the fin stood up on edge, its white belly to the camera; a spring marked level (the tail) has each
-    // joint rolled about itself after, so its crosswise axis lies level as at rest, as SeaFigure does to the Tripo tail.
-    // Hanging straight down a joint has no level, so there it lies across her back as at rest, by the bone the spring
-    // hangs from (blended in from 30 degrees off plumb): left to the shortest turn, the fin twisted round as the tail
-    // swung down under her when she stopped, and each joint keeping its own last roll wound the tail into a corkscrew.
+    // and what trails in the world trails by that share instead of its whole drag, sinking as it does (Droop), so
+    // it runs out behind her in an arc that hangs.
+    // The uniform's tail is not left to any of this: it is held (Hold), posed link by link in the figure's space
+    // and kept near that, and rolled so its fluke lies across her (turning a joint the shortest way to its tip
+    // leaves its roll to chance: the fin stood up on edge as the tail swung round). See there.
     public sealed class SeaSprings
     {
         [Serializable]
@@ -37,7 +34,6 @@ namespace SystemPrompt.Dungeon
         public sealed class Spring
         {
             public string center; // a bone of the model, or empty for the world
-            public bool level;
             public Joint[] joints;
             public int[] colliders;
         }
@@ -67,13 +63,17 @@ namespace SystemPrompt.Dungeon
             public Vector3 restTip;  // the tip at rest, in the joint's space
             public Vector3 axis;     // toward it
             public float length;
-            public Vector3 side;     // level and across the bone at rest, in its own space (zero: not kept level)
             public Transform anchor; // what the spring hangs from
-            public Vector3 hang;     // that axis at rest, in the anchor's space
-            public Vector3 tip, was; // where the tip is and was a frame ago, in the centre's space
+            public bool held;        // of a chain that is held (Hold)
+            public Vector3 side;     // held: what lies across the figure at rest, across the bone, in the bone's space
+            public float bend;       // held: degrees it may turn from where it is posed to point
+            public float steady;     // held: the share of the anchor's turning from rest that its pose does not take
+            public Vector3 pose;     // held: where it is posed to point, in the figure's space (Aim)
+            public Quaternion anchored; // held: the anchor's turn at rest, in the figure's space
+            public Vector3 tip, was; // where the tip is and was a frame ago, in the centre's space (Into)
             public (Transform bone, Collider shape)[] colliders;
-            public float swing;      // degrees its pull is turned aside about the figure's up (Swing)
             public float air;        // the share of its joint's way through the water that pushes it back
+            public int chain;        // which spring it is a link of
             public Vector3 headWas;  // where its joint was a frame ago, in the world
         }
 
@@ -107,8 +107,6 @@ namespace SystemPrompt.Dungeon
                 for (var i = 0; i + 1 < spring.joints.Length; i++)
                 {
                     Transform bone = Find(spring.joints[i].bone), next = Find(spring.joints[i + 1].bone);
-                    var across = Vector3.Cross(Vector3.up, next.position - bone.position);
-                    var level = spring.level && across.sqrMagnitude > 1e-8f;
                     links.Add(new Link
                     {
                         bone = bone,
@@ -118,11 +116,10 @@ namespace SystemPrompt.Dungeon
                         restTip = next.localPosition,
                         axis = next.localPosition.normalized,
                         length = Vector3.Distance(bone.position, next.position),
-                        side = level ? bone.InverseTransformDirection(across.normalized) : Vector3.zero,
                         anchor = anchor,
-                        hang = level ? anchor.InverseTransformDirection(across.normalized) : Vector3.zero,
                         colliders = colliders,
                         air = center == null ? AirLoose : bone.name.Contains("Hair") ? AirHair : bone.name.Contains("Bust") ? 0f : AirCloth,
+                        chain = Array.IndexOf(data.springs, spring),
                     });
                 }
             }
@@ -132,9 +129,46 @@ namespace SystemPrompt.Dungeon
         // The link at a bone (the first joint of a spring), or -1.
         public int Find(string bone) => links.FindIndex(l => l.bone.name == bone);
 
-        // Turns where a link's stiffness pulls it aside about the figure's up, degrees, this frame and on: the tail
-        // swaying and wagging of itself (SeaFigure). Only the pull: the joint still swings and trails as a spring.
-        public void Swing(int link, float degrees) => links[link].swing = degrees;
+        // The chain a link starts held to a pose: a tail hooked up beside a leg. As a spring hung from the joint above,
+        // each link aimed by the one before, it could not keep a shape. Its links are 5 cm long and the hips they hang
+        // from rise and fall 14 cm at every running step, some 2 cm a frame: kept where they were in the figure's
+        // space, each link was left a good part of a turn behind, the next as much again, and by its end the tail
+        // had folded on itself and thrashed across both legs.
+        // Held, every link is posed on its own, to a way in the figure's space (as at rest, until Aim gives another),
+        // turned by 1 - `steady` of whatever the bone the chain hangs from has turned from its rest; it may be
+        // `bend` degrees off that and no more, the last `flat` links (a fluke) `flatBend`, so what one link does is
+        // not handed down to the next. Its tips are kept by where that bone is, so its rise and fall carries the
+        // chain whole, and `air` of each joint's way through the water pushes it back: it lags and streams by that
+        // much. Stiffness times `stiffer`, no gravity, drag `drag`. And each link is rolled about itself so that
+        // what lies across the figure at rest, across the link, still does whichever way the link points: a fluke
+        // stays face on from behind. (Left to the shortest turn its roll is chance; carried down the chain from
+        // link to link, a roll built up along it as the hook's plane swung.)
+        public void Hold(int first, float stiffer, float drag, float air, float bend, float steady, int flat, float flatBend)
+        {
+            var end = first;
+            while (end < links.Count && links[end].chain == links[first].chain) end++;
+            var anchored = Quaternion.Inverse(root.rotation) * links[first].anchor.rotation;
+            for (var i = first; i < end; i++)
+            {
+                var link = links[i];
+                var reach = link.bone.TransformPoint(link.restTip) - link.bone.position;
+                link.joint.stiffness *= stiffer;
+                link.joint.gravity = 0f;
+                link.joint.drag = drag;
+                link.center = root;
+                link.air = air;
+                link.held = true;
+                link.bend = i >= end - flat ? flatBend : bend;
+                link.steady = steady;
+                link.anchored = anchored;
+                link.pose = Quaternion.Inverse(root.rotation) * reach.normalized;
+                link.side = link.bone.InverseTransformDirection(Vector3.ProjectOnPlane(-root.right, reach).normalized);
+            }
+            Reset();
+        }
+
+        // Where a held link is posed to point from now on, in the figure's space.
+        public void Aim(int link, Vector3 way) => links[link].pose = way.normalized;
 
         // Every joint back at rest and still, as posed now.
         public void Reset()
@@ -163,10 +197,14 @@ namespace SystemPrompt.Dungeon
                 var head = link.bone.position;
                 var scale = Scale(link.bone); // the forces are for a model at its own size
                 var turn = link.bone.parent.rotation * link.rest;
+                if (link.held)
+                {
+                    var swung = Quaternion.Slerp(Quaternion.Inverse(root.rotation) * link.anchor.rotation * Quaternion.Inverse(link.anchored), Quaternion.identity, link.steady);
+                    turn = Quaternion.FromToRotation(turn * link.axis, root.rotation * (swung * link.pose)) * turn;
+                }
                 var aim = turn * link.axis;
-                var pull = link.swing != 0f ? Quaternion.AngleAxis(link.swing, root.up) * aim : aim;
                 Vector3 tip = Out(link, link.tip), was = Out(link, link.was);
-                var next = tip + (tip - was) * (1f - joint.drag) + (pull * joint.stiffness + joint.gravityDir * joint.gravity) * (dt * scale);
+                var next = tip + (tip - was) * (1f - joint.drag) + (aim * joint.stiffness + joint.gravityDir * joint.gravity) * (dt * scale);
                 var gone = Vector3.ClampMagnitude((head - link.headWas) * counted, Fastest * dt);
                 link.headWas = head;
                 // Carried with the figure, the water pushes it back; trailing in the world, its drag already holds it
@@ -188,23 +226,28 @@ namespace SystemPrompt.Dungeon
                     next = at + (next - at).normalized * r;
                     next = head + (next - head).normalized * link.length;
                 }
+                if (link.bend > 0f)
+                {
+                    var off = Vector3.Angle(aim, next - head);
+                    if (off > link.bend) next = head + Vector3.Slerp(aim.normalized, (next - head).normalized, link.bend / off) * link.length;
+                }
                 link.was = link.tip;
                 link.tip = Into(link, next);
                 var reach = next - head;
                 link.bone.rotation = Quaternion.FromToRotation(aim, reach) * turn;
-                if (link.side == Vector3.zero) continue;
-                var level = Vector3.Cross(Vector3.up, reach);
-                var across = Vector3.ProjectOnPlane(link.anchor.TransformDirection(link.hang), reach);
-                var flat = Mathf.Clamp01(level.magnitude / (0.5f * reach.magnitude));
-                var want = level.normalized * flat + across.normalized * (1f - flat);
+                if (!link.held) continue;
+                var want = Vector3.ProjectOnPlane(-root.right, reach);
                 if (want.sqrMagnitude < 1e-6f) continue;
                 var side = link.bone.TransformDirection(link.side);
                 link.bone.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(side, want, reach), reach) * link.bone.rotation;
             }
         }
 
-        static Vector3 Into(Link link, Vector3 world) => link.center != null ? link.center.InverseTransformPoint(world) : world;
-        static Vector3 Out(Link link, Vector3 local) => link.center != null ? link.center.TransformPoint(local) : local;
+        // A tip in what carries it: a held link's by where its anchor is, turned as the figure is; else in its centre.
+        Vector3 Into(Link link, Vector3 world) => link.held ? Quaternion.Inverse(root.rotation) * (world - link.anchor.position)
+            : link.center != null ? link.center.InverseTransformPoint(world) : world;
+        Vector3 Out(Link link, Vector3 local) => link.held ? link.anchor.position + root.rotation * local
+            : link.center != null ? link.center.TransformPoint(local) : local;
 
         static float Scale(Transform t)
         {

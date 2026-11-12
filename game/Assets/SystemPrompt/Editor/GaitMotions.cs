@@ -47,9 +47,17 @@ namespace SystemPrompt.EditorTools
             public float Turn = 1f;   // the hips' and the shoulders' swing from side to side
             public float Arms = 1f;   // the arms' swing (the shoulders' with it, up to a quarter more)
             public float Elbows;      // added to the forearms' Stretch: above 0 straightens the arms
+            public float ArmsIn;      // added to the upper arms' Down-Up: below 0 brings the elbows in to the body's sides
+            public float ReachFront, ReachBack; // degrees the thigh swings ahead of and behind straight down at most (eased in from 0.6 of it); 0: as the loop has it
+            public float StanceKnees = 1f;      // how much of the knee's bend is kept while its foot is on the floor: below 1 the body rides higher over it
+            public float Track;       // added to the thighs' In-Out: above 0 sets the feet down wider apart
+            public float Straightest = 2f; // the most a knee's Stretch comes to (1 is a straight leg), eased in over the last 0.12 of it: below 1 the leg never locks
+            public float Knees;       // added to the knees' Stretch: below 0 keeps them a little bent where the loop straightens them
+            public float Hands = float.NaN; // every finger's Stretched held at this (the loops run with fists, -0.9); NaN: as the loop has it
             public float Lean = 1f;   // the body's lean forward; the thighs are turned back to where they were
             public float Upright;     // added to the chest's Front-Back muscles: above 0 straightens the back
             public float Nod;         // added to the head's Nod Down-Up and half of it to the neck's: below 0 lowers the chin
+            public float Pitch = 1f;  // how much of the chest's, neck's and head's swing forward and back within a step is kept
             public float Stance;      // the part of a step the foot is pressed to the ground for, retimed to; 0 as the loop has it
         }
 
@@ -60,13 +68,25 @@ namespace SystemPrompt.EditorTools
             // straightened and the chin lifted. Its arms hardly swing, bent with the fists at the hips: they swing
             // 1.7 times as far and hang straighter.
             new Gait { Name = "Walk", Source = "Walk_Loop", Speed = 1.6f, Swing = 1.15f, Arms = 1.7f, Elbows = 0.2f, Upright = 0.1f, Nod = 0.2f },
-            // The run is the library's sprint, its plunge forward (25 degrees, for a dash) stood up to a jog's, the
-            // back straightened; the foot down for over half of each step. The library's sprinter looks at the track
-            // a few metres ahead, which on these figures read as running with the head down: the chin is lifted.
-            new Gait { Name = "Run", Source = "Sprint_Loop", Speed = 4.6f, Bob = 0.6f, Lean = 0.5f, Upright = 0.1f, Nod = 0.12f, Stance = 0.55f },
-            // The sprint: the same loop leaning nearly as the library has it, the body rising as it does. One loop
-            // in two carriages, so the two blend in step (SeaFigure keeps them at one time).
-            new Gait { Name = "Sprint", Source = "Sprint_Loop", Speed = 6.6f, Lean = 0.85f, Nod = 0.1f, Stance = 0.5f },
+            // The run is the library's sprint taken down to a run. Its plunge forward (25 degrees, for a dash) is stood
+            // up to a jog's and the back straightened; the chin, which the sprinter keeps on the track a few metres
+            // ahead, is lifted. The sprinter throws its thighs 75 degrees ahead and 37 behind and sits deep into every
+            // step: at a run that was a leap out of a squat, so the swing is eased off past 42 and 30 degrees and the
+            // knee on the floor keeps two thirds of its bend, while the body's rise in the air is kept whole and a
+            // little over (cut down, she rode highest over the planted leg and lowest in the air, feet skimming the
+            // floor: a glide, the wrong way up for a run); and it lands on a leg swung out straight, so the knee is
+            // never let quite straighten (Straightest: about 22 degrees of bend left). Its elbows stand out from the
+            // body with the fists up at the chest: they are brought in and folded a little more (opened further, the
+            // forearm reached out ahead at each swing as if rowing), and the hands hang half open. The foot is down for
+            // half of each step. The sprinter's chest and head also pitch forward and back with every step, the head
+            // some 17 degrees and the chest as much again: stood upright at a run that is a nod into the collar at
+            // each footfall, so under half of that swing is kept (Pitch).
+            new Gait { Name = "Run", Source = "Sprint_Loop", Speed = 4.6f, Bob = 1.1f, Lean = 0.5f, Upright = 0.16f, Nod = 0.12f, Pitch = 0.45f, Stance = 0.55f,
+                ReachFront = 42f, ReachBack = 30f, StanceKnees = 0.65f, Straightest = 0.72f, Track = 0.03f, Arms = 1.1f, ArmsIn = -0.2f, Elbows = -0.12f, Hands = -0.45f },
+            // The sprint: the same loop leaning nearly as the library has it and reaching further, the body rising as
+            // it does. One loop in two carriages, so the two blend in step (SeaFigure keeps them at one time).
+            new Gait { Name = "Sprint", Source = "Sprint_Loop", Speed = 6.6f, Lean = 0.85f, Upright = 0.08f, Nod = 0.1f, Stance = 0.5f,
+                ReachFront = 60f, ReachBack = 34f, StanceKnees = 0.8f, Track = 0.03f, Arms = 1.2f, ArmsIn = -0.1f, Hands = -0.6f },
         };
 
         // The standing idle of each figure that explores (Motions/Idle<model>, which SeaFigure takes before the take
@@ -120,8 +140,12 @@ namespace SystemPrompt.EditorTools
             else AssetDatabase.CreateAsset(clip, saved);
         }
 
-        // Every stand from three sides, and every gait over its loop on the girl and the boy, twelve frames from the
-        // side and twelve from behind.
+        // Gaits being tried against the ones above: drawn by Preview beside them, never saved. Empty when nothing is.
+        static readonly Gait[] Trials = { };
+
+        // Every stand from three sides, and every gait (and trial) over its loop on the girl and the boy, twelve frames
+        // from the side, from behind and from ahead. With -gaitOnly <prefix>, only the gaits whose name starts with it,
+        // and no stands.
         public static void Preview()
         {
             var args = Environment.GetCommandLineArgs();
@@ -129,13 +153,15 @@ namespace SystemPrompt.EditorTools
             Directory.CreateDirectory(dir);
             const int Shots = 12;
             DungeonWorld.ApplySea(0f, Vector3.zero, 9f);
-            PreviewIdles(dir);
-            foreach (var gait in Gaits)
+            var only = Array.IndexOf(args, "-gaitOnly") >= 0 ? args[Array.IndexOf(args, "-gaitOnly") + 1] : null;
+            if (only == null) PreviewIdles(dir);
+            foreach (var gait in Gaits.Concat(Trials))
             {
+                if (only != null && !gait.Name.StartsWith(only)) continue;
                 var clip = Build(gait);
                 // A new model for every shot: drawn again in the same call, one keeps the skinning of its first shot.
                 foreach (var model in new[] { "PlayerFemaleLounge", "PlayerMaleLounge" })
-                    foreach (var (view, from) in new[] { ("side", Vector3.right), ("back", Vector3.back) })
+                    foreach (var (view, from) in new[] { ("side", Vector3.right), ("back", Vector3.back), ("front", Vector3.forward) })
                         using (var sheet = new StancePoser.Sheet(256, 384, Shots))
                         {
                             for (var i = 0; i < Shots; i++)
@@ -320,15 +346,15 @@ namespace SystemPrompt.EditorTools
 
             // How far a foot goes back under the body between two times of a loop (for Slip): its ankle while that is
             // the part on the floor at the first, the ball of the foot once the heel has lifted.
-            public float Back(AnimationClip clip, float from, float to, int foot)
+            public float Back(AnimationClip clip, float from, float to, int foot) => Back(StancePoser.PoseAt(clip, from), StancePoser.PoseAt(clip, to), foot);
+
+            public float Back(HumanPose from, HumanPose to, int foot)
             {
-                var pose = StancePoser.PoseAt(clip, from);
-                handler.SetHumanPose(ref pose);
+                handler.SetHumanPose(ref from);
                 var onBall = toes[foot] != null && In(toes[foot]).y - ball[foot] < In(feet[foot]).y - ankle[foot];
                 var point = onBall ? toes[foot] : feet[foot];
                 var was = In(point).z;
-                pose = StancePoser.PoseAt(clip, to);
-                handler.SetHumanPose(ref pose);
+                handler.SetHumanPose(ref to);
                 return was - In(point).z;
             }
 
@@ -438,37 +464,48 @@ namespace SystemPrompt.EditorTools
                 Set("RootQ.y", i => turned[i].y);
                 Set("RootQ.z", i => turned[i].z);
                 Set("RootQ.w", i => turned[i].w);
-                if (gait.Lean != 1f)
-                    using (var stand = new Stand(Models[0]))
-                    {
-                        var muscles = HumanTrait.MuscleName;
-                        foreach (var left in new[] { true, false })
-                        {
-                            var name = $"{(left ? "Left" : "Right")} Upper Leg Front-Back";
-                            var index = Array.IndexOf(muscles, name);
-                            var value = Sampled(name);
-                            for (var i = 0; i < frames; i++)
-                            {
-                                var want = stand.Thigh(StancePoser.PoseAt(source, At(i)), left);
-                                var pose = StancePoser.PoseAt(clip, At(i));
-                                for (var pass = 0; pass < 4; pass++)
-                                {
-                                    pose.muscles[index] = value[i];
-                                    var has = stand.Thigh(pose, left);
-                                    pose.muscles[index] = value[i] + 0.05f;
-                                    var slope = (stand.Thigh(pose, left) - has) / 0.05f;
-                                    if (Mathf.Abs(slope) < 1f) break;
-                                    value[i] += Mathf.Clamp((want - has) / slope, -0.5f, 0.5f);
-                                }
-                            }
-                            Set(name, i => value[i]);
-                        }
-                    }
             }
+            // Each thigh turned until it points where the library had it (worked out on the first model): leaning less
+            // swings the legs forward with the body. The library's sprinter throws its legs 66 degrees ahead and 46
+            // behind, a split in the air that at a run reads as a leap; past ReachFront and ReachBack the swing is
+            // eased off, the part of it on the floor (the middle of the swing) left as it is.
+            if (gait.Lean != 1f || gait.ReachFront > 0f || gait.ReachBack > 0f)
+                using (var stand = new Stand(Models[0]))
+                {
+                    var muscles = HumanTrait.MuscleName;
+                    foreach (var left in new[] { true, false })
+                    {
+                        var name = $"{(left ? "Left" : "Right")} Upper Leg Front-Back";
+                        var index = Array.IndexOf(muscles, name);
+                        var value = Sampled(name);
+                        float ahead = float.MinValue, behind = float.MaxValue;
+                        for (var i = 0; i < frames; i++)
+                        {
+                            var want = stand.Thigh(StancePoser.PoseAt(source, At(i)), left);
+                            ahead = Mathf.Max(ahead, want);
+                            behind = Mathf.Min(behind, want);
+                            want = want >= 0f ? Within(want, gait.ReachFront) : -Within(-want, gait.ReachBack);
+                            var pose = StancePoser.PoseAt(clip, At(i));
+                            for (var pass = 0; pass < 4; pass++)
+                            {
+                                pose.muscles[index] = value[i];
+                                var has = stand.Thigh(pose, left);
+                                pose.muscles[index] = value[i] + 0.05f;
+                                var slope = (stand.Thigh(pose, left) - has) / 0.05f;
+                                if (Mathf.Abs(slope) < 1f) break;
+                                value[i] += Mathf.Clamp((want - has) / slope, -0.5f, 0.5f);
+                            }
+                        }
+                        Set(name, i => value[i]);
+                        if (left) Debug.Log($"{gait.Name}：库里的大腿最多前摆 {ahead:F0}°、后摆 {-behind:F0}°，限制到 {Within(ahead, gait.ReachFront):F0}° 和 {Within(-behind, gait.ReachBack):F0}°");
+                    }
+                }
             foreach (var side in new[] { "Left", "Right" })
             {
                 Scale($"{side} Upper Leg Front-Back", gait.Swing, Mean);
-                Scale($"{side} Lower Leg Stretch", gait.Fold, Top);
+                Scale($"{side} Lower Leg Stretch", gait.Fold, Top, gait.Knees);
+                Scale($"{side} Arm Down-Up", 1f, Mean, gait.ArmsIn);
+                Scale($"{side} Upper Leg In-Out", 1f, Mean, gait.Track);
                 Scale($"{side} Arm Front-Back", gait.Arms, Mean);
                 Scale($"{side} Shoulder Front-Back", Mathf.Min(gait.Arms, 1.25f), Mean);
                 Scale($"{side} Forearm Stretch", 1f, Mean, gait.Elbows);
@@ -476,10 +513,87 @@ namespace SystemPrompt.EditorTools
             foreach (var part in new[] { "Spine", "Chest", "UpperChest" })
             {
                 Scale($"{part} Twist Left-Right", gait.Turn, Mean);
-                if (part != "Spine") Scale($"{part} Front-Back", 1f, Mean, gait.Upright);
+                if (part != "Spine") Scale($"{part} Front-Back", gait.Pitch, Mean, gait.Upright);
             }
-            Scale("Head Nod Down-Up", 1f, Mean, gait.Nod);
-            Scale("Neck Nod Down-Up", 1f, Mean, gait.Nod * 0.5f);
+            if (!float.IsNaN(gait.Hands))
+                foreach (var hand in new[] { "LeftHand", "RightHand" })
+                    foreach (var finger in new[] { "Thumb", "Index", "Middle", "Ring", "Little" })
+                        foreach (var joint in new[] { "1", "2", "3" })
+                            Set($"{hand}.{finger}.{joint} Stretched", i => finger == "Thumb" ? Mathf.Max(gait.Hands, -0.2f) : gait.Hands);
+            Scale("Head Nod Down-Up", gait.Pitch, Mean, gait.Nod);
+            Scale("Neck Nod Down-Up", gait.Pitch, Mean, gait.Nod * 0.5f);
+            // While a foot is on the floor (as the library has it, on the first model) its knee is straightened by a share
+            // of its bend, eased in and out over two frames: the sprinter sits deep into each step, and at a run that is
+            // a squat. The body's height follows below, where the feet are put back on the floor.
+            if (gait.StanceKnees < 1f)
+                using (var stand = new Stand(Models[0]))
+                {
+                    var low = Enumerable.Range(0, frames).Select(i => stand.Lower(source, At(i))).ToArray();
+                    for (var f = 0; f < 2; f++)
+                    {
+                        var name = $"{(f == 0 ? "Left" : "Right")} Lower Leg Stretch";
+                        var bend = Sampled(name);
+                        var on = low.Select(l => l.off < Down && l.foot == f ? 1f : 0f).ToArray();
+                        float On(int i) => on[(i % frames + frames) % frames];
+                        var down = Enumerable.Range(0, frames).Select(i => (On(i - 2) + 2f * On(i - 1) + 3f * On(i) + 2f * On(i + 1) + On(i + 2)) / 9f).ToArray();
+                        Set(name, i => bend[i] + (1f - bend[i]) * (1f - gait.StanceKnees) * down[i]);
+                    }
+                }
+            // With the legs reshaped, a foot on the floor no longer goes back under the body evenly (it slid 15 cm and more
+            // within a step): over the stretch it is pressed (as the library has it, the stretch Retimed then draws out
+            // evenly), each frame's thigh is turned until
+            // the foot has gone back as far as in every other, the whole way as it was; what that turned the last by
+            // fades over the two frames after, as the leg swings free.
+            // The loop swings its leg out straight before it lands, and the knee then gives all at once: a stamp. Kept a
+            // little bent all the way round, it comes down already giving.
+            if (gait.Straightest < 1.2f)
+                foreach (var side in new[] { "Left", "Right" })
+                {
+                    var stretch = Sampled($"{side} Lower Leg Stretch");
+                    var from = gait.Straightest - 0.12f;
+                    Set($"{side} Lower Leg Stretch", i => stretch[i] <= from ? stretch[i] : from + 0.12f * (float)Math.Tanh((stretch[i] - from) / 0.12f));
+                }
+            var stretches = gait.Stance > 0f ? Stretches(source, frames) : null;
+            if (stretches != null)
+                using (var stand = new Stand(Models[0]))
+                {
+                    var muscles = HumanTrait.MuscleName;
+                    for (var f = 0; f < 2; f++)
+                    {
+                        var (first, last) = stretches[f];
+                        var name = $"{(f == 0 ? "Left" : "Right")} Upper Leg Front-Back";
+                        var index = Array.IndexOf(muscles, name);
+                        var value = Sampled(name);
+                        var was = (float[])value.Clone();
+                        HumanPose Posed(int frame)
+                        {
+                            var pose = StancePoser.PoseAt(clip, At(frame % frames));
+                            pose.muscles[index] = value[frame % frames];
+                            return pose;
+                        }
+                        var whole = 0f;
+                        for (var j = first; j <= last; j++) whole += stand.Back(Posed(j), Posed(j + 1), f);
+                        var each = whole / (last + 1 - first);
+                        for (var j = first; j <= last; j++)
+                        {
+                            var to = (j + 1) % frames;
+                            for (var pass = 0; pass < 5; pass++)
+                            {
+                                var has = stand.Back(Posed(j), Posed(j + 1), f);
+                                if (Mathf.Abs(has - each) < 0.0005f) break;
+                                value[to] += 0.03f;
+                                var slope = (stand.Back(Posed(j), Posed(j + 1), f) - has) / 0.03f;
+                                value[to] -= 0.03f;
+                                if (Mathf.Abs(slope) < 1e-3f) break;
+                                value[to] += Mathf.Clamp((each - has) / slope, -0.3f, 0.3f);
+                            }
+                        }
+                        var turned = value[(last + 1) % frames] - was[(last + 1) % frames];
+                        value[(last + 2) % frames] += turned * 2f / 3f;
+                        value[(last + 3) % frames] += turned / 3f;
+                        Set(name, i => value[i]);
+                    }
+                }
             var height = Sampled("RootT.y");
 
             // Onto the floor: what each frame's body height has to change by, averaged over the models.
@@ -519,11 +633,11 @@ namespace SystemPrompt.EditorTools
             Set("RootT.y", i => height[i] + change[i]);
             AnimationUtility.SetAnimationClipSettings(clip, AnimationUtility.GetAnimationClipSettings(source));
 
-            if (gait.Stance > 0f) clip = Retimed(clip, gait.Stance, frames);
+            if (gait.Stance > 0f) clip = Retimed(clip, gait.Stance, frames, stretches);
 
             // What it comes to, measured on the loop as made.
             const int Samples = 80;
-            float pace = 0f, share = 0f, rise;
+            float pace = 0f, share = 0f, rise, lift = 0f;
             var slips = new List<string>();
             foreach (var model in Models)
                 using (var stand = new Stand(model))
@@ -537,10 +651,14 @@ namespace SystemPrompt.EditorTools
             {
                 var hips = Enumerable.Range(0, Samples).Select(i => stand.Hips(clip, length * i / Samples)).ToArray();
                 rise = hips.Max() - hips.Min();
+                // A run rides lowest over the planted leg and highest in the air: the other way up it glides.
+                var (down, _, _) = Pressed(stand, clip, Samples, Down + 0.015f);
+                if (down.Any(d => d) && down.Any(d => !d))
+                    lift = hips.Where((h, i) => !down[i]).Average() - hips.Where((h, i) => down[i]).Average();
             }
             var rate = gait.Speed / (pace * GaitMotions.Scale);
             var steps = 2f * rate / length;
-            Debug.Log($"{gait.Name}：来自 {gait.Source}，一圈 {length:F3} 秒；步伐 {pace:F2}/米（SeaFigure 的 {gait.Name}Pace），脚踩实占每步的 {share:P0}，髋起伏 {rise * 100f:F1} cm；"
+            Debug.Log($"{gait.Name}：来自 {gait.Source}，一圈 {length:F3} 秒；步伐 {pace:F2}/米（SeaFigure 的 {gait.Name}Pace），脚踩实占每步的 {share:P0}，髋起伏 {rise * 100f:F1} cm（腾空时比踩地时高 {lift * 100f:F1} cm）；"
                       + $"{gait.Speed:0.0} m/s 时 {rate:F2} 倍速，每秒 {steps:F1} 步，每步 {gait.Speed / steps:F2} 米；按这个步伐走，踩实的脚在地上最多滑：{string.Join("、", slips)}\n  "
                       + string.Join("\n  ", report));
             return clip;
@@ -578,14 +696,19 @@ namespace SystemPrompt.EditorTools
             return worst;
         }
 
-        static AnimationClip Retimed(AnimationClip clip, float stance, int frames)
+        // Degrees held within `most`: as they are up to 0.6 of it, then easing toward it. 0: no limit.
+        static float Within(float degrees, float most) =>
+            most <= 0f || degrees <= 0.6f * most ? degrees : most * (0.6f + 0.4f * (float)Math.Tanh((degrees - 0.6f * most) / (0.4f * most)));
+
+        // The stretch of a loop each foot (left, right) is pressed to the ground for, on the first model: from frame
+        // `first` to the frame after `last` (which may run past the loop's end).
+        static (int first, int last)[] Stretches(AnimationClip clip, int frames)
         {
-            var length = clip.length;
-            var points = new List<(float to, float from)>(); // a time in the retimed loop and the time in the loop it shows, both in loops
+            var found = new (int, int)[2];
             using (var stand = new Stand(Models[0]))
             {
                 var (pressed, foot, _) = Pressed(stand, clip, frames, Down + 0.015f);
-                foreach (var f in new[] { 0, 1 })
+                for (var f = 0; f < 2; f++)
                 {
                     var on = Enumerable.Range(0, frames).Select(i => pressed[i] && foot[i] == f).ToArray();
                     if (!on.Any(o => o) || on.All(o => o)) throw new InvalidOperationException($"{clip.name}：找不到{(f == 0 ? "左" : "右")}脚踩实的一段");
@@ -593,12 +716,23 @@ namespace SystemPrompt.EditorTools
                     while (!(on[first % frames] && !on[(first + frames - 1) % frames])) first++;
                     var last = first;
                     while (on[(last + 1) % frames]) last++;
-                    // Pressed from frame `first` to the frame after `last`.
-                    float middle = (first + last + 1) * 0.5f / frames, has = (last + 1 - first) / (float)frames, wants = stance * 0.5f;
-                    points.Add((middle - wants * 0.5f, middle - has * 0.5f));
-                    points.Add((middle + wants * 0.5f, middle + has * 0.5f));
-                    Debug.Log($"{clip.name}：{(f == 0 ? "左" : "右")}脚踩实 {first}–{last + 1} 帧（共 {frames} 帧），占每步的 {has * 2f:P0} → {stance:P0}");
+                    found[f] = (first, last);
                 }
+            }
+            return found;
+        }
+
+        static AnimationClip Retimed(AnimationClip clip, float stance, int frames, (int first, int last)[] stretches)
+        {
+            var length = clip.length;
+            var points = new List<(float to, float from)>(); // a time in the retimed loop and the time in the loop it shows, both in loops
+            for (var f = 0; f < 2; f++)
+            {
+                var (first, last) = stretches[f];
+                float middle = (first + last + 1) * 0.5f / frames, has = (last + 1 - first) / (float)frames, wants = stance * 0.5f;
+                points.Add((middle - wants * 0.5f, middle - has * 0.5f));
+                points.Add((middle + wants * 0.5f, middle + has * 0.5f));
+                Debug.Log($"{clip.name}：{(f == 0 ? "左" : "右")}脚踩实 {first}–{last + 1} 帧（共 {frames} 帧），占每步的 {has * 2f:P0} → {stance:P0}");
             }
             points.Sort((a, b) => a.to.CompareTo(b.to));
             points.Add((points[0].to + 1f, points[0].from + 1f));

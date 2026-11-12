@@ -733,7 +733,7 @@ namespace SystemPrompt.E2E
             else yield return Press(Key.Enter);
         }
 
-        // 白米饭 for whoever is under 40% HP, 深海潜流 from DeepSeek while two or more noise bodies stand, else the attack.
+        // 白米饭 for whoever is under 40% HP, 深海潜流 from DeepSeek while two or more noise bodies stand (but see below), else the attack.
         IEnumerator SmartCommand()
         {
             var turn = ui.Q<Label>(className: "sp-battle__banner-text").text;
@@ -757,7 +757,10 @@ namespace SystemPrompt.E2E
                     yield break;
                 }
             }
-            if (hers && game.Battle.FoesStanding >= 2 && v.Sp >= 8)
+            // Once the 深海潜流 has been filmed she attacks instead until the 饭勺's four ways in have all been seen: each
+            // needs an attack of hers, and with the skill ending the deep's battles early a run could go by with only
+            // three of them (the 跃劈 was then never filmed, and the run failed for that alone).
+            if (hers && game.Battle.FoesStanding >= 2 && v.Sp >= 8 && (!Seen("battle-maelstrom") || Seen("battle-spoon-leap")))
             {
                 for (var i = 0; i < 6 && !CommandSelected("技能"); i++) yield return Press(Key.DownArrow);
                 if (CommandSelected("技能"))

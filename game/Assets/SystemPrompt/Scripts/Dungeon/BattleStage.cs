@@ -150,6 +150,8 @@ namespace SystemPrompt.Dungeon
                 figure.Crouch = partyIds[i] != "DeepSeek" ? 0.06f : 0.02f;
                 figure.Forward = partyIds[i] != "DeepSeek" ? 9f : 0f;
                 figure.Attentive = true;
+                // A tail hooks round to the side with no one standing: the last in the line to their right.
+                figure.TailTo = i > 0 && i == partyIds.Count - 1 ? 1f : -1f;
                 // The player, boy or girl, holds the phone ready before the chest in both hands.
                 figure.Ready = partyIds[i] != "DeepSeek";
                 party.Add(new Member { Root = root, Figure = figure, Home = home, At = home, Was = home, Glance = 3f + 2.3f * i,

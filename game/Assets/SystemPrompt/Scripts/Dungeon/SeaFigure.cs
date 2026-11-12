@@ -25,7 +25,7 @@ namespace SystemPrompt.Dungeon
         // How fast the foot pressed to the ground goes back in the walk, the run and the sprint at their own pace, per
         // metre of the avatar's human scale (about its hips' height), as Editor/GaitMotions.cs makes and measures them:
         // each plays at the rate that takes its foot back as fast as the ground goes by, so the feet don't slip.
-        const float WalkPace = 1.0f, RunPace = 4.17f, SprintPace = 4.6f;
+        const float WalkPace = 1.05f, RunPace = 4.4f, SprintPace = 4.84f;
         const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds, unless told otherwise
         const float FlinchOut = 0.2f; // a hit's jolt easing off at the end, seconds
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
@@ -52,6 +52,47 @@ namespace SystemPrompt.Dungeon
             ["PlayerMaleLounge/N00_005_01_Tops_01_CLOTH"] = new Vector2(0.115f, 0.095f),
         };
         const float LegFrom = 0.25f; // of the way down the thigh the cone starts: at the hip itself it would push the top's sides out as she stands
+        // A spring-bone tail hung as the outfits are drawn (assets/characters/deepseek-outfits.jpg), by model: degrees
+        // each link from the hips points round from straight down, through straight out, to straight up, standing
+        // (hung) and at a full run (run). Down behind the thigh to the knee, then hooked out and up with the fluke
+        // raised upright to the skirt's hem, both lobes up, as it is drawn. Its last TailFlukeLinks links carry the
+        // fluke, which is a flat plate from where the stalk begins to widen, two links before its lobes' own bones:
+        // they are in line, so it stands flat. Running, the stalk trails back and
+        // the fluke stays up: leant back whole, the hook tipped its fluke forward into her thigh. The hook lies in
+        // an upright plane TailAside degrees round to her left from straight back, so it stands beside her left leg
+        // (straight behind her the fluke and the bend under it ran together into one lump seen from the game's
+        // camera, and a tail between two running legs is kicked by both), and the fluke lies across her, face on
+        // from ahead and behind as it is drawn, whichever way the hook is swung. As the VRM has it the tail runs
+        // out level behind her, and its springs' gravity let it sag into a straight rod down to the floor. Its root
+        // is set TailIn metres further in and TailDown lower: in the file it sits on the small of her back, outside
+        // the hoodie's hem, a blunt stump lying on her clothes; lower, it comes out from under the skirt, and the hook
+        // and fluke come down with it to where they are drawn (the hook's foot at her calf, the fluke under the hem).
+        // The springs hold it to that pose (SeaSprings.Hold) and Sway moves the pose: see there.
+        static readonly Dictionary<string, (float[] hung, float[] run)> TailHooks = new Dictionary<string, (float[], float[])>
+        {
+            ["DeepSeekUniform"] = (
+                new[] { 12f, 12f, 13f, 15f, 22f, 42f, 68f, 94f, 120f, 145f, 168f, 168f, 168f, 168f, 168f, 168f },
+                new[] { 38f, 38f, 39f, 40f, 44f, 58f, 78f, 100f, 122f, 144f, 164f, 164f, 164f, 164f, 164f, 164f }),
+        };
+        const float TailAside = 55f, TailIn = 0.035f, TailDown = 0.09f;
+        const int TailFlukeLinks = 6;
+        // That tail's bones scaled, each evenly and those after it with it. It is the battle dress's scaled down: a
+        // stalk 9 cm across at its root and 5 where the fluke begins, where the outfits are drawn with one thicker
+        // than her calf that narrows to the fluke, and a fluke 40 cm across, near twice what is drawn. So 1.35 at
+        // the root, down by steps to 0.88 where the fluke begins, and the fluke 0.66; the thicker links are
+        // longer by as much, which takes the hook down to her knee. (Swollen along its normals in the shader within
+        // a reach of its root, the hook brought the fluke back inside that reach and it puffed up and creased; the
+        // lobes' own bones scaled one by one, each about itself, pinched the fluke where they meet.)
+        static readonly (string bone, float by)[] TailSizes = { ("Tail_0", 1.35f), ("Tail_3", 0.9f), ("Tail_6", 0.85f), ("Tail_9", 0.85f), ("Tail_10", 0.75f) };
+        // How that tail moves of itself, degrees at its end, less toward its root. It swings from its root like a
+        // pendulum, across her as seen from behind: a little and slowly as she stands (TailSway), wide in a wag
+        // (TailWag). (Swung about the upright instead, the hanging stalk hardly moved and only the hook's short
+        // reach went round: a few centimetres, a wag nobody could see.) Its hook closes and opens as slowly
+        // (TailBreath); at a run it beats up and down like a whale's (TailBeat), a quarter turn ahead of a small
+        // swing round (TailSwim), so its end goes round and not to and fro.
+        const float TailSway = 14f, TailWag = 30f, TailBreath = 4f, TailBeat = 11f, TailSwim = 4f;
+        const float TailSprint = 0.5f; // how much further toward (past) the running shape at a sprint
+        static readonly Vector2 TailEase = new Vector2(50f, 6f); // the spring her speed moves that shape by: stiffness, damping (about 1.1 Hz, a fifth over)
         static readonly Dictionary<string, float> Under = new Dictionary<string, float>
         {
             ["DeepSeekUniform/N00_007_02_Tops_01_CLOTH"] = 0.012f, // no further: at 3 cm her bare belly came through the shirt's lower half
@@ -199,15 +240,15 @@ namespace SystemPrompt.Dungeon
         readonly Transform[] eyes;            // a VRoid face's eye bones, or none (a drawn face)
         readonly Quaternion[] eyeRest;
         // Exploring, DeepSeek's tail sways of itself, slowly and less as she runs, where it swims instead (a quicker
-        // wave down it from side to side), and wags for a moment (Wag): the
-        // battle dress's as it is laid (LayTail), the uniform's spring by turning its first links' pull (SeaSprings.Swing).
+        // wave down it), and wags for a moment (Wag): the battle dress's as it is laid (LayTail), the uniform's by
+        // where its links are posed to point (Sway, SeaSprings.Aim).
         const float SwayHz = 0.35f, WagHz = 1.8f;
-        // At a run the tail swims instead (Swum): a quicker wave down it from side to side. The uniform's spring takes
-        // it in its pull; the battle dress's, which at a run is dragged out straight behind her however its heading
-        // is swung, has it laid over where the drag leaves it.
+        // At a run the tail swims instead (Swum): a quicker wave down it. The battle dress's, which at a run is
+        // dragged out straight behind her however its heading is swung, has it laid over where the drag leaves it.
         const float SwimHz = 1.4f, SwimFrom = 1.5f, SwimFull = 4.5f;
-        const int SwayLinks = 4;
-        readonly int tailSpring = -1;         // the uniform tail's first link in the springs, or -1
+        readonly int tailSpring = -1;         // the uniform tail's first link in the springs (hooked and held), or -1
+        readonly (float[] hung, float[] run) tailHook;
+        float tailRun, tailRunSpeed;          // how far that tail is from its standing shape to its running one, and how fast that is changing
         float swayTime, swayShare, swimShare, wagTime, wagLength, wagShare; // the wag's length 0 with none
         // Exploring, each foot set down at a walk or a run: where on the seabed, and how fast the figure is going. The
         // clips carry no events, so it is found as the low point of the foot's height over Root, near its height at rest.
@@ -233,13 +274,51 @@ namespace SystemPrompt.Dungeon
         // that the tail would be laid under the feet); so it drags behind as the figure runs and turns. Those
         // bones are rolled level as at rest, so the fin lies flat. The last point is past the end of Tail6, a
         // bone's length on, for the fin's own bone.
+        // As the file has it the tail drops straight from the hips to the floor, turns a corner and lies flat: a post
+        // behind her legs with a mat at its foot. The outfits (assets/characters/deepseek-outfits.jpg) draw it as a
+        // big hook: down behind her to her ankles, round to her left, and up beside her with the fluke raised to her
+        // hand. So Tail1 is leant back from the file's (TailTilt degrees) and to her left (TailOut: straight down her
+        // back it stood between her legs from the game's camera), and the points after the carried ones keep heights
+        // of their own (TailLaid, shares of Tail1's height as it is now, so the whole curve sinks with her into a
+        // crouch, lies flat when she lies, and rises with her in a leap; never under TailLow of her height): down to
+        // her calf by the fourth joint, then up again, the fluke (the last link) standing nearly upright with its end
+        // at the height of her thigh; it has not the length to go down to her ankles and up to her hand both. Seen
+        // from above it goes back behind her as it comes down, then round to her left and forward again as it rises
+        // (TailCurl, degrees each point's link heads round from straight back), so the fluke stands beside her left
+        // leg and across her, face on from ahead and behind as it is drawn; headed one way all along, a hook this
+        // deep would stand most of a metre out from her. Its bright back is to whoever stands behind her, which is
+        // where the game's cameras are. The tail is 1.1 m long in the file where the drawing's is half as long again
+        // and thicker than her thigh: its first bone is scaled TailSize, the rest with it, and the fifth (the fluke's
+        // root) TailFlukeSize: the fluke is wider than her shoulders as modelled.
+        // Lying on the floor she lay on it: laid flat the hook is a ring that runs back under her and round to her
+        // head. So while she lies (Lying) every link heads TailLain degrees round instead: straight out to her left.
+        // (Laid along the floor in a curl with the fluke flat, as it was first reworked, it read from the side as a
+        // plank leant against her hips, and from the game's camera in battle most of it was out of the picture.)
+        // And it answers her speed: the hook is for standing. Once she moves (from TailStreamFrom m/s, wholly by
+        // TailStreamFull, a slow walk) the points go from TailLaid to TailStreamed and the curl opens out, so it
+        // streams out behind her at the height of her knees, its bright back up to the camera that follows her;
+        // carried along as a hook, the fluke was dragged round behind her at a walk and showed that camera its dark
+        // belly. How far it has streamed is eased over TailStreamTime: taken straight from her speed, the tail
+        // jumped from stream to hook in a frame as she pulled up or an attack ended. And the curl is let go as her
+        // hips come down (from 0.38 of her height to 0.22, a kneel): kneeling at the end of a sweep the hook was
+        // bunched against her shin. A wag lifts the fluke as it swings.
+        // In battle the hook goes round to whichever side has no one standing (TailTo, BattleStage): beside the
+        // player it stood in front of their feet from every camera behind the party.
+        const float TailTilt = 16f, TailOut = 14f, TailLow = 0.03f, TailSize = 1.2f, TailFlukeSize = 0.7f, TailLain = 90f;
+        const float TailStreamFrom = 0.3f, TailStreamFull = 1.4f, TailStreamTime = 0.35f;
+        static readonly float[] TailLaid = { 1f, 0f, 0.42f, 0.26f, 0.23f, 0.41f, 0.6f };
+        static readonly float[] TailStreamed = { 1f, 0f, 0.6f, 0.47f, 0.4f, 0.36f, 0.4f };
+        static readonly float[] TailCurl = { 0f, 0f, 50f, 90f, 133f, 167f, 177f };
+        float tailSpeed;  // how fast she goes, for LayTail
+        float tailStream; // how far the tail has streamed out of its hook, 0 to 1
+        public float TailTo = -1f; // the side the hook goes round to: -1 her left (as drawn), 1 her right
         const int TailCarried = 2;      // the joints the hips carry: Tail1's and Tail2's
         const float TailFollow = 8f;    // how fast a trailing joint eases back to the pose, per second
         readonly Transform[] tail;      // Tail1 down to the last; point i is joint i, placed by turning bone i - 1
         readonly Vector3 tailEnd;       // the last point, the fin's end, in the last bone's space
-        readonly float[] tailRest;      // each point's height at rest, in Root's space
+        readonly float[] tailRest;      // each point's height as laid, a share of the first's (TailLaid, or as the file has it)
         readonly Vector3[] tailHeading; // the level way to each point from the one above at rest, in Root's space
-        readonly Vector3[] tailSide;    // each bone's level axis across the tail at rest, in its own space
+        readonly Vector3[] tailSide;    // what lies across the tail at each bone as the file has it (her left), in the bone's own space
         readonly Vector3 hipsAhead;     // Root's forward at rest, in the hips' space
         Vector3[] tailWas;              // where each point was put last frame, in the world
         // In battle the joints the hips carry sway from side to side about the hips' forward axis too, and are flung
@@ -247,9 +326,11 @@ namespace SystemPrompt.Dungeon
         // writes the tail's bones, so the turn is put on Tail1's pose at rest each frame, never on last frame's. The
         // sway dies away while the figure lies on the floor (Lying), where it would sweep the tail over it.
         const float CarriedSwayHz = 0.4f, FlickStiffness = 60f, FlickDamping = 8f, FlickMost = 25f;
+        const float LaidSway = 9f; // degrees the links on the floor swing aside with it, at the fluke
         float carriedTime, flick, flickSpeed; // degrees toward the figure's right, and its speed
-        float carriedSway = 1f;               // how much of the sway shows: none while lying
+        float carriedSway = 1f;               // how much of the sway shows: none while lying (and the tail is laid out to her side by as much as is gone)
         readonly Quaternion carriedRest;      // Tail1's local rotation at rest
+        readonly Quaternion carriedRestRight; // and leant to her right instead of her left (TailTo)
         public bool Lying;
         // Lying, a forearm the pose leaves standing on its elbow is laid down (Rest): the sprawl is one pose in muscle
         // space for three rigs, and on the battle dress's one forearm stood up with the hand open, as if waving.
@@ -410,6 +491,20 @@ namespace SystemPrompt.Dungeon
             if (tailBones.Count >= 2)
             {
                 tail = tailBones.ToArray();
+                // What lies across each bone, before any is turned: the file has the tail in her middle plane, so
+                // that is her own left. (Taken after Tail1 was leant out to her side, as whatever lay level across
+                // each link then, it came out some 30 degrees round for the links that hang, and the tail was laid
+                // with that much twist between them and the ones on the floor.)
+                tailSide = Array.ConvertAll(tail, bone => bone.InverseTransformDirection(-Root.right));
+                var hung = tail[0].rotation;
+                tail[0].rotation = Quaternion.AngleAxis(TailOut, Root.forward) * Quaternion.AngleAxis(TailTilt, Root.right) * hung;
+                carriedRestRight = tail[0].localRotation;
+                tail[0].rotation = Quaternion.AngleAxis(-TailOut, Root.forward) * Quaternion.AngleAxis(TailTilt, Root.right) * hung;
+                if (tail.Length + 1 == TailLaid.Length)
+                {
+                    tail[0].localScale *= TailSize;
+                    tail[4].localScale *= TailFlukeSize;
+                }
                 var end = tail[tail.Length - 1];
                 tailEnd = end.InverseTransformPoint(end.position + (end.position - tail[tail.Length - 2].position));
                 tailRest = new float[tail.Length + 1];
@@ -421,16 +516,14 @@ namespace SystemPrompt.Dungeon
                     if (i == 0) continue;
                     var way = point - Root.InverseTransformPoint(TailPoint(i - 1));
                     way.y = 0f;
-                    tailHeading[i] = way.sqrMagnitude > 1e-8f ? way.normalized : Vector3.back;
+                    // (The designed tail's headings are TailCurl's alone, from straight back.)
+                    tailHeading[i] = tailRest.Length != TailLaid.Length && way.sqrMagnitude > 1e-8f ? way.normalized : Vector3.back;
                 }
+                var top = tailRest[0];
+                for (var i = 0; i < tailRest.Length; i++)
+                    tailRest[i] = tailRest.Length == TailLaid.Length ? TailLaid[i] : tailRest[i] / Mathf.Max(top, 1e-4f);
                 hipsAhead = Animator.GetBoneTransform(HumanBodyBones.Hips).InverseTransformDirection(Root.forward);
                 carriedRest = tail[0].localRotation;
-                tailSide = new Vector3[tail.Length];
-                for (var i = 0; i < tail.Length; i++)
-                {
-                    var side = Vector3.Cross(Root.up, TailPoint(i + 1) - TailPoint(i));
-                    tailSide[i] = tail[i].InverseTransformDirection(side.sqrMagnitude > 1e-8f ? side.normalized : Root.right);
-                }
             }
 
             graph = PlayableGraph.Create("Figure " + model);
@@ -456,9 +549,12 @@ namespace SystemPrompt.Dungeon
             sprint = Connect(Motion("Sprint"), 3);
             mixer.SetInputWeight(0, 1f);
             graph.Evaluate(0f);
+            // Before the springs take their rest from it.
+            var hooked = TailHooks.TryGetValue(model, out tailHook) && HookTail(body.transform, tailHook.hung);
             var springData = Resources.Load<TextAsset>(path + "_Springs");
             if (springData != null) springs = new SeaSprings(body.transform, Root, springData.text);
-            if (springs != null) tailSpring = springs.Find("Tail_0");
+            if (springs != null && hooked) tailSpring = springs.Find("Tail_0");
+            if (tailSpring >= 0) springs.Hold(tailSpring, 1f, 0.6f, 0.2f, 14f, 0.75f, TailFlukeLinks, 3f);
 
             // The face box in the idle's first frame, in Root's space (x right, y up, z ahead), then fixed to the head.
             head = Animator.GetBoneTransform(HumanBodyBones.Head);
@@ -923,6 +1019,7 @@ namespace SystemPrompt.Dungeon
                 if (riceTime >= riceLength) riceLength = 0f;
             }
             if (Explorer) Sway(dt, speed);
+            tailSpeed = speed;
             LayTail(dt);
             springs?.Step(dt);
             if (Explorer) Steps(dt, speed);
@@ -938,6 +1035,45 @@ namespace SystemPrompt.Dungeon
             talkTime = Talking ? talkTime + dt : 0f;
             ShowFace();
             LegsUnder();
+        }
+
+        // A spring-bone tail's links turned to the hook (TailHooks) and scaled (TailSizes), from the hips out, each
+        // rolled so that what lies across the tail in the file (it runs back from her in her middle plane, so that is
+        // her own left) lies across her still: the fluke face on from behind. That is taken for every joint before any
+        // is turned. (Taken joint by joint as they were turned, as whatever lay level across the link as it then
+        // pointed, it was wrong wherever the joint before had been rolled off the level, which with the hook swung
+        // round to her side is everywhere: each joint was rolled some 20 degrees on from the last, the stalk wrung
+        // and the fluke's six joints wound into a propeller. That was the crumpled fluke with a black fold in it.)
+        // False if the model has no such tail.
+        bool HookTail(Transform body, float[] hook)
+        {
+            var joints = new List<Transform>();
+            foreach (var t in body.GetComponentsInChildren<Transform>(true))
+                if (t.name == "Tail_0") { joints.Add(t); break; }
+            if (joints.Count == 0) return false;
+            for (Transform next = joints[0]; next != null;)
+            {
+                var from = next;
+                next = null;
+                foreach (Transform child in from)
+                    if (child.name.StartsWith("Tail_")) next = child;
+                if (next != null) joints.Add(next);
+            }
+            var lateral = joints.ConvertAll(joint => joint.InverseTransformDirection(-Root.right));
+            joints[0].position += (Root.forward * TailIn - Root.up * TailDown) * joints[0].lossyScale.y;
+            var aside = Quaternion.AngleAxis(TailAside, Root.up);
+            for (var i = 0; i + 1 < joints.Count; i++)
+            {
+                var joint = joints[i];
+                var round = hook[Mathf.Min(i, hook.Length - 1)] * Mathf.Deg2Rad;
+                var want = -Root.up * Mathf.Cos(round) + aside * -Root.forward * Mathf.Sin(round);
+                joint.rotation = Quaternion.FromToRotation(joints[i + 1].position - joint.position, want) * joint.rotation;
+                var across = Vector3.ProjectOnPlane(-Root.right, want);
+                joint.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(joint.TransformDirection(lateral[i]), across, want), want) * joint.rotation;
+                foreach (var (bone, by) in TailSizes)
+                    if (bone == joint.name) joint.localScale *= by;
+            }
+            return true;
         }
 
         // What the materials are told of the pose each frame: the legs as posed now, for the tops that hang over them
@@ -1367,12 +1503,32 @@ namespace SystemPrompt.Dungeon
                 if (wagTime >= wagLength) wagLength = 0f;
             }
             if (tailSpring < 0) return;
-            for (var i = 0; i < SwayLinks; i++) springs.Swing(tailSpring + i, Swayed(i, 4f, 12f) + Swum(i, 10f));
+            // The uniform's tail: each link's way in its hook, between standing and running by her speed, with the
+            // waves on it. How far it is toward the running shape follows her speed on a spring that overshoots
+            // (TailEase), so it swings back as she starts and forward past its hang as she stops, and settles; past
+            // a run it trails further. The fluke's links take the last stalk link's, so it moves as one flat piece.
+            var step = Mathf.Min(dt, 1f / 30f);
+            var wanted = Mathf.SmoothStep(0f, 1f, speed / 4.6f) + TailSprint * Mathf.SmoothStep(0f, 1f, (speed - 4.6f) / 2f);
+            tailRunSpeed += (TailEase.x * (wanted - tailRun) - TailEase.y * tailRunSpeed) * step;
+            tailRun += tailRunSpeed * step;
+            var stalk = tailHook.hung.Length - TailFlukeLinks;
+            for (var i = 0; i < tailHook.hung.Length; i++)
+            {
+                var k = Mathf.Min(i, stalk);
+                var along = (k + 1f) / (stalk + 1f);
+                var beat = 2f * Mathf.PI * SwimHz * swayTime - 0.27f * k;
+                var round = Mathf.LerpUnclamped(tailHook.hung[i], tailHook.run[i], tailRun) + along
+                    * (TailBreath * swayShare * Mathf.Sin(2f * Mathf.PI * 0.8f * SwayHz * swayTime - 0.15f * k) + TailBeat * swimShare * Mathf.Cos(beat));
+                var aside = TailAside + along * TailSwim * swimShare * Mathf.Sin(beat);
+                round *= Mathf.Deg2Rad;
+                var way = Quaternion.AngleAxis(aside, Vector3.up) * (Vector3.down * Mathf.Cos(round) + Vector3.back * Mathf.Sin(round));
+                springs.Aim(tailSpring + i, Quaternion.AngleAxis((0.4f + 0.6f * along) * Swayed(0.3f * k, TailSway, TailWag), Vector3.forward) * way);
+            }
         }
 
         // Degrees aside for the tail's joint i this frame, sway at most `sway` and the wag `wag`, each a little later
         // down the tail.
-        float Swayed(int i, float sway, float wag) =>
+        float Swayed(float i, float sway, float wag) =>
             sway * swayShare * Mathf.Sin(2f * Mathf.PI * SwayHz * swayTime - 0.6f * i)
             + wag * wagShare * Mathf.Sin(2f * Mathf.PI * WagHz * wagTime - 0.6f * i);
 
@@ -1453,8 +1609,17 @@ namespace SystemPrompt.Dungeon
             // How far the hips have turned from Root's forward, about the up axis alone.
             var ahead = Root.InverseTransformDirection(Bone(HumanBodyBones.Hips).TransformDirection(hipsAhead));
             ahead.y = 0f;
-            var turn = ahead.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.forward, ahead.normalized) : Quaternion.identity;
+            // (Not at all once the hips face up or down, lying: what is left of their forward along the floor is a
+            // remnant that points anywhere, and the tail crept round her as she lay.)
+            var turn = Quaternion.Slerp(Quaternion.identity, ahead.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.forward, ahead.normalized) : Quaternion.identity,
+                Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.2f, 0.6f, ahead.magnitude)));
             if (!Explorer) SwayCarried(dt);
+            var top = Root.InverseTransformPoint(TailPoint(0)).y;
+            var designed = tailRest.Length == TailCurl.Length;
+            tailStream = designed ? Mathf.MoveTowards(tailStream, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(TailStreamFrom, TailStreamFull, tailSpeed)), dt / TailStreamTime) : 0f;
+            var stream = tailStream;
+            // How much of the hook's curl there is: none streaming, none with her hips down by the floor.
+            var hook = -TailTo * (1f - stream) * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.22f, 0.38f, top / height));
             for (var i = 1; i < tailRest.Length; i++)
             {
                 var from = Root.InverseTransformPoint(TailPoint(i - 1));
@@ -1468,13 +1633,18 @@ namespace SystemPrompt.Dungeon
                 // Toward where it was last frame, unless it was never placed or the figure jumped (into a battle); the
                 // way it eases back to swung aside by the sway, more toward the end (along the floor, so it stays on it).
                 var across = turn * tailHeading[i];
+                if (designed) across = Quaternion.AngleAxis(Mathf.Lerp(TailCurl[i] * hook, -TailTo * TailLain, 1f - carriedSway), Vector3.up) * across;
                 // (The wag well over what should show: the ease below takes about 40% off at its pace.)
-                if (Explorer) across = Quaternion.AngleAxis((0.4f + 0.6f * i / tailRest.Length) * Swayed(i, 10f, 32f), Vector3.up) * across;
+                if (Explorer) across = Quaternion.AngleAxis((0.4f + 0.6f * i / tailRest.Length) * Swayed(i, 10f, 60f), Vector3.up) * across;
+                // In battle what lies on the floor sways too, slowly and a little, each link later than the one before:
+                // with only the carried joints' few degrees it lay behind her as still as a plank. Not while she lies.
+                else across = Quaternion.AngleAxis((0.4f + 0.6f * i / tailRest.Length) * LaidSway * carriedSway * Mathf.Sin(2f * Mathf.PI * CarriedSwayHz * carriedTime - 0.6f * i), Vector3.up) * across;
                 var trail = Root.InverseTransformPoint(tailWas[i]) - from;
                 trail.y = 0f;
                 if (trail.sqrMagnitude > 1e-8f && trail.sqrMagnitude < 9f * length * length)
                     across = Vector3.Slerp(trail.normalized, across, ease).normalized;
-                var drop = from.y - tailRest[i];
+                var share = designed ? Mathf.Lerp(tailRest[i], TailStreamed[i], stream) + 0.1f * wagShare * i / tailRest.Length : tailRest[i];
+                var drop = from.y - Mathf.Max(share * top, TailLow * height);
                 var to = Mathf.Abs(drop) >= length
                     ? from + Vector3.down * (Mathf.Sign(drop) * length)
                     : from + across * Mathf.Sqrt(length * length - drop * drop) + Vector3.down * drop;
@@ -1511,7 +1681,7 @@ namespace SystemPrompt.Dungeon
             flick += flickSpeed * step;
             var wave = 5f * carriedSway * Mathf.Sin(2f * Mathf.PI * CarriedSwayHz * carriedTime);
             var axis = Bone(HumanBodyBones.Hips).TransformDirection(hipsAhead);
-            tail[0].localRotation = carriedRest;
+            tail[0].localRotation = TailTo > 0f ? carriedRestRight : carriedRest;
             tail[0].rotation = Quaternion.AngleAxis(Mathf.Clamp(wave + flick, -FlickMost, FlickMost), axis) * tail[0].rotation;
         }
 
