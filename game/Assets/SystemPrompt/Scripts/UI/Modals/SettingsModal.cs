@@ -169,10 +169,11 @@ namespace SystemPrompt.UI
             beam = Ui.El("sp-term__beam", Root);
             beam.pickingMode = PickingMode.Ignore;
 
-            var audio = AddPage("音频", "audio.cfg", "音乐和音效的音量。");
+            var audio = AddPage("音频", "audio.cfg", "音乐、音效和角色语音的音量。");
             Slider(audio, "主音量", "所有声音的总音量。", () => S.masterVolume, v => { S.masterVolume = v; Game.Audio.ApplyVolumes(); }, 0f, 1f, 0.05f, Percent);
             Slider(audio, "音乐", "背景音乐的音量。", () => S.musicVolume, v => { S.musicVolume = v; Game.Audio.ApplyVolumes(); }, 0f, 1f, 0.05f, Percent);
             Slider(audio, "音效", "按键、演出和战斗音效的音量。", () => S.sfxVolume, v => { S.sfxVolume = v; Game.Audio.ApplyVolumes(); }, 0f, 1f, 0.05f, Percent);
+            Slider(audio, "语音", "角色台词配音的音量。", () => S.voiceVolume, v => { S.voiceVolume = v; Game.Audio.ApplyVolumes(); }, 0f, 1f, 0.05f, Percent);
 
             var text = AddPage("文本", "text.cfg", "台词的显示速度、自动播放和对话框。");
             Choice(text, "文字速度", "台词逐字显示的速度。「瞬间」直接显示整句。", () => S.textSpeed, v => { S.textSpeed = v; previewChars = 0; }, () => GameSettings.TextSpeedLabels);

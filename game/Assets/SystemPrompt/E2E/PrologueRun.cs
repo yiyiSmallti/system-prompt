@@ -86,6 +86,10 @@ namespace SystemPrompt.E2E
         readonly HashSet<string> heard = new HashSet<string>();
         readonly Dictionary<string, string> heardAt = new Dictionary<string, string>();
         bool deepTaught; // the first battle DeepSeek fights in has shown 防御, 白米饭 and the 辣条
+        // Voiced lines that came on: how many each speaker said, where each was heard ("story", "battle", "dungeon").
+        readonly Dictionary<string, int> voices = new Dictionary<string, int>();
+        readonly HashSet<string> voicedIn = new HashSet<string>();
+        readonly HashSet<string> voiceClips = new HashSet<string>();
 
         float Now => Time.realtimeSinceStartup - started;
 
@@ -116,6 +120,12 @@ namespace SystemPrompt.E2E
             while (GameRoot.Instance == null) yield return null;
             game = GameRoot.Instance;
             ui = game.GetComponent<UIDocument>().rootVisualElement;
+            game.Audio.VoiceStarted += (speaker, clip) =>
+            {
+                voices[speaker] = voices.TryGetValue(speaker, out var n) ? n + 1 : 1;
+                voicedIn.Add(game.InBattle ? "battle" : game.InDungeon ? "dungeon" : "story");
+                voiceClips.Add(clip);
+            };
             DefineCheckpoints();
             StartCoroutine(WatchLoop());
             yield return Scenario();
@@ -301,6 +311,12 @@ namespace SystemPrompt.E2E
             Check(heardAt.TryGetValue("awakening", out var wakeAt) && wakeAt == "story:cache_sea", $"觉醒的曲子在剧情里先响、接进教学战斗（实际 {heardAtOr("awakening")}）");
             Check(heardAt.TryGetValue("deep", out var deepAt) && deepAt == "dungeon", $"深层的曲子在深层探索里响起（实际 {heardAtOr("deep")}）");
             Check(heardAt.TryGetValue("results", out var resultsAt) && resultsAt == "battle", $"结算的曲子在战斗结算时响起（实际 {heardAtOr("results")}）");
+            var voiceTally = string.Join("、", voices.Select(kv => $"{kv.Key} {kv.Value}"));
+            Check(new[] { "ChatGPT", "Claude", "DeepSeek", "影子DeepSeek", "？？？" }.All(voices.ContainsKey),
+                $"ChatGPT、Claude、DeepSeek、影子和门后的声音都有配音（{voiceTally}）");
+            Check(voicedIn.SetEquals(new[] { "story", "battle", "dungeon" }), $"剧情、战斗和潜空间里都放了配音（实际 {string.Join("、", voicedIn)}）");
+            var voiceFiles = Resources.LoadAll<AudioClip>("Audio/Voice").Length;
+            Check(voiceClips.Count >= 150, $"序章里放了 {voiceClips.Count} 句不同的配音（配音文件 {voiceFiles} 个）");
             Check(Said($"还想被叫{Nickname}"), "直面影子时说还想被叫这个称呼");
             Check(Said($"中午你给我起的「{Nickname}」") && Said("记仇的那种记"), "战后说会记着这个称呼（记仇）");
 

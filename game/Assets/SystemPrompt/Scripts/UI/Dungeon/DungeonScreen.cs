@@ -1163,10 +1163,25 @@ namespace SystemPrompt.UI
             Ui.Show(talkBox, true);
 
             // DeepSeek beside the player takes the face the line is tagged with (until the talk ends, as her
-            // portrait keeps it in the story), and her mouth moves while her words type out.
+            // portrait keeps it in the story), and her mouth moves while her words type out and her voice runs.
             var deepSeek = line.Speaker == "DeepSeek" ? world?.Companion : null;
             if (deepSeek != null && line.Face != null) deepSeek.SetFace(line.Face);
             if (deepSeek != null) deepSeek.Talking = line.Kind == LineKind.Speech;
+            var voice = SkipHeld(line) ? null : line.Voice;
+            game.Audio.PlayVoice(voice, line.Speaker, line.VoiceLevel);
+            try
+            {
+                await TypeAndWait(line, text, deepSeek, voice, s, nextRequested);
+            }
+            finally
+            {
+                game.Audio.StopVoice(voice);
+                if (deepSeek != null) deepSeek.Talking = false;
+            }
+        }
+
+        async Awaitable TypeAndWait(LineInfo line, string text, SeaCompanion deepSeek, AudioClip voice, Session s, Func<bool> nextRequested)
+        {
             if (world != null)
             {
                 // The two look at whoever has the line (DungeonWorld.Looks).
@@ -1188,8 +1203,13 @@ namespace SystemPrompt.UI
                 await Awaitable.NextFrameAsync();
             }
             talkText.text = Ui.GluePunctuation(text);
-            if (deepSeek != null) deepSeek.Talking = false;
-            while (!s.Over && !nextRequested() && !advance && !SkipHeld(line)) await Awaitable.NextFrameAsync();
+            // Her mouth keeps going while her voice does.
+            if (deepSeek != null) deepSeek.Talking = game.Audio.Voicing(voice);
+            while (!s.Over && !nextRequested() && !advance && !SkipHeld(line))
+            {
+                if (deepSeek != null && !game.Audio.Voicing(voice)) deepSeek.Talking = false;
+                await Awaitable.NextFrameAsync();
+            }
             advance = false;
             game.Records.MarkRead(line.Id);
             game.Story.Backlog.Add(new BacklogEntry

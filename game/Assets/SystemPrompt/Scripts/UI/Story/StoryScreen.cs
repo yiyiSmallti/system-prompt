@@ -17,6 +17,10 @@ namespace SystemPrompt.UI
         public LineKind Kind;
         public string Face;
         public bool Whisper;
+        public AudioClip Voice; // the line's voice-over, when it has one (Tools/voice_lines.py)
+
+        // A whisper is voiced quieter.
+        public float VoiceLevel => Whisper ? 0.7f : 1f;
     }
 
     public sealed class BacklogEntry
@@ -518,16 +522,37 @@ namespace SystemPrompt.UI
             var skipping = SkipWanted && CanSkip(line.Id);
             if (SkipWanted && !skipping) StopSkipping();
             if (skipping || float.IsInfinity(cps)) shown = text.Length;
-            // The mouth moves about as long as the line takes to read; instant text still gets that much.
+            // The mouth moves as long as the voice runs, or about as long as the line takes to read; instant text
+            // still gets that much. Finishing the text early leaves a voice (and its mouth) going; leaving the line
+            // cuts it off.
             var speaking = line.Kind == LineKind.Speech || line.Kind == LineKind.Shadow;
-            if (speaking) Stage.Talk(line.Speaker, skipping ? 0f : text.Length / Mathf.Clamp(cps, 8f, 14f));
+            var voice = speaking && !skipping ? line.Voice : null;
+            if (voice != null) game.Audio.PlayVoice(voice, line.Speaker, line.VoiceLevel);
+            if (speaking) Stage.Talk(line.Speaker, skipping ? 0f : voice != null ? voice.length : text.Length / Mathf.Clamp(cps, 8f, 14f));
+            try
+            {
+                await TypeAndWait(line, target, text, fullText, shown, cps, speaking, voice, nextRequested, hurryRequested);
+            }
+            finally
+            {
+                if (voice != null && game.Audio.Voicing(voice))
+                {
+                    game.Audio.StopVoice(voice);
+                    Stage.Talk(line.Speaker, 0f);
+                }
+            }
+        }
 
+        async Awaitable TypeAndWait(LineInfo line, Label target, string text, string fullText, float shown, float cps,
+            bool speaking, AudioClip voice, Func<bool> nextRequested, Func<bool> hurryRequested)
+        {
             while (shown < text.Length)
             {
                 if (nextRequested()) return;
-                if (hurryRequested() || ConsumeAdvance() || (SkipWanted && CanSkip(line.Id)))
+                var skipNow = SkipWanted && CanSkip(line.Id);
+                if (hurryRequested() || ConsumeAdvance() || skipNow)
                 {
-                    if (speaking) Stage.Talk(line.Speaker, 0f);
+                    if (speaking && (voice == null || skipNow)) Stage.Talk(line.Speaker, 0f);
                     break;
                 }
                 if (!Paused)
@@ -544,7 +569,8 @@ namespace SystemPrompt.UI
 
             Ui.Show(nextMark, Ui.Visible(box));
             var waited = 0f;
-            var autoWait = game.Settings.autoDelay + text.Length * 0.03f;
+            // Auto mode lets a voice finish, then gives a shorter beat than it gives a line read in silence.
+            var autoWait = voice != null ? game.Settings.autoDelay * 0.5f : game.Settings.autoDelay + text.Length * 0.03f;
             while (true)
             {
                 if (nextRequested()) break;
@@ -554,7 +580,7 @@ namespace SystemPrompt.UI
                     await Anim.Wait(0.04f);
                     break;
                 }
-                if (autoMode && !Paused)
+                if (autoMode && !Paused && !game.Audio.Voicing(voice))
                 {
                     waited += Time.unscaledDeltaTime;
                     if (waited >= autoWait) break;

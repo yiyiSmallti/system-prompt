@@ -1202,6 +1202,7 @@ namespace SystemPrompt.UI
             var previous = mode;
             mode = Mode.Hint;
             advance = false;
+            var voice = SkipHeld(line) ? null : line.Voice;
             try
             {
                 var timer = line.Kind == LineKind.System ? ThinkTimer.Match(line.Text) : null;
@@ -1225,6 +1226,7 @@ namespace SystemPrompt.UI
                         speechName.text = line.Speaker;
                         speechName.style.color = def2?.Color ?? Palette.Green;
                         target = speechText;
+                        game.Audio.PlayVoice(voice, line.Speaker, line.VoiceLevel);
                     }
                     var cps = game.Settings.CharsPerSecond;
                     var shown = float.IsInfinity(cps) ? line.Text.Length : 0f;
@@ -1252,6 +1254,7 @@ namespace SystemPrompt.UI
             }
             finally
             {
+                game.Audio.StopVoice(voice);
                 HideHints();
                 if (mode == Mode.Hint) mode = previous;
             }

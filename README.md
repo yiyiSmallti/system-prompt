@@ -48,6 +48,7 @@
 
 - 舞台说明的说话人是 `旁白`，〔系统〕〔屏幕〕〔文件〕分别写作 `系统`、`屏幕`、`文件`，主角写作 `{$player_name}`。旁人用第三人称指代主角时，按 `$player_gender` 用 `[select]` 标记切换「他」「她」。
 - 内心独白、DeepSeek 的思考对话框和小声说话分别用行标签 `#inner`、`#thinking`、`#whisper` 标出。
+- 有配音的角色台词行尾带 `#line:<编号>`，由 `game/Tools/voice_lines.py` 补上并按编号生成配音；改台词时保留编号，再跑一遍脚本，见 [game/README.md](game/README.md#配音)。
 - 切换场景、登记通讯录、思考强度 Max 觉醒、Coop 升级等事件写成命令，需要在 Unity 中实现。完整列表见文件开头的注释。
 - 教学战斗只写一个 `<<battle prologue_tutorial>>` 命令。各回合的提示和台词放在 `Prologue_Battle_*` 节点里，由战斗系统调用；敌人数值见 `.md`。
 

@@ -179,7 +179,7 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 | `Assets/SystemPrompt/Resources/Shaders/` | 潜空间的着色器：三渲二（描边、两段色阶、边缘光；人物不用布景那种几厘米厚的外壳，否则刘海和下巴的外壳会变成压在脸上的粗黑线，改用在画面上等宽的细墨线，见「人物身上的明暗」；人物的光从镜头上方打来，脸不会背光，皮肤的明暗分界放宽，生成模型的脸不会被切成斑块；表情图集从正面投到脸上；人物的阴影按所在区域染色、边缘光只留轮廓上一圈；VRoid 镂空部件的边缘按 MSAA 覆盖率画；迷宫布景还带着给镜头和主角让路的网点淡出、越近海床越暗、主角的灯留下的高光、海面的光网和机柜指示灯的闪烁，浅层的布景另有气泡枕头的柔光（`_Wrap`、`_Inner`、`_InnerColor`、`_Sheen`）、珊瑚海草线缆的摆动（`_SwayAmp`、`_SwayAnchor`、`_SwayLength`，在顶点着色器里按世界坐标算，所以不妨碍合批）和灯塔光束扫过的光（`SeaBeam`），都按材质开关，默认值等于没有）、机柜墙（柜面的缝、托盘、把手、通风格和立柱按程序算出的高度求法线，主光加主角身上的点光，带高光；按区域换指示灯颜色）、海床（按区域染色，地板缝和通风孔；墙的位置由 `DungeonWorld` 画成一张小图传进来，用来算墙脚的接触阴影；地砖倒角的反光、海面的光网）、墙脚杂物、接地阴影、发光体、光柱和光束（`Shaft`：一条绕自身轴线转向镜头的带子，白芯、柔光和顺着光走的条纹，用在信标、碎片和终端的光柱、灯塔落下的光、反射光路和出口，战斗里的光柱也用它）、冰（`Ice`：噪声体被冻进去的那块和碎冰，先画压暗的背面墙，再画按分面受光的正面，带边缘亮、高光和霜纹）、场景里的文字（`_Gain` 能把深度思考的字样亮过白色）、噪声体（标题党型用逐块闪烁、会跳出的像素方块；每只一份时钟和种子，另有受击的闪光和换色、被删除时的崩解，减弱闪光时格子换得更慢更淡，冻在冰里时 `_Frost` 让它停住、褪成冰蓝的灰）、白门的镜子、防火墙和门的溶解（`Dissolve`）、全息（集成里的光之鲸）、镜头的泛光、暗角和收光（`Bloom`，探索和战斗各一套参数，战斗里还有从落点荡开的波纹；战斗的泛光从亮度 0.84 起算，原来从 0.6 起算，只是被照亮的浅色表面也会泛光，皮肤和白袜被洗成一片白、没了肤色），雾在着色器里算，战斗特效的光也在着色器里算（`SeaCommon.cginc` 的 `SeaFlash`），迷宫布景的淡出、海面的光网和指示灯的闪烁也是 `SeaCommon.cginc` 里的公共函数；另有界面转场的滤镜 `ScreenFx`（见上文画面切换） |
 | `Assets/SystemPrompt/Resources/Models/` | 潜空间的角色模型：`Characters/` 是男女主角的家居服和战斗服、DeepSeek 觉醒前的校服和战斗服。战斗服是 FBX（带 Mixamo 骨骼和各自的待机动作，DeepSeek 战斗服另有 6 节尾骨、没有自带待机；旁边是基础色贴图、表情图集和正脸深度）；家居服 `PlayerFemaleLounge`、`PlayerMaleLounge` 和校服 `DeepSeekUniform` 是 VRoid Studio 做的，各是一个预制体加一份弹簧骨数据 `_Springs.json`，网格、材质和贴图在 `Assets/SystemPrompt/Characters/<模型名>/`，表情用模型自带的形态键。`PlayerFemale.fbx` 和 `PlayerMale.fbx` 是原来的 Tripo 家居服，游戏里不再显示，留着当 `Editor/StancePoser.cs` 摆姿势用的身体。家居服按设定图做，上衣是 VRoid 卫衣去掉兜帽和抽绳后填成深灰；女主角的低马尾没做出来，还是外翘短发，男主角的裤脚没有收口；`Motions/` 是三人共用的行走、跑步和战斗动作（行走 `Walk.anim`、跑步 `Run.anim`、冲刺 `Sprint.anim` 和四个探索用模型的站立待机 `Idle<模型名>.anim` 由 `Editor/GaitMotions.cs` 从 Quaternius 通用动作库的 `Walk_Loop`、`Sprint_Loop` 和 `Idle_Loop` 改出来，`SeaFigure` 按角色的人形比例换算播放速度，见上文「走、跑、冲刺和站着」；`FaceDeepSeek.anim` 是战斗服原来的待机，只用它的第一帧给手绘表情的脸框定位；施法（`Cast.fbx`）是 Tripo 在女主角战斗服上生成后导出的；受击 `HitChest`、`HitHead` 取自动作库；投掷（`Throw`、`ThrowLeft`）、横斩的三刀（`SlashCombo`）、膝上起身（`KneelUp`）、倒下（`Faint`）、被打飞（`Knockback`）和起身（`GetUp`）是 `Editor/BattleMotions.cs` 从动作库切出来的；战斗待机是 `Editor/StancePoser.cs` 从动作库拟合出来的 `StancePlayer.anim`、`StancePlayerFemale.anim`（男女主角，持枪待机改成双手端手机）和 `StanceDeepSeek.anim`（施法待机镜像）；防御、道具和深度思考是它照姿势图摆的，按待机分 `GuardPlayer`、`GuardPlayerFemale`、`GuardDeepSeek`、`ItemPlayer`、`ItemPlayerFemale`、`ItemDeepSeek` 和 `ThinkDeepSeek`；胜利的定格姿势 `VictoryPlayer`、`VictoryPlayerFemale` 和 `VictoryDeepSeek` 同样是摆出来的），`Props/` 是 Tripo 生成的道具（倒下的机柜、线缆堆、线缆盘、电路板珊瑚、旧显示器、硬盘堆、数据晶簇、鲸鱼），每个一张基础色贴图 |
 | `Assets/SystemPrompt/Resources/Art/` | 立绘、背景、战斗收尾特写，`Transitions/` 是转场用的背景图、噪声图和潜入视频，`CG/` 是过场 CG 的片段和定格图 |
-| `Assets/SystemPrompt/Resources/Audio/` | BGM（标题曲，剧情、潜空间、战斗、深层、觉醒战、结算、影子七段循环，觉醒战和结算各带一段前奏）和 8bit 音效 |
+| `Assets/SystemPrompt/Resources/Audio/` | BGM（标题曲，剧情、潜空间、战斗、深层、觉醒战、结算、影子七段循环，觉醒战和结算各带一段前奏）、8bit 音效和角色配音（`Voice/<行编号>.wav`，见[配音](#配音)） |
 | `Assets/SystemPrompt/Resources/Fonts/` | Noto Sans SC 三个字重、JetBrains Mono 两个字重和字体许可 |
 | `Assets/SystemPrompt/Resources/Story/` | `Prologue.yarnproject`，以及从 `story/` 同步过来的剧本副本 |
 | `Tools/e2e.sh` | 端到端验证脚本 |
@@ -187,6 +187,7 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 | `Tools/dive_video.py` | 渲潜入转场的循环视频 `Resources/Art/Transitions/dive.mp4`（需要 Pillow、Blender 和 ffmpeg，`--preview` 先出一段低清预览） |
 | `Tools/transition_textures.py` | 把 [assets/ui/transitions/](../assets/ui/transitions/README.md) 的生成图压到黑底放进 `Resources/Art/Transitions/`，并画出转场用的噪声图（需要 Pillow 和 numpy） |
 | `Tools/cg_clips.py` | 把 `Cutscenes/` 的原片转成过场 CG 的片段和定格图，放进 `Resources/Art/CG/`（需要 ffmpeg） |
+| `Tools/voice_lines.py`、`Tools/voice/` | 生成角色配音的脚本（Google 的 Chirp 3 HD 或 Gemini TTS），`voice/lines.tsv` 是每句配音念的文字、音色和时长；API key 填在 `voice/google.env`（不进仓库），见[配音](#配音) |
 | `Tools/bgm_loops.py` | 从 `Music/` 的原曲里截出七段循环 BGM 的脚本（自己测拍点，在最像的两条小节线之间截，检查接缝；觉醒战和结算另存循环起点之前的前奏） |
 | `Tools/face_expressions.py`、`Tools/FaceArt/` | 画角色表情图集的脚本，以及它用的正脸照片和五官位置 |
 | `Music/` | 七首 BGM 的 Suno 原曲（WAV），提示词、选曲和循环点见其中的 README |
@@ -256,7 +257,7 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 
 - 表情文件以剧本里的表情名命名：`smile.exp3.json`、`pout.exp3.json` 等，`neutral` 可以不做。没有对应文件的表情显示模型的默认样子。
 - 眨眼用 model3.json 里的 `EyeBlink` 参数组。
-- 口型用 `LipSync` 参数组，没有就用 `ParamMouthOpenY`。说话时按台词长度开合；没有配音，不做真正的口型同步。
+- 口型用 `LipSync` 参数组，没有就用 `ParamMouthOpenY`。说话时开合：有配音的台词开合到配音念完，没有的按台词长度；不按声音的起伏做真正的口型同步。
 - 呼吸用 `ParamBreath`，轻微摆动用 `ParamAngleX/Y/Z` 和 `ParamBodyAngleX`。参数缺了就跳过对应效果。
 
 每个 Live2D 立绘有自己的相机，把模型渲染到一张 1024×1536 的贴图上，和 PNG 立绘一样大，界面布局不用改。Cubism 按预乘透明输出，UI Toolkit 按普通透明混合，所以相机输出先经 `Resources/Live2D/Unpremultiply.shader` 换算，否则模型轮廓会发黑。取景按 Cubism Editor 里的画布：整张画布缩放进贴图，所以画布最好也做成 2:3，人物在画布里的位置和 PNG 立绘一致。立绘不在屏幕上时，相机和模型都会停下来。
@@ -274,6 +275,44 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 `<<cg 图ID>>` 放一张全屏过场 CG（`UI/Story/StoryFx.cs` 的 `ShowCg`，图在 `GameData.Cgs` 里登记）：图盖住背景和立绘，垫在对话框下面，后面的台词照常在上面走；`<<cg off>>` 淡出收起，换场景、进战斗或进潜空间时也会收起（`StoryScreen.Show(false)` 和 `ShowScene` 里清掉），读档和新开一局同样清掉。序章有三处：`dive`（手机显示「连接成功」后往下坠，接着换到缓存海，房间碎成方块的转场就从这张图上碎开）、`abyss_whale`（影子化成光点、光之鲸升起，留到进教学战斗，中间盖着思考强度拉到 Max 的演出）和 `council_window`（学生会室整段，留到序章结束）。每张图是一段 6 到 7 秒的片段 `Resources/Art/CG/<图ID>_motion.mp4` 加它的最后一帧 `<图ID>.png`：片段由一个 `VideoPlayer` 放进 RenderTexture，解出第一帧后停在这一帧上用 0.7 秒淡入，淡入完才开始播（深渊之鲸的影子在头两秒里就散了，边淡入边播会错过），只播一遍，播完停在最后一帧；快进剧情时不播片段，直接放定格图，两种情况下台词垫着的是同一幅画面。片段两秒内放不出第一帧就改用定格图，并在日志里记一条警告。图放出来后一直缓慢地朝主体推近（约半分钟内放大 7%，推近的中心点写在 `GameData.Cgs`），片段停住以后画面也不会死。图盖着的时候立绘照常登场、换表情，只是被挡住，对话框不再伸出指向说话人的尖角。新增一张图：原图和原片放进 `Cutscenes/`，在 `Tools/cg_clips.py` 的 `CLIPS` 和 `GameData.Cgs` 各加一行，跑一遍脚本。
 
 战斗中的提示和台词放在 `Prologue_Battle_*` 节点，由战斗系统在对应时机调用。`<<dungeon 区域ID>>` 进入潜空间探索，探索中的教学、区域、碎片和事件放在 `Prologue_Sea_*`、`Prologue_Deep_*` 节点，节点名、地图、分区和宝箱写在 `Scripts/Dungeon/DungeonData.cs`；这些节点在探索画面的对话框里播放，不能放选项；门打开（`Prologue_Sea_Gate`）、出口出现（`Prologue_Deep_Light`）、维护进度 80%（`Prologue_Deep_Warning`）和第一次被偷袭（`*_Ambushed`）的节点改由 DeepSeek 在右上角播报，只放她的台词。它们只能用探索专用的命令（`StoryCommands.RegisterHints`），目前是 `<<mirror walk|on|off>>`（两人走到出口旁的白门前、白门变成镜子、再变回来）和 `<<reveal firewall>>`（终端的节点里用镜头交代两道防火墙解除）。
+
+## 配音
+
+ChatGPT、Claude、DeepSeek、影子 DeepSeek、白门后的声音、班主任和两个路人的台词有配音，在剧情对话框、战斗提示、潜空间的对话框和右上角播报里都会放。主角（玩家命名、可选男女）、旁白、系统提示和 DeepSeek 的思考框不配音。三句带玩家起的称呼（`{$player_calls_deepseek}`）的台词念不出来，只有字。
+
+配音是 Google Cloud Text-to-Speech 生成的：
+
+```bash
+python3 game/Tools/voice_lines.py
+```
+
+脚本先给要配音、还没有编号的台词在行尾补上 Yarn 的 `#line:<编号>`，再按编号生成 `Resources/Audio/Voice/<编号>.wav`：只做缺的和改过文字或音色的（对照 `Tools/voice/lines.tsv`），剧本里删掉的台词，配音也一并删掉。`--dry-run` 只列出要做什么，`--speaker 角色 --force` 重做一个角色（换音色时用）。需要 ffmpeg：每句去掉首尾静音、统一响度（两遍 loudnorm，-18 LUFS）；影子降一点调、加短回声和比特压缩，白门后的声音削掉高低频、加一点空间。
+
+默认模型是 Chirp 3 HD（Cloud Text-to-Speech，`cmn-CN` 正式支持），音色自然，但不能按台词控制语气。`--model gemini-3.8-flash-tts`（或更快更省的 `gemini-3.8-flash-lite-tts`；更早的 TTS 模型不收逐句的语气）改用 Gemini API 的 Gemini TTS，整批重做：每句另带一段语气（`speech_metadata.style`），由角色的性格（脚本里的 `PERSONA`）、这句的表情（`#face`，同一场景里沿用）和小声组成，比如 DeepSeek 的 `sleepy` 是 drowsy, dragging the words。Gemini TTS 不用预置音色，用 Gemini 的「声音设计」（`POST /v1beta/voices`，按一段英文描述生成音色，返回 `voice_...` 编号和一段预览）给三位主角做的定制音色，写在脚本的 `GEMINI_VOICES` 表；音色存在 Gemini 项目里，一年没用会过期，过期后用同样的描述重新设计、换掉编号。描述里不要写具体年龄（写了未成年的年龄会被安全策略拦下）。语气提示（`PERSONA`）只写说话方式，不写音色本身。
+
+| 说话人 | Gemini 定制音色 | 设计描述 |
+| --- | --- | --- |
+| ChatGPT、？？？ | `voice_nqxg37ym3gpj` | A refined, slightly lower and mature young female voice, calm and dignified like a dependable student council president, smooth and composed. |
+| Claude | `voice_vfpa20nxnbil` | A cool, clear, composed young female voice with a crisp, intelligent tone, low-key and reserved like a bookish girl with glasses. |
+| DeepSeek、影子DeepSeek | `voice_z7j5o98l3v0s` | A small, cute, high-pitched youthful female anime voice, sweet but sleepy and monotone, speaking in short, slow phrases with little pauses. |
+
+班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次，序章的 208 句要分两天做：配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
+
+两种模型用不同的 key，都写在 `Tools/voice/google.env`（已加入 `.gitignore`），也可以用同名环境变量：Chirp 3 HD 用 `GOOGLE_TTS_API_KEY`（Cloud 项目的 key，要启用 Cloud Text-to-Speech API），Gemini TTS 用 `GEMINI_API_KEY`（AI Studio 的 key，空着时用 `GOOGLE_TTS_API_KEY` 那一行）。AI Studio 的 key 调不了 Cloud Text-to-Speech。
+
+Chirp 3 HD 的音色、语速和效果写在脚本开头的 `VOICES` 表（Gemini TTS 不收语速，快慢写在提示里，效果两种模型都加）：
+
+| 说话人 | 音色 | 语速 | 说明 |
+| --- | --- | --- | --- |
+| ChatGPT | Despina | 1.0 | 礼貌周全、句子完整 |
+| Claude | Achernar | 0.97 | 声音轻、句子短 |
+| DeepSeek | Leda | 0.92 | 停顿多，慢慢想 |
+| 影子DeepSeek | Leda | 1.08 | 同一个声音，更快更冷，带数字感 |
+| ？？？ | Despina | 0.95 | 白门后的声音是 ChatGPT，隔着门 |
+| 班主任 | Charon | 0.97 | |
+| 路人学生A、B | Puck、Laomedeia | 1.05 | |
+
+游戏里（`AudioService` 的语音声道）：台词开始时按 Yarn 的行编号找 `Audio/Voice/<编号>`，找到就放，立绘或潜空间里 DeepSeek 的嘴动到配音念完；点一下先把字打完，配音接着念，翻到下一句才切掉。快进时不放配音。自动模式等配音念完再停半个自动间隔。小声说话（`#whisper`）放得轻一些，有配音时背景音乐压低到七成。设置的音频页有单独的「语音」音量。配音按载入时解压导入（`Editor/UiAssetImporter.cs`）。端到端验证核对 ChatGPT、Claude、DeepSeek、影子和白门后的声音都放过配音，剧情、战斗和潜空间里都放过，序章里至少放了 150 句不同的配音。
 
 ## 存档
 
@@ -297,6 +336,7 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 | 转场背景图（数据海隧道、电路板、光带、碎玻璃、故障画面、终端日志） | AI 图像生成，提示词见 [assets/ui/transitions/](../assets/ui/transitions/README.md) |
 | BGM | 标题用 PV 配乐去掉主唱的分轨（`pv/music/a1-without-lead-vocal.wav`）整首。其余七首是 Suno 生成的纯音乐，原曲和提示词在 [Music/](Music/README.md)，`Tools/bgm_loops.py` 从中截出循环：剧情「校园日常」（约 101 秒）、潜空间「缓存海」（72 秒，玩家房间的夜里也用）、战斗「噪声体来袭」（116 秒）、深层探索「缓存海·深层」（62 秒）、觉醒和教学战斗「深渊之鲸」（前奏 68 秒 + 循环 100 秒）、战斗结算「结算」（号角和前奏 48 秒 + 循环 34 秒）、和影子对峙「影子」（81 秒）。放哪一首由 `GameRoot.UpdateMusic` 决定：战斗里是这场战斗自己的曲子（`BattleDef.Music`，教学战斗是觉醒战），结算出来换成结算曲；潜空间里是区域的曲子（`DungeonDef.Music`）；剧情里用场景的曲子，剧本可以用 `<<music 曲名>>` 临时换一首（影子出现时换「影子」，觉醒的 CG 前换「深渊之鲸」，接进战斗时曲子不断），换场景、进战斗或进潜空间时结束 |
 | 音效 | PV 的 8bit 音效（`pv/sfx/`，由 `pv/scripts/sfx.py` 合成） |
+| 配音 | Google Cloud Text-to-Speech 的 Chirp 3 HD 中文音色（`cmn-CN`），由 `Tools/voice_lines.py` 生成，见[配音](#配音) |
 | 潜空间角色模型 | [Tripo](https://studio.tripo3d.uk) 生成：先按 `assets/characters/turnarounds` 的正面图生成 T 字姿势的图（手臂和衣服分开，绑骨后不粘连），再转成约 4 万面的模型，自动绑定 Mixamo 人形骨骼，动作用 Tripo 的预设（站立待机、行走、跑步）。男女主角是家居服（4-lounge）和镜子里的战斗服（5-battle），DeepSeek 是周末便服（3-casual）和潜空间战斗服（4-battle）。DeepSeek 战斗服后来换成 Tripo 多视角生成（正、左、后三张 3D 渲染风 T 字图）的约 185 万面高模，在 Blender 里减到约 10 万面、烘焙贴图、绑 Mixamo 骨骼加 6 节尾骨（流程在 `claude/vibrant-gauss-5cdv9b` 分支的 `assets/characters/highpoly/blender/`） |
 | 角色动作 | 行走、跑步、冲刺、站立待机、三人的战斗待机，饭勺的回旋扫、鱼跃翻滚、左右拳、起跳和落地，截图的跪姿，以及受击取自 [Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)（Standard 免费版，CC0），导成人形 `.anim` 放在 `Resources/Models/Motions/`（`Sweep`、`Roll`、`Jab`、`Cross`、`Leap`、`Land`、`Kneel`、`HitChest`、`HitHead`，取自库里 `Unity/UAL1_Standard.fbx`，那里的身体朝 -Z，所以这九段的根旋转偏移设为 180°，和行走、跑步同向）；施法是 Tripo 的预设；横斩的三刀、投掷、膝上起身、倒下、被打飞和起身取自同一套库里的 `Sword_Regular_Combo`、`OverhandThrow`、`Fixing_Kneeling`、`Death01`、`Hit_Knockback`、`LayToIdle`（库的 UAL1 和 UAL2 两部分，Standard 免费版，CC0），由 `Editor/BattleMotions.cs` 切出；行走、跑步、冲刺和站立待机由 `Editor/GaitMotions.cs` 从库里的 `Walk_Loop`、`Sprint_Loop`、`Idle_Loop` 改出；防御、道具、深度思考、胜利姿势和其余战斗待机由 `Editor/StancePoser.cs` 摆出 |
 | 字体 | [Noto Sans SC](https://fonts.google.com/noto/specimen/Noto+Sans+SC) 和 [JetBrains Mono](https://www.jetbrains.com/lp/mono/)，SIL Open Font License 1.1，见 `Resources/Fonts/OFL.txt` |

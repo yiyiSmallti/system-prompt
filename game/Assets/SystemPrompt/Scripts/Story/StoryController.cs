@@ -45,6 +45,7 @@ namespace SystemPrompt.Story
             else if (speaker == playerName) info.Kind = tags.Contains("inner") ? LineKind.Inner : LineKind.Player;
             else if (speaker == "影子DeepSeek") info.Kind = LineKind.Shadow;
             else info.Kind = LineKind.Speech;
+            if (info.Kind == LineKind.Speech || info.Kind == LineKind.Shadow) info.Voice = AudioService.VoiceFor(line.TextID);
             return info;
         }
     }
@@ -173,6 +174,7 @@ namespace SystemPrompt.Story
         {
             if (stopped) return;
             stopped = true;
+            game.Audio.StopVoice();
             UnityEngine.Object.Destroy(host);
         }
 

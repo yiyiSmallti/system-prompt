@@ -8,6 +8,7 @@ namespace SystemPrompt.EditorTools
     {
         const string ArtRoot = "Assets/SystemPrompt/Resources/Art/";
         const string BgmRoot = "Assets/SystemPrompt/Resources/Audio/BGM/";
+        const string VoiceRoot = "Assets/SystemPrompt/Resources/Audio/Voice/";
         const string TransitionRoot = ArtRoot + "Transitions/";
 
         void OnPreprocessTexture()
@@ -35,6 +36,19 @@ namespace SystemPrompt.EditorTools
 
         void OnPreprocessAudio()
         {
+            if (assetPath.StartsWith(VoiceRoot))
+            {
+                // Voiced lines (Tools/voice_lines.py): short and loaded one at a time as their line comes up,
+                // so they are decompressed on load and play the moment the line does.
+                var voice = (AudioImporter)assetImporter;
+                var vs = voice.defaultSampleSettings;
+                vs.loadType = AudioClipLoadType.DecompressOnLoad;
+                vs.compressionFormat = AudioCompressionFormat.Vorbis;
+                vs.quality = 0.5f;
+                voice.defaultSampleSettings = vs;
+                voice.forceToMono = true;
+                return;
+            }
             if (!assetPath.StartsWith(BgmRoot)) return;
             var importer = (AudioImporter)assetImporter;
             var settings = importer.defaultSampleSettings;

@@ -16,6 +16,7 @@ namespace SystemPrompt
         public float masterVolume = 0.8f;
         public float musicVolume = 0.6f;
         public float sfxVolume = 0.8f;
+        public float voiceVolume = 0.9f;
 
         public int textSpeed = 2;
         public float autoDelay = 1.5f;

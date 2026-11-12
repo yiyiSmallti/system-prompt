@@ -76,3 +76,6 @@ crashlytics-build.properties
 # 剧本同步副本：game/Assets/SystemPrompt/Editor/YarnStorySync.cs 每次打开编辑器时从 story/ 复制
 /game/Assets/SystemPrompt/Resources/Story/Synced/
 /game/Assets/SystemPrompt/Resources/Story/Synced.meta
+
+# 配音生成用的 Google API key（game/Tools/voice/google.env），只留在本机
+/game/Tools/voice/google.env

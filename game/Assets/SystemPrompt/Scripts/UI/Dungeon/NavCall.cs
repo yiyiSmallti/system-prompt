@@ -24,6 +24,7 @@ namespace SystemPrompt.UI
         readonly Image face;
         readonly Label name, text;
         readonly Queue<LineInfo> queue = new Queue<LineInfo>();
+        AudioClip voice; // the voice of the line up now
         int serial;
         bool playing;
         string navFace; // the bust's face, kept from line to line until one is tagged with another
@@ -73,6 +74,8 @@ namespace SystemPrompt.UI
             Said = null;
             Ui.Show(Root, false);
             if (Companion != null) Companion.Talking = false;
+            game.Audio.StopVoice(voice);
+            voice = null;
         }
 
         // ------------------------------------------------------------------ lines (ILinePresenter)
@@ -119,7 +122,11 @@ namespace SystemPrompt.UI
                 if (run != serial) return;
                 await Say(line, run);
                 if (run != serial) return;
-                await Anim.Wait(1.3f + 0.07f * line.Text.Length, () => run != serial || held());
+                // A voiced line stays up until she has said it, and a moment after.
+                while (game.Audio.Voicing(voice) && run == serial && !held()) await Awaitable.NextFrameAsync();
+                if (Figure(line) != null) Figure(line).Talking = false;
+                await Anim.Wait(voice != null ? 0.8f : 1.3f + 0.07f * line.Text.Length, () => run != serial || held());
+                game.Audio.StopVoice(voice);
             }
             if (run != serial) return;
             if (up) await Out(run);
@@ -149,9 +156,11 @@ namespace SystemPrompt.UI
 
         async Awaitable Say(LineInfo line, int run)
         {
-            var her = line.Speaker == "DeepSeek" ? Companion : null;
+            var her = Figure(line);
             if (her != null) her.Talking = true;
             game.Audio.Sfx("key", 0.35f);
+            voice = line.Voice;
+            game.Audio.PlayVoice(voice, line.Speaker, line.VoiceLevel);
             var cps = game.Settings.CharsPerSecond;
             var all = line.Text;
             var shown = float.IsInfinity(cps) ? all.Length : 0f;
@@ -163,8 +172,10 @@ namespace SystemPrompt.UI
             }
             text.text = Ui.GluePunctuation(all);
             if (run == serial) Said = all;
-            if (her != null) her.Talking = false;
+            if (her != null && !game.Audio.Voicing(line.Voice)) her.Talking = false;
         }
+
+        SeaCompanion Figure(LineInfo line) => line.Speaker == "DeepSeek" ? Companion : null;
 
         // The frame swings in from the right edge and the bubble pops out of it.
         async Awaitable In(int run)
