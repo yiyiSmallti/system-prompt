@@ -30,15 +30,25 @@ namespace SystemPrompt.Dungeon
         const float FlinchOut = 0.2f; // a hit's jolt easing off at the end, seconds
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
         const float RiceGrow = 0.15f; // the 道具's rice ball coming into the hand and going, in seconds
-        static readonly Color Shade = new Color(0.78f, 0.74f, 0.8f);
+        // The cloth's colour in shade, on its own colour: a cool violet two fifths down, deep enough that the lit
+        // side and the shaded one are two tones of a drawing (at 0.78 it was a tint nobody could see).
+        static readonly Color Shade = new Color(0.6f, 0.58f, 0.78f);
         static readonly Color SkinShade = new Color(0.93f, 0.78f, 0.75f); // peach in shadow, not mauve
-        // A VRoid model's skin has clean normals and can turn to shade round the terminator, softly and a little deeper:
+        // A VRoid model's skin has clean normals and can turn to shade at the terminator, a little deeper:
         // left lit all over (as a generated face has to be) a hand read as a mitten and a leg as a flat paddle.
-        static readonly Color SkinShadeOwn = new Color(0.9f, 0.73f, 0.7f);
-        static readonly Vector4 SkinEdgeOwn = new Vector4(-0.15f, 0.3f, 0f, 0f);
-        // The light's edge on a figure's cloth, wider than the scenery's: at 0.05 it followed the cloth's triangles
-        // in saw teeth down a sleeve.
-        const float ClothWrap = 0.2f;
+        // With a drawn edge, as the cloth's: two tones, not a gradient.
+        static readonly Color SkinShadeOwn = new Color(0.94f, 0.76f, 0.75f);
+        static readonly Vector4 SkinEdgeOwn = new Vector4(-0.03f, 0.05f, 0f, 0f);
+        // The light's edge on a figure's cloth: a drawn edge, as the anime games have it. (It was 0.2 for a while, a
+        // soft band, because a hard one runs in a zigzag down a hoodie's sleeve: the sleeve is modelled with folds,
+        // and those read as drawn folds now that the whole figure is in two tones.)
+        const float ClothWrap = 0.06f;
+        // The whites of the eyes in shade: grey-violet, not the cloth's deep blue.
+        static readonly Color EyeShade = new Color(0.8f, 0.78f, 0.88f);
+        // A generated model's texture has its light and shade painted in already, and its surface is uneven: a lighter
+        // shade with a wider edge, or it comes out twice as dark in patches.
+        static readonly Color ShadeDrawn = new Color(0.72f, 0.7f, 0.84f);
+        const float ClothWrapDrawn = 0.14f;
         // What a model wears under something else, by its material, and how far behind itself it is drawn (Toon.shader's
         // _Sink), in metres: DeepSeek's shirt showed through her whale hoodie's front in patches.
         // The lounge tops are VRoid's hoodie with the hood rubbed out, long and loose over the thighs. By its material:
@@ -225,6 +235,7 @@ namespace SystemPrompt.Dungeon
         readonly bool carriesPhone; // the player: in the stance the phone is in their right hand
         readonly List<(Material look, Vector2 radii)> overLegs = new List<(Material, Vector2)>(); // the tops kept out of the legs, and how thick those are
         readonly List<Material> necks = new List<Material>(); // the body's skin of a VRoid figure, which takes the chin's shade (Toon.shader's _Chin)
+        readonly List<Material> worn = new List<Material>();  // every material of the figure's own, which are told where its head is (_HeadAt)
         Vector3 headUp, headAhead; // up and ahead of the head, in the head bone's own space, as the model stands in its file
         bool inStance;
         Transform phone;
@@ -413,9 +424,10 @@ namespace SystemPrompt.Dungeon
             if (texture == null && !own) throw new InvalidOperationException($"找不到角色贴图 Resources/{path}_BaseColor");
             if (!own)
             {
-                look = SeaArt.Toon(Color.white, Shade, Rim, default, Outline);
+                look = SeaArt.Toon(Color.white, ShadeDrawn, Rim, default, Outline);
                 look.SetFloat("_RimPower", RimPower);
-                look.SetFloat("_Wrap", ClothWrap);
+                look.SetFloat("_Wrap", ClothWrapDrawn);
+                look.SetFloat("_ShadePure", 0f);
                 look.SetFloat("_OutlinePx", Line);
                 look.SetFloat("_OutlineTint", 1f);
                 look.SetFloat("_OutlineBare", 1f);
@@ -423,6 +435,8 @@ namespace SystemPrompt.Dungeon
                 look.SetFloat("_SkinMask", 1f);
                 look.SetFloat("_CameraLight", 1f); // faces stay lit whichever way the figure turns
                 look.SetFloat("_Lift", UndersideLift);
+                look.SetFloat("_FaceRound", 2f); // its face, by its skin near the head (Toon.shader)
+                worn.Add(look);
                 look.mainTexture = texture;
             }
 
@@ -445,6 +459,7 @@ namespace SystemPrompt.Dungeon
                     var parts = r.sharedMaterials;
                     var dressed = Array.ConvertAll(parts, part => Dress(part, model));
                     r.sharedMaterials = dressed;
+                    worn.AddRange(dressed);
                     for (var i = 0; i < parts.Length; i++)
                     {
                         if (OverLegs.TryGetValue(model + "/" + parts[i].name, out var radii)) overLegs.Add((dressed[i], radii));
@@ -633,6 +648,9 @@ namespace SystemPrompt.Dungeon
             m.SetFloat("_OutlineWidth", Outline);
             var overlay = part.GetFloat("_ZWrite") < 0.5f || part.name.Contains("_EYE") || part.name.Contains("_FACE");
             m.SetFloat("_OutlinePx", overlay ? 0f : Line);
+            // The face and what is laid over it are shaded together, as a ball round the head (Toon.shader's _FaceRound).
+            if (overlay || part.name.Contains("Face_00_SKIN")) m.SetFloat("_FaceRound", 1f);
+            if (part.name.Contains("_EYE")) m.SetColor("_ShadeColor", EyeShade * part.GetColor("_Color"));
             m.SetFloat("_OutlineTint", 1f);
             if (part.name.Contains("_HAIR"))
             {
@@ -1086,13 +1104,17 @@ namespace SystemPrompt.Dungeon
         void LegsUnder()
         {
             var size = Animator.transform.lossyScale.y;
-            foreach (var m in necks)
+            var at = head.position;
+            Vector3 up = head.TransformDirection(headUp), ahead = head.TransformDirection(headAhead);
+            // The head bone, the figure's height and the head's own up and ahead: what a face is shaded round, and what
+            // the figure's own shadows are sized by.
+            foreach (var m in worn)
             {
-                var at = head.position;
-                m.SetVector("_ChinAt", new Vector4(at.x, at.y, at.z, size));
-                m.SetVector("_ChinUp", head.TransformDirection(headUp));
-                m.SetVector("_ChinAhead", head.TransformDirection(headAhead));
+                m.SetVector("_HeadAt", new Vector4(at.x, at.y, at.z, height));
+                m.SetVector("_ChinUp", up);
+                m.SetVector("_ChinAhead", ahead);
             }
+            foreach (var m in necks) m.SetVector("_ChinAt", new Vector4(at.x, at.y, at.z, size));
             if (overLegs.Count == 0) return;
             foreach (var (m, radii) in overLegs)
                 for (var side = 0; side < 2; side++)

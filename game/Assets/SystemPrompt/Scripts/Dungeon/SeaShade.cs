@@ -89,7 +89,9 @@ namespace SystemPrompt.Dungeon
                 soft.Create();
                 soften = new Material(Resources.Load<Shader>("Shaders/ShadeSoft"));
             }
-            depth = RenderTexture.GetTemporary(eye.pixelWidth, eye.pixelHeight, 16, RenderTextureFormat.RHalf);
+            // (In full floats: a half's grain is 4 to 8 mm at the distances the cameras stand, as coarse as the gap between a
+            // fringe and the brow it throws its shadow on, Toon.shader's CastShade.)
+            depth = RenderTexture.GetTemporary(eye.pixelWidth, eye.pixelHeight, 16, RenderTextureFormat.RFloat);
             depth.filterMode = FilterMode.Point;
 
             // The map: 14 m square round the player in the maze, 20 m round the field's middle in a battle (no scenery

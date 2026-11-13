@@ -3,6 +3,9 @@
 // (on the character models a thin line of even width on the picture, _OutlinePx, see Dungeon/SeaFigure.cs). Scenery can also take the avatar's lamp (_Lamp, _Gloss)
 // and thin out in front of the lens and the avatar (_Fade). A figure's rim comes from its depth while a sea camera draws
 // (DepthRim, Dungeon/SeaShade.cs), and its SEADEPTH pass gives that depth and its shadow on the seabed.
+// A figure (_CameraLight) is drawn as the anime games draw theirs: lit from the camera's upper right, two flat tones
+// with a drawn edge, its shade deeper and purer in colour (_ShadePure), its face shaded as a ball round the head
+// (_FaceRound, _HeadAt) and its own shadows thrown on itself from the figures' depth (CastShade, _CastOwn).
 // The character models bring their base colour as _MainTex, with how much of each texel is skin in its
 // alpha (Editor/ModelAssetImporter.cs) and _SkinMask on, so skin takes its own warmer shade; everything
 // else leaves the texture white and the mask off. A figure with drawn expressions also brings them
@@ -59,6 +62,9 @@ Shader "SystemPrompt/Toon"
         _OutlineTint ("That line in the part's own colour, darkened", Float) = 0
         _OutlineBare ("No line on skin (a generated model)", Float) = 0
         _Chin ("The chin's shade on the neck (_ChinAt, _ChinUp, _ChinAhead)", Float) = 0
+        _FaceRound ("Shaded as a ball round the head (_HeadAt): 1 all of it (a face's own parts), 2 its skin near the head (a generated model)", Float) = 0
+        _ShadePure ("A figure's cloth this much purer in colour in its shade", Float) = 0.2
+        _CastOwn ("How much of the figure's own shadows it takes (hair on the brow, a hem on the thighs)", Float) = 1
         _HairGloss ("Band of light round hair", Float) = 0
         _HairGlossColor ("Its colour", Color) = (0.5,0.6,0.8,1)
         _Cutoff ("Alpha cutoff", Float) = 0
@@ -169,6 +175,8 @@ Shader "SystemPrompt/Toon"
             float _RimPower, _SkinMask, _CameraLight, _Cutoff, _AlphaToMask, _ZWrite, _Lamp, _Fade, _FootDark, _Gloss, _Caustic, _Blink, _Breathe;
             float _Wrap, _Sink, _Lift, _BackLit, _Legs, _Inner, _Sheen, _HairGloss, _Chin, _SwayAmp, _SwayAnchor, _SwayLength;
             float4 _InnerColor, _SkinEdge, _LegTop0, _LegEnd0, _LegTop1, _LegEnd1, _HairGlossColor, _ChinAt, _ChinUp, _ChinAhead;
+            float4 _HeadAt;
+            float _FaceRound, _CastOwn, _ShadePure;
             sampler2D _Faces, _FaceDepth;
             float _FaceOn;
             float4 _FaceCells, _FaceForward;
@@ -245,6 +253,78 @@ Shader "SystemPrompt/Toon"
                 return edge * saturate(dot(n, rimDir) * 0.8 + 0.4);
             }
 
+            // A figure's own shadows on itself, from the same depth: a few steps from the surface toward the light, and
+            // in shadow where the figures' depth at a step lies in front of it, by more than the depth's own grain
+            // (bias, wider on a surface seen edge on) and by less than a body is thick (so what stands a pace in front
+            // of her throws nothing on her). What a drawing puts shadow under: the fringe on the brow, the jaw on the
+            // neck, a collar, a sleeve and a skirt's hem on what they hang over. The depth is a point per pixel, so
+            // each step is weighed between its four nearest, or the shadow's edge comes out in stairs; and the steps
+            // are even and close (a shadow is every step's copy of what throws it, laid over one another: six steps
+            // growing to 5 cm apart left its far edge in scallops as wide). A face takes them from a seventh as far
+            // (reach): its fringe's shadow under the fringe, not every lock round the head drawn across the cheeks.
+            float CastShade(v2f i, float3 n, float3 toLight, float size, float slope, float face)
+            {
+                float2 texels = _ScreenParams.xy, texel = 1.0 / texels;
+                // (On a face only by what stands 8 mm to 5 cm off it: the fringe, not the nose on the cheek beside it
+                // nor a hood's brim, which put the whole face in shade.)
+                float reach = lerp(1.0, 0.15, face);
+                float bias = lerp(0.004, 0.008, face) * size + slope * 1.5, thick = lerp(0.14, 0.05, face) * size, soft = bias + 0.002 * size;
+                float3 from = i.world + n * 0.003 * size;
+                float3 pace = toLight * 0.0135 * size * reach;
+                float own = UnityWorldToClipPos(from).w;
+                float cast = 0, entry = -1, before = own, ahead = own;
+                for (int k = 0; k < 12; k++)
+                {
+                    float4 clip = UnityWorldToClipPos(from + pace * (k + 0.6));
+                    float4 screen = ComputeScreenPos(clip);
+                    float2 t = screen.xy / screen.w * texels - 0.5, f = frac(t), base = (floor(t) + 0.5) * texel;
+                    float4 depth = float4(
+                        tex2Dlod(_SeaFigureDepth, float4(base, 0, 0)).r,
+                        tex2Dlod(_SeaFigureDepth, float4(base + float2(texel.x, 0), 0, 0)).r,
+                        tex2Dlod(_SeaFigureDepth, float4(base + float2(0, texel.y), 0, 0)).r,
+                        tex2Dlod(_SeaFigureDepth, float4(base + texel, 0, 0)).r);
+                    float4 gap = clip.w - depth;
+                    float4 s = smoothstep(bias, soft, gap) * (1.0 - smoothstep(thick * 0.6, thick, gap));
+                    cast = max(cast, lerp(lerp(s.x, s.y, f.x), lerp(s.z, s.w, f.x), f.y));
+                    // The first step to come under something the ray was still behind a step ago.
+                    float2 pick = step(0.5, f);
+                    float nearest = lerp(lerp(depth.x, depth.y, pick.x), lerp(depth.z, depth.w, pick.x), pick.y);
+                    if (entry < 0 && before - nearest > bias)
+                    {
+                        entry = k + 0.6;
+                        ahead = before;
+                    }
+                    before = clip.w;
+                }
+                // The steps find what the ray passes behind only where a step lands behind it: what hangs a
+                // centimetre off the surface is behind the ray for less than a step, and its shadow's far edge came
+                // out in stairs, one for each step that still caught it. So where the ray first comes under something
+                // it was behind at the step before, the place between the two steps where it comes under it is
+                // searched out to an eighth of a step, and the ray tried against it there.
+                if (entry >= 0)
+                {
+                    float lo = max(entry - 1.0, 0.0), hi = entry;
+                    for (int j = 0; j < 3; j++)
+                    {
+                        float mid = (lo + hi) * 0.5;
+                        float4 screen = ComputeScreenPos(UnityWorldToClipPos(from + pace * mid));
+                        if (ahead - tex2Dlod(_SeaFigureDepth, float4(screen.xy / screen.w, 0, 0)).r > bias) hi = mid;
+                        else lo = mid;
+                    }
+                    float4 clip = UnityWorldToClipPos(from + pace * hi);
+                    float4 screen = ComputeScreenPos(clip);
+                    float2 t = screen.xy / screen.w * texels - 0.5, f = frac(t), base = (floor(t) + 0.5) * texel;
+                    float4 gap = clip.w - float4(
+                        tex2Dlod(_SeaFigureDepth, float4(base, 0, 0)).r,
+                        tex2Dlod(_SeaFigureDepth, float4(base + float2(texel.x, 0), 0, 0)).r,
+                        tex2Dlod(_SeaFigureDepth, float4(base + float2(0, texel.y), 0, 0)).r,
+                        tex2Dlod(_SeaFigureDepth, float4(base + texel, 0, 0)).r);
+                    float4 s = smoothstep(bias, soft, gap) * (1.0 - smoothstep(thick * 0.6, thick, gap));
+                    cast = max(cast, lerp(lerp(s.x, s.y, f.x), lerp(s.z, s.w, f.x), f.y));
+                }
+                return cast;
+            }
+
             fixed4 frag(v2f i, fixed facing : VFACE) : SV_Target
             {
                 // The maze's scenery makes way for the lens and the avatar as a screen door (SeaCommon.cginc).
@@ -252,9 +332,13 @@ Shader "SystemPrompt/Toon"
                 float3 n = normalize(i.normal) * (facing > 0 ? 1 : -1);
                 float3 view = normalize(_WorldSpaceCameraPos - i.world);
                 // The sea's light comes from one side of the world, so a figure turned to the camera often had
-                // its face in shade, with the terminator crossing it. Figures take their light from above the
-                // camera and a little to its right instead (row 2 of the view matrix points back at the camera).
-                float3 key = normalize(UNITY_MATRIX_V[2].xyz + UNITY_MATRIX_V[0].xyz * 0.4 + float3(0, 0.8, 0));
+                // its face in shade, with the terminator crossing it. Figures take their light from the camera's side
+                // instead (row 2 of the view matrix points back at the camera): from above it and well to its right, as
+                // a drawing's key light stands, so each form has a lit side and a side in shade whichever way the figure
+                // turns; and from steeper overhead for the shadows they throw on themselves (CastShade), which then
+                // fall down the figure, under what throws them, rather than away behind it.
+                float3 key = normalize(UNITY_MATRIX_V[2].xyz * 0.55 + UNITY_MATRIX_V[0].xyz * 0.6 + float3(0, 0.75, 0));
+                float3 overhead = normalize(UNITY_MATRIX_V[2].xyz * 0.3 + UNITY_MATRIX_V[0].xyz * 0.42 + float3(0, 0.9, 0));
                 float3 toLight = normalize(lerp(normalize(_SeaLightDir.xyz), key, _CameraLight));
                 float ndl = dot(n, toLight);
                 float4 albedo = tex2D(_MainTex, i.uv);
@@ -271,9 +355,33 @@ Shader "SystemPrompt/Toon"
                     drawn = face.a;
                 }
                 // A generated model's skin turns to shade only well past the terminator, so the uneven normals of its
-                // face don't break it into patches; a VRoid model's does round the terminator, softly (_SkinEdge).
+                // face don't break it into patches; a VRoid model's does at the terminator, with a drawn edge (_SkinEdge).
                 float skin = max(albedo.a, drawn) * _SkinMask;
-                float lit = lerp(smoothstep(-_Wrap, _Wrap, ndl), smoothstep(_SkinEdge.x, _SkinEdge.y, ndl), skin);
+                float figure = step(0.5, _CameraLight);
+                // Two flat tones with a drawn edge between them: as wide as _Wrap, and never finer than a pixel.
+                float wrap = max(_Wrap, fwidth(ndl) * 0.7);
+                float lit = lerp(smoothstep(-wrap, wrap, ndl), smoothstep(_SkinEdge.x, _SkinEdge.y, ndl), skin);
+                // A face is shaded as a ball round the head, not by its own surface: the nose, the lips and the eye
+                // sockets would each take their own patch of shade, and a generated face's uneven normals break it into
+                // blotches. The ball is flattened from above and below, so the edge of the shade runs down the face
+                // and comes in from the cheek turned from the light as the head turns, as it is drawn (and as the
+                // anime games' face shadow maps have it); with the face to the camera only that cheek's rim is in it.
+                float size = _HeadAt.w > 0 ? _HeadAt.w / 1.6 : 1.0, round = 0;
+                if (_FaceRound > 0.5)
+                {
+                    float3 d = (i.world - _HeadAt.xyz) / max(_HeadAt.w, 1e-4) - _ChinUp.xyz * 0.035 - _ChinAhead.xyz * 0.01;
+                    float3 ball = normalize(d - _ChinUp.xyz * dot(d, _ChinUp.xyz) * 0.7);
+                    round = _FaceRound > 1.5 ? skin * (1.0 - smoothstep(0.08, 0.1, length(d))) : 1.0;
+                    float3 faceLight = normalize(toLight - _ChinUp.xyz * dot(toLight, _ChinUp.xyz) * 0.6);
+                    float turn = dot(ball, faceLight) + 0.14;
+                    float edge = max(0.025, fwidth(turn) * 0.7);
+                    lit = lerp(lit, smoothstep(-edge, edge, turn), round);
+                }
+                float slope = fwidth(i.screen.w);
+                // (None on a generated model's face: its fringe is one lump with the brow, and its nose and the
+                // unevenness of the surface threw ragged patches across the cheeks.)
+                [branch] if (figure > 0 && _SeaFigureRim > 0 && _CastOwn > 0)
+                    lit = min(lit, 1.0 - CastShade(i, n, overhead, size, slope, round) * _CastOwn * (_FaceRound > 1.5 ? 1.0 - round : 1.0));
                 lit = lerp(lit, 1.0, _BackLit * step(facing, 0));
                 // The head's shade on the neck (the body's skin of a VRoid figure; SeaFigure gives the head bone, at the
                 // top of the neck, some 6 cm above the chin, and which way is up and ahead of it): the front of the neck
@@ -296,13 +404,16 @@ Shader "SystemPrompt/Toon"
                 // plain multiply it only darkened the shade), strongly in the shade and less on the lit side (the
                 // figures are lit from the camera's side, so from the game's camera they are mostly lit), with a
                 // little of the seabed's light thrown up under the lit side too. Skin keeps its own colours.
-                float figure = step(0.5, _CameraLight), cloth = figure * (1.0 - skin * 0.85);
+                float cloth = figure * (1.0 - skin * 0.85);
                 float3 ground = _SeaGroundColor.rgb * 3.0 / max(dot(_SeaGroundColor.rgb, 1.0), 1e-3);
                 float3 sky = _SeaSurfaceColor.rgb * 3.0 / max(dot(_SeaSurfaceColor.rgb, 1.0), 1e-3);
                 float3 hue = lerp(ground, sky, saturate(n.y * 0.8 + 0.3));
                 shade *= lerp(1.0, hue, 0.45 * cloth);
                 float3 lift = lerp(1.0, hue, 0.2 * cloth) + _SeaGroundColor.rgb * saturate(0.2 - n.y) * 0.3 * cloth;
-                float3 col = lerp(shade, _Color.rgb * lift, lit) * albedo.rgb;
+                // A figure's shade keeps more of its own colour than its lit side: a drawing's shadow colour is deeper
+                // and purer, not the same paint with less light on it.
+                float3 deep = lerp(albedo.rgb, saturate(lerp(dot(albedo.rgb, float3(0.3, 0.59, 0.11)), albedo.rgb, 1.0 + _ShadePure)), figure * (1.0 - skin));
+                float3 col = lerp(shade * deep, _Color.rgb * lift * albedo.rgb, lit);
                 // Skin is warmest where it turns from the light: a line of red along the shade's edge, as it is drawn.
                 col *= 1.0 + float3(0.07, -0.03, -0.07) * (lit * (1.0 - lit) * 4.0) * skin * figure;
                 // Scenery standing on the seabed is darker toward its foot, the seabed's contact shade carried up it.
