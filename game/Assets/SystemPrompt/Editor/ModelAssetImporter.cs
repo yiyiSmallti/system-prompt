@@ -90,7 +90,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // Bump when the import below changes, so the models and textures already in the library are redone.
-        public override uint GetVersion() => 14;
+        public override uint GetVersion() => 15;
 
         // Tripo's rig has no bones for a tail, a bag or hair down the back, and gives their vertices to the limb
         // nearest in the T-pose: casual DeepSeek's whale tail went to her feet and right thigh, the hair down her
@@ -427,9 +427,13 @@ namespace SystemPrompt.EditorTools
             importer.alphaSource = TextureImporterAlphaSource.FromGrayScale;
             importer.alphaIsTransparency = false;
             importer.mipmapEnabled = true;
-            importer.maxTextureSize = 2048;
+            importer.maxTextureSize = Array.Exists(Fine, model => assetPath.EndsWith("/" + model + "_BaseColor.png")) ? 4096 : 2048;
             importer.textureCompression = TextureImporterCompression.CompressedHQ;
         }
+
+        // Models whose base colour is kept at 4096: DeepSeek's battle dress was generated again with an 8K texture
+        // for its lace hem and gold embroidery, which at 2048 smear back into what the first one had.
+        static readonly string[] Fine = { "DeepSeek" };
 
         // Tripo's delighting flattens the bright end of the base colour. Against the turnarounds the darks
         // match (#343439 in both), but white comes out at 76% instead of 96%, and skin a grey pink (#B6A9A8,

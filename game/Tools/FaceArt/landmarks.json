@@ -1,7 +1,7 @@
 {
   "_": "Where the eyes and the mouth are on each <model>_capture.png (512 x 512, x right, y down), read off the captures by eye. Eyes: centre and half width / half height of the eye with its lashes; the first is the one on the left of the picture (the figure's right eye).",
   "DeepSeekCasual": { "eyes": [[151, 243, 39, 32], [346, 238, 39, 32]], "mouth": [250, 352] },
-  "DeepSeek": { "eyes": [[161, 284, 37, 28], [339, 282, 41, 28]], "mouth": [250, 396] },
+  "DeepSeek": { "eyes": [[151, 283, 46, 31], [343, 283, 51, 31]], "mouth": [250, 396] },
   "PlayerMale": { "eyes": [[167, 276, 33, 18], [321, 272, 33, 18]], "mouth": [250, 389] },
   "PlayerFemale": { "eyes": [[154, 264, 34, 19], [318, 253, 34, 19]], "mouth": [240, 357] },
   "PlayerMaleBattle": { "eyes": [[163, 264, 33, 18], [326, 263, 33, 18]], "mouth": [245, 368] },

@@ -157,6 +157,42 @@ Unity -batchmode -quit -projectPath MotionCheck -executeMethod MotionCheck.Run -
 - 腋下仍有斗篷和上衣、身体互相穿插，手臂放下时被挡住；手臂大幅上举的动作（Cheer）从侧下方看可能露出来。
 - 右前侧一缕头发的发尖在行走时会碰进斗篷。
 
+## 整体模型精修
+
+整体生成的角色（不拆部件）用 `blender/refine_whole.py` 从 Tripo 的高模收成能进游戏的模型：
+
+```
+blender -b -P blender/refine_whole.py -- NEW.glb OUT_DIR --donor OLD.glb --donor-yaw -90 --tris 120000
+```
+
+脚本依次做四件事：焊接 UV 接缝处的重复顶点并改成平滑着色；从同一角色的旧模型上把新模型缺的部分（呆毛）按「离新表面超过 4 mm」抠出来，烘成一张自己的 1K 贴图后接上；减到指定面数，脸部框内留 1.2 万面，再把高模表面烘成新的 4K 法线贴图；最后调 `blender/refine_materials.py` 按表面类型给材质。输出 `<名字>-refined.blend` 和 `.glb`，模型保持 Tripo 的尺寸，脚踩 z=0，面朝 -Y。
+
+`refine_materials.py` 解决塑料感，也可以单独对精修后的 .blend 反复运行（`blender -b X-refined.blend -P blender/refine_materials.py -- X-refined.glb`），数值都在文件开头的 `FEEL` 表里。Tripo 给所有表面同一个粗糙度，贴图又是几千块碎片，所以按底色把贴图像素分成金属、宝石、皮肤、头发、白布、深色布六类，每类各写一套：
+
+- 粗糙度和金属度：布料最哑，皮肤和头发居中，金线和扣件是金属，宝石光滑。
+- 法线：Tripo 的表面像泥塑一样有颗粒，皮肤上只留 25%、头发留 55%，布料基本保留。
+- 底色：这次生成没去光，皮肤和白布里画死了阴影，按各自的亮部色调把明暗压平（皮肤压 90%、白布压 50%）。阴影里的皮肤还偏棕（裙子下面那截大腿），只提亮的话进游戏会被导入时的调色调成橙色，所以原本很暗的皮肤连颜色一起换成亮部的肤色；腮红和亮部一样亮，不受影响。
+- 高光强度、布料绒感、皮肤透光：只在 Blender 里生效，glTF 不带。
+
+`blender/preview_whole.py` 出预览图：默认是柔光下的 PBR，`--toon 1` 是接近游戏画法的三渲二（两段明暗、暗部偏冷紫、描边、脸按球面算明暗，没有投影）。三点硬光会把白色打爆、让所有表面都显得更亮更滑，不要用它判断材质。前后对比见 [refined-deepseek-4-battle-8k-materials.jpg](refined-deepseek-4-battle-8k-materials.jpg)，脸部特写见 [refined-deepseek-4-battle-8k-face.jpg](refined-deepseek-4-battle-8k-face.jpg)（左起：改前、改后 PBR、三渲二）。
+
+DeepSeek 战斗服在 2026-11-14 用 Tripo V3.1、8K 贴图重新生成了一版（任务 65c8c79f，三张 `tpose/deepseek-4-battle-4k-3d-*.jpg`，65 积分），原始文件是 `~/Downloads/deepseek-4-battle-8k-v31.glb`（189 万面），精修结果在 `~/Downloads/deepseek-battle-8k/`（12 万面）。和旧版的对比见 [refined-deepseek-4-battle-8k.jpg](refined-deepseek-4-battle-8k.jpg)：眼睛、蕾丝裙边和金线刺绣更清楚，头顶的呆毛这次没生成出来，由旧模型移植。几点要知道的：
+
+- Tripo 的法线贴图只有细纹理，不含减面丢掉的形状，所以减面后必须从高模重新烘法线，否则脸和头发是一块块的棱面。
+- 平均减面只给脸留 3,300 面左右（高模是 4.4 万）。Decimate 修改器的顶点组是全有或全无：有权重的顶点才会被减，权重 0 的原样保留，所以脚本分两遍，先减脸以外，再减脸。顶点组的名字存在网格上，换网格后要清掉，否则第二遍会沿用第一遍的权重。
+- 提交时界面上「去光处理」是开着的，但任务参数里 `delight` 是 false（8K 贴图下没生效）。底色里的明暗靠 `refine_materials.py` 压掉了皮肤和白布的部分，头发和深色布上的还在。
+- 头发的发束是 Tripo 雕出来的厚条，PBR 下仍像手办；三渲二下不明显。深色靴子和深色布料靠颜色分不开，用的是同一套布料质感。
+
+绑骨用 `blender/rig_whole.py`，不重新算权重，而是把被替换的那个模型的骨骼和权重拿过来：
+
+```
+blender -b X-refined.blend -P blender/rig_whole.py -- 旧模型.fbx OUT_DIR --name DeepSeek --size 4096
+```
+
+新旧模型出自同一组三视图，表面相差的中位数是 2.7 毫米（背后的头发和尾巴最多差 5 厘米），所以按最近表面点取权重就够；骨架原样沿用（导出后读回来逐根比对，矩阵最大差 0.000002），游戏里的 Avatar、动作和按骨骼摆的尾巴都不用动。脚本还把呆毛的贴图贴进主贴图上没有三角形用到的最大空位（4096 下 136 像素见方）并把它的 UV 挪过去，合成一个材质，写出游戏唯一会读的 `<名字>_BaseColor.png`。输出在 `~/Downloads/deepseek-battle-8k/game/`，`DeepSeek-donor.fbx` 是替换前的旧模型（从 Git LFS 取的；工作区里的已经被新模型覆盖，再跑要用它）。
+
+接进游戏的步骤：把 `DeepSeek.fbx` 和 `DeepSeek_BaseColor.png` 覆盖到 `game/Assets/SystemPrompt/Resources/Models/Characters/`（.meta 不动）；跑一次正脸采集（`-executeMethod SystemPrompt.EditorTools.FaceCapture.Run`）；对着新的 `game/Tools/FaceArt/DeepSeek_capture.png` 改 `landmarks.json` 里眼睛和嘴的位置（新模型的睫毛向外更长，眼睛的框从半宽 37/41 改到 46/51）；跑 `game/Tools/face_expressions.py` 重画表情。
+
 ## 下一步
 
 把 FBX 接进游戏：在 `ModelAssetImporter` 里给 DeepSeek 的动画加 Tail 遮罩，把 SeaFigure 的卡通着色器接到这套多材质模型上（尾巴发光、面部贴花透明），用两层 Animator（身体 + 尾巴）替换现在的 DeepSeek 整体模型，挂上 TailDynamics 代替 SeaFigure 原来给旧模型用的 `LayTail`（TailDynamics 读蒙皮的 bind pose，接入后在打包版本里确认一次能读到）。把面部贴花烘进头部贴图，或做成可换的表情层。头发和裙摆加次级运动。男女主角的身体先按二次元素体重画。
