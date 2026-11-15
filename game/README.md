@@ -302,7 +302,7 @@ python3 game/Tools/voice_lines.py
 | Claude | `voice_vfpa20nxnbil` | A cool, clear, composed young female voice with a crisp, intelligent tone, low-key and reserved like a bookish girl with glasses. |
 | DeepSeek、影子DeepSeek | `voice_z7j5o98l3v0s` | A small, cute, high-pitched youthful female anime voice, sweet but sleepy and monotone, speaking in short, slow phrases with little pauses. |
 
-班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次，序章的 208 句要分两天做：配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
+班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次（太平洋时间零点恢复）、每分钟 10 次，序章的 208 句要分三天做；每分钟的限流脚本会按回复里的等待时间自己等，配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
 
 两种模型用不同的 key，都写在 `Tools/voice/google.env`（已加入 `.gitignore`），也可以用同名环境变量：Chirp 3 HD 用 `GOOGLE_TTS_API_KEY`（Cloud 项目的 key，要启用 Cloud Text-to-Speech API），Gemini TTS 用 `GEMINI_API_KEY`（AI Studio 的 key，空着时用 `GOOGLE_TTS_API_KEY` 那一行）。AI Studio 的 key 调不了 Cloud Text-to-Speech。
 

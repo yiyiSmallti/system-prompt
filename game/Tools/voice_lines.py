@@ -230,22 +230,26 @@ def collect(model):
 
 
 def read_manifest():
+    """编号 → 清单里那一行的各列（第 3 列是签名）。"""
     if not MANIFEST.exists():
         return {}
     rows = {}
     for row in MANIFEST.read_text(encoding="utf-8").splitlines()[1:]:
         parts = row.split("\t")
         if len(parts) >= 3:
-            rows[parts[0]] = parts[2]
+            rows[parts[0]] = parts
     return rows
 
 
-def write_manifest(jobs, durations):
+def write_manifest(rows, durations):
+    """rows：编号 → 这次做成的台词（dict），或上次清单里原样留下的那一行（list）。"""
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     out = ["id\tspeaker\tsig\tmodel\tvoice\trate\teffect\tseconds\ttext\tprompt"]
-    for j in sorted(jobs.values(), key=lambda j: (j["speaker"], j["id"])):
-        out.append("\t".join([j["id"], j["speaker"], j["sig"], j["model"], j["voice"], str(j["rate"]), j["effect"] or "",
-                              f"{durations.get(j['id'], 0):.2f}", j["text"], j["prompt"]]))
+    lines = [j if isinstance(j, list) else
+             [j["id"], j["speaker"], j["sig"], j["model"], j["voice"], str(j["rate"]), j["effect"] or "",
+              f"{durations.get(j['id'], 0):.2f}", j["text"], j["prompt"]] for j in rows.values()]
+    for line in sorted(lines, key=lambda line: (line[1], line[0])):
+        out.append("\t".join(line))
     MANIFEST.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
@@ -304,7 +308,10 @@ def synthesize(key, job):
                 raise QuotaExhausted(detail) from None
             # 只对限流和服务端临时错误重试，其余（key 无效、音色名错、文字超长）直接报出来
             if e.code in (429, 500, 502, 503, 504) and attempt < 5:
-                time.sleep(2 ** attempt)
+                # 每分钟的请求数超了（Gemini TTS 每个模型每分钟 10 次）：回复里写着要等多久（retryDelay），按它等，
+                # 没写就等到这一分钟过去；2 的幂加起来只有半分钟，等不到窗口放开
+                wait = re.search(r'"retryDelay":\s*"([\d.]+)s"', body)
+                time.sleep(float(wait.group(1)) + 1 if wait else 60 if e.code == 429 else 2 ** attempt)
                 continue
             raise RuntimeError(f"{job['id']} {job['speaker']}：HTTP {e.code} {detail}") from None
         except urllib.error.URLError as e:
@@ -369,7 +376,8 @@ def main():
     if args.dry_run and added:
         return
     jobs, skipped = collect(args.model)
-    old = read_manifest()
+    old_rows = read_manifest()
+    old = {lid: row[2] for lid, row in old_rows.items()}
 
     todo = []
     for j in jobs.values():
@@ -425,19 +433,21 @@ def main():
                         failures.append(f"{j['id']} {j['speaker']}: {e}")
                         print(f"  [{n}/{len(todo)}] 失败 {j['id']}：{e}", file=sys.stderr, flush=True)
 
-    # 清单记的是磁盘上那份配音念的版本：这次做成的记新签名，没动的照旧，失败的不记（下次会重做）
+    # 清单记的是磁盘上那份配音念的版本：这次做成的记新的一行，没动的原样留着上次那一行（只选了一部分台词时，
+    # 没选的仍是上次的模型和音色），失败的不记（下次会重做）
     made = set(done)
     keep = {}
     for lid, j in jobs.items():
         if lid in made:
             keep[lid] = j
         elif lid in old and lid not in queued and lid in durations:
-            keep[lid] = dict(j, sig=old[lid])
+            keep[lid] = old_rows[lid]
     write_manifest(keep, durations)
     total = sum(durations.get(lid, 0) for lid in keep)
-    print(f"完成：{len(keep)}/{len(jobs)} 句是当前版本的配音，共 {total / 60:.1f} 分钟")
+    current = sum(1 for lid in keep if lid in made or old[lid] == jobs[lid]["sig"])
+    print(f"完成：{current}/{len(jobs)} 句是当前版本的配音，{len(keep) - current} 句还是之前的版本；共 {total / 60:.1f} 分钟")
     if todo and quota:
-        raise SystemExit(f"今天的请求配额用完了，这次做了 {len(done)} 句，还差 {len(jobs) - len(keep)} 句；"
+        raise SystemExit(f"今天的请求配额用完了，这次做了 {len(done)} 句，还差 {len(jobs) - current} 句；"
                          f"配额恢复后再跑同一条命令，会接着做剩下的。\n{quota}")
     if failures:
         raise SystemExit(f"{len(failures)} 句生成失败：\n" + "\n".join(failures))
