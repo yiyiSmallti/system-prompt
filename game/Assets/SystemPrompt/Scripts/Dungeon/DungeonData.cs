@@ -71,6 +71,7 @@ namespace SystemPrompt.Dungeon
         public bool Meter;        // 维护进度 runs (100% ends the night)
         public string Music = "sea"; // Resources/Audio/BGM
         public float MeterStart;
+        public bool EntryKeepsSp; // the way in heals HP only (UI/Dungeon/DungeonScreen.cs RestoreParty)
         public float ChaseSpeed = 3.8f; // the noise bodies' speed after the player, metres a second (SeaNoise): outrun at a run (4.6)
         public Color Lighthouse;  // the lamp's colour: cold white while the shadow is there
         public Vector2 LighthouseCell; // may lie outside the map
@@ -293,7 +294,8 @@ namespace SystemPrompt.Dungeon
                         Air = SeaAtmos.Deep.With(fog: "#0E141C", surface: "#4A6A86", density: 0.02f, saturation: 0.75f) },
                 },
                 Meter = true,
-                MeterStart = 15f,
+                MeterStart = 10f, // 15 left the E2E's way round at 100% by the exit once battles ran longer
+                EntryKeepsSp = true,
                 ChaseSpeed = 4.8f, // faster than the player runs: only a sprint gets away
                 Lighthouse = new Color(0.45f, 0.72f, 1f),
                 LighthouseCell = new Vector2(14f, 29f),

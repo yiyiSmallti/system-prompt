@@ -918,8 +918,9 @@ namespace SystemPrompt.Dungeon
             at += turn * new Vector3(s, 0.7f * s, 0f);
         }
 
-        // The camera swung round to face a point (ZoneDef.Look), eased in the frame's update over about a second;
-        // the player's own turning takes over at once.
+        // The camera swung round to face a point (ZoneDef.Look), eased in the frame's update over about a second; the
+        // player's own turning takes over at once. (Raising it to look down over the near cache block as well put the
+        // sockets behind it at the top edge, cut off: it only turns.)
         float? swingTo;
         public void SwingCamera(Vector3 at)
         {
@@ -952,7 +953,7 @@ namespace SystemPrompt.Dungeon
         // move: x right, y forward relative to the camera; look: degrees to turn the camera this frame.
         public void Step(float dt, Vector2 move, bool sprint, float turnKeys, Vector2 lookDegrees)
         {
-            if (turnKeys != 0f || lookDegrees.x != 0f) swingTo = null;
+            if (turnKeys != 0f || lookDegrees != Vector2.zero) swingTo = null;
             CameraYaw += turnKeys * KeyTurnSpeed * dt + lookDegrees.x;
             pitch = Mathf.Clamp(pitch - lookDegrees.y, -12f, 42f);
 

@@ -261,7 +261,9 @@ namespace SystemPrompt.UI
             Ui.Show(meterBox, def.Meter);
             Ui.Show(talkBox, false);
             Ui.Show(prompt, false);
-            RestoreParty(); // the way in counts as a beacon: no fight carries over
+            // The way in heals like a beacon, but where the area keeps SP (the deep: what the tutorial battle spent stays
+            // spent) it has to be won back with pearls or a rest at a beacon (design/prologue-playtest.md 改法 2).
+            RestoreParty(!def.EntryKeepsSp);
             BuildParty();
             // Pearls taken on an earlier dive stay taken.
             foreach (var p in world.Pearls)
@@ -968,14 +970,14 @@ namespace SystemPrompt.UI
             if (!s.Over) game.Notice(text);
         }
 
-        void RestoreParty()
+        void RestoreParty(bool sp = true)
         {
             foreach (var id in game.State.party)
             {
                 var m = game.State.Member(id);
                 var stats = CombatStats.ForCharacter(id, m.level);
                 m.hp = stats.MaxHp;
-                m.sp = stats.MaxSp;
+                if (sp) m.sp = stats.MaxSp;
             }
         }
 

@@ -130,6 +130,8 @@ namespace SystemPrompt.Dungeon
         const int MaxCrumbs = 48;
         const float Repick = 0.25f, Switch = 0.6f; // seconds between picks of where to keep to, and a better one must last
         const float Apart = 1.1f;      // never nearer the player than this
+        const float PillarClear = 1.1f; // nor nearer a beacon's middle than this (its base is about a metre across)
+        List<Vector3> pillars;
         // A strike's 跃劈, as in battle (BattleStage): off the ground this long in, over this long, this high at the top;
         // the landing played from this far through, and she comes down this far short of the noise body.
         const float LeapPace = 1.6f, LeapOff = 0.1f, LeapSeconds = 0.4f, LeapHeight = 1f, LandFrom = 0.8f, LandPace = 1.5f, LeapShort = 1.2f;
@@ -167,6 +169,7 @@ namespace SystemPrompt.Dungeon
         public void Place(Vector3 player, float yaw, DungeonMap map)
         {
             this.map = map;
+            pillars = null; // another area's beacons
             trail.Clear();
             var turn = Quaternion.Euler(0, yaw, 0);
             var beside = Spot(Beside, 1f, player, turn * Vector3.forward, turn * Vector3.right, StillAhead);
@@ -337,6 +340,16 @@ namespace SystemPrompt.Dungeon
             off.y = 0f;
             if (off.sqrMagnitude < Apart * Apart && off.sqrMagnitude > 1e-6f)
                 position = map.Slide(position, off.normalized * (Apart - off.magnitude), 0.35f);
+            // Nor into a beacon's pillar: the cell is open (the player stands at it to rest), but she was seen standing
+            // half inside one as the party came into the maintenance room.
+            pillars ??= map.Find('B').ConvertAll(c => map.World(c));
+            foreach (var p in pillars)
+            {
+                var away = position - p;
+                away.y = 0f;
+                if (away.sqrMagnitude < PillarClear * PillarClear && away.sqrMagnitude > 1e-6f)
+                    position = map.Slide(position, away.normalized * (PillarClear - away.magnitude), 0.35f);
+            }
             // Smoothed, so the easing in and out of her steps doesn't flick between idle and walk.
             var moved = dt > 0f ? (position - before).magnitude / dt : 0f;
             speed = Mathf.Lerp(speed, moved, 1f - Mathf.Exp(-10f * dt));
