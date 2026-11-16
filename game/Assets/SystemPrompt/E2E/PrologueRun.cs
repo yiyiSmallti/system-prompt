@@ -708,7 +708,7 @@ namespace SystemPrompt.E2E
             yield return Walk(new Vector2Int(19, 4), "从东边进白门大厅", 1.2f);
             if (Noise('6').Active) yield return Fight(Noise('6'), "和大厅里巡逻的噪声体战斗");
             yield return Walk(new Vector2Int(19, 5), "退到大厅东侧看光路", 1.2f);
-            yield return Face(w.Map.World(new Vector2Int(14, 4)));
+            yield return Face(w.Map.World(new Vector2Int(14, 1))); // the white door, the light on it
             yield return Snap("dungeon-beam", "白门大厅：光照在白门上");
             // The east way round: plates (14,6) | → /, (17,6) - → / (back with Backspace), (17,3) / → \, (11,3) | → \
             // (back): north, east, north, west, north. (The west way, (14,6) | → \, (9,6) / → \, (9,2) \ → /, also takes five.)

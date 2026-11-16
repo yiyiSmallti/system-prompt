@@ -159,7 +159,7 @@ namespace SystemPrompt
             modals.Add(m);
             modalLayer.Add(m.Root);
             m.Root.BringToFront();
-            Story.SetCovered(modals.Exists(x => x.CoversScreen));
+            Stacked();
         }
 
         // The modal removes its own layer once its exit animation has played.
@@ -168,6 +168,14 @@ namespace SystemPrompt
             var wasTop = modals.Count > 0 && modals[modals.Count - 1] == m;
             modals.Remove(m);
             if (wasTop && modals.Count > 0) modals[modals.Count - 1].Regain();
+            Stacked();
+        }
+
+        // Every modal under another marked (is-under: its key hints go, the top one's would land on them), and the
+        // story told whether anything full-screen is up.
+        void Stacked()
+        {
+            for (var i = 0; i < modals.Count; i++) modals[i].Root.EnableInClassList("is-under", i < modals.Count - 1);
             Story.SetCovered(modals.Exists(x => x.CoversScreen));
         }
 

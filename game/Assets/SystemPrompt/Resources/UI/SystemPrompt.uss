@@ -1020,6 +1020,12 @@
     color: rgba(246, 246, 240, 0.7);
 }
 
+/* A modal under another (GameRoot.Stacked) keeps its content but not its key hints: they are not its keys while
+   it is covered, and the top one's land in the same corner. */
+.sp-modal.is-under .sp-hints {
+    display: none;
+}
+
 .sp-hints {
     font-size: 20px;
     color: var(--muted);
