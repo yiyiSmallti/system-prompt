@@ -79,7 +79,8 @@ namespace SystemPrompt.UI
         readonly HashSet<ZoneDef> visited = new HashSet<ZoneDef>();
         int bannerShown;
         float bannerUntil; // unscaled time the zone banner is gone by
-        bool cutting, departing, chromeHidden; // the HUD is away through a cutaway and from a departure to the wipe
+        bool cutting, departing, striking, chromeHidden; // the HUD is away through a cutaway, from a departure to the wipe
+                                                        // and from a strike till its battle is over (its stamp has the screen)
 
         // What the end-to-end run checks.
         public bool Exploring => mode == Mode.Explore && world != null;
@@ -328,6 +329,7 @@ namespace SystemPrompt.UI
             mode = Mode.Off;
             Lock(false);
             departing = false;
+            striking = false;
             nav.Clear();
             nav.Companion = null;
             if (world != null) world.Drop();
@@ -821,6 +823,7 @@ namespace SystemPrompt.UI
             var color = opening == BattleOpening.Ambush ? Palette.Red : opening == BattleOpening.Preemptive ? Palette.Green : Palette.Paper;
             game.Audio.Sfx(opening == BattleOpening.Ambush ? "glitch" : "slam");
             world.Strike(enemy, opening, byEnter, joined);
+            striking = true;
             // Over the noise body as the strike's camera holds it once it has punched in: the stamp's lower edge a margin
             // over the body's top, its own top on the screen, its middle no lower than the two of them's heads. Where
             // there's no room for that, a fifth smaller, and failing that off to the body's open side.
@@ -855,11 +858,13 @@ namespace SystemPrompt.UI
             if (fight == null)
             {
                 Debug.LogError($"噪声体 {enemy.Spawn.Mark} 的战斗 {enemy.Spawn.Battle} 不在 Battles 里");
+                striking = false;
                 world.EndStrike(false);
                 return;
             }
             // The world hides the struck bodies when the battle takes the screen (DungeonWorld.Show).
             await game.RunBattle(fight, opening);
+            striking = false;
             if (s.Over) return;
             world.EndStrike(true); // if the battle never took the screen
             enemy.Remove();
@@ -1368,9 +1373,9 @@ namespace SystemPrompt.UI
 
             var exploring = mode == Mode.Explore;
             Lock(exploring && !game.ModalOpen && !game.Transitions.Busy && Application.isFocused);
-            if (chromeHidden != (cutting || departing))
+            if (chromeHidden != (cutting || departing || striking))
             {
-                chromeHidden = cutting || departing;
+                chromeHidden = cutting || departing || striking;
                 foreach (var e in chrome) e.style.visibility = chromeHidden ? Visibility.Hidden : Visibility.Visible;
             }
             // Backspace's use where there is one: a plate in reach turns back, else a push can be taken back.

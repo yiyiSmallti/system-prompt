@@ -2794,10 +2794,11 @@
 
 /* Under the body, clear of the damage popup, which follows the body down as it falls (a weak point's or a
    critical's with its burst reaches 90px below the body's middle). */
+/* Under the body, low enough that the number of the hit that put it down (over its middle) stays clear. */
 .sp-enemy__down {
     position: absolute;
     left: 50px;
-    top: 290px;
+    top: 318px;
     font-size: 64px;
     color: var(--red);
     rotate: -14deg;

@@ -13,7 +13,7 @@ namespace SystemPrompt.UI
     {
         public readonly Combatant Unit;
         public readonly VisualElement Root;
-        readonly VisualElement bodyBox;
+        readonly VisualElement bodyBox, info;
         readonly Shape plate;
         readonly VisualElement hpFill, hpLag;
         readonly Label weakness;
@@ -35,7 +35,7 @@ namespace SystemPrompt.UI
             Root = Ui.El("sp-enemy", parent);
             Root.style.visibility = Visibility.Hidden; // until it is first placed
 
-            var info = Ui.El("sp-enemy__info", Root); // what SetQuiet puts away, Peek brings back
+            info = Ui.El("sp-enemy__info", Root); // what SetQuiet puts away, Peek brings back
             var plateBox = Ui.El("sp-enemy__plate", info);
             plate = Shape.Backdrop(plateBox, Shape.Slant(12), Palette.Ink).Shadow(new Vector2(6, 6), Palette.Green);
             Ui.Text(unit.Name, "sp-enemy__name", plateBox, FontKind.Black);
@@ -68,7 +68,12 @@ namespace SystemPrompt.UI
             Refresh();
         }
 
-        // With the box over the body's centre on screen, or hidden while the camera does not show the body.
+        // Half the plate's width as targeted (.sp-enemy__plate, scaled 1.1) and the gap kept to the frame's edge.
+        const float PlateHalf = 119f, Edge = 16f;
+
+        // With the box over the body's centre on screen, or hidden while the camera does not show the body. A body
+        // at the edge of the picture keeps its plate, cursor and forecast slid in whole off the edge; the body and
+        // its shouts stay on it.
         public void Place(Vector2 center, bool visible)
         {
             Root.style.visibility = visible ? Visibility.Visible : Visibility.Hidden;
@@ -77,6 +82,11 @@ namespace SystemPrompt.UI
             var box = bodyBox.layout;
             Root.style.left = center.x - 140f; // half of .sp-enemy's width
             Root.style.top = center.y - (box.height > 0f ? box.center.y : 200f);
+            var x = Mathf.Clamp(center.x, Edge + PlateHalf, GameRoot.Width - Edge - PlateHalf) - center.x;
+            var slide = new Translate(x, 0f);
+            info.style.translate = slide;
+            cursor.style.translate = slide;
+            forecast.style.translate = slide;
         }
 
         void Twitch()
