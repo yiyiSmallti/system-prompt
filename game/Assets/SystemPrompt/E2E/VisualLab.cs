@@ -389,7 +389,7 @@ namespace SystemPrompt.E2E
             Def(main, "battle-face-repost", "转发型的脸（正面特写、不带界面）：同上七种神情");
             Def(finale, "battle-vanish", "敌人被删除：寒流打死残血的标题党型，定格闪白、炸出像素和「已删除」弹窗，方块飞散落到海床上变暗消失");
             Def(finale, "battle-summon", "转发型「转发到十个群」召来新的标题党型");
-            Def(finale, "battle-maelstrom", "深海潜流（全体）：切入、漏斗水幕、漩涡卷起三只、全员倒地");
+            Def(finale, "battle-maelstrom", "深海潜流（全体）：切入、漏斗水幕、漩涡卷起所有噪声体、全员倒地");
             Def(finale, "battle-allout", "全员倒地 → 按下 ▶发动 → 集成，到收尾");
             Def(finale, "battle-victory", "胜利：队伍欢呼、镜头上移、结算界面进入");
             Def(female, "battle-female", "女主角：待机 → 防御 →（下一回合）对自己用白米饭；游戏画面 + 左侧检查镜头");
@@ -1607,7 +1607,7 @@ namespace SystemPrompt.E2E
             Prepare("male", true, true, ("ice_soda", 2));
             ResetStyles();
             UnityEngine.Random.InitState(1202);
-            var battle = Run(game.RunBattle(Lab("lab_finale", Foe("clickbait", 200), Foe("repost", 200), Foe("clickbait", 8))));
+            var battle = Run(game.RunBattle(Lab("lab_finale", Foe("repost", 200), Foe("clickbait", 8))));
             yield return Until(() => game.InBattle && Stage != null, 20f, "战斗开始");
 
             var fight = new Fight();
@@ -1633,12 +1633,13 @@ namespace SystemPrompt.E2E
             yield return Drive(fight, battle);
         }
 
+        // Two at the start: with three the 转发型 calls none in (BattleScreen).
         IEnumerator FinaleDeepSeek()
         {
-            var weak = Enemies[2].Unit;
+            var weak = Enemies[1].Unit;
             if (!weak.Dead)
             {
-                yield return Skill("寒流", 2, S("battle-vanish"), 0.133f, 32, () => weak.Dead, "寒流没有打死它");
+                yield return Skill("寒流", 1, S("battle-vanish"), 0.133f, 32, () => weak.Dead, "寒流没有打死它");
                 yield break;
             }
             if (!Enemies.Any(v => v.Unit.Summoned))

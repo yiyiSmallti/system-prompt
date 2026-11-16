@@ -134,7 +134,7 @@ namespace SystemPrompt.UI
             titleTagShape.Fill(Accent);
             band.Fill(Accent);
             tape.Fill(Accent.WithAlpha(0.85f));
-            hints.text = saving ? "Enter 存到这里　Delete 删除　Esc 返回　（存档从本节开头继续）" : "Enter 读取　Delete 删除　Esc 返回";
+            hints.text = saving ? $"Enter 存到这里　Delete 删除　Esc 返回　（{(Game.InDungeon ? "从这座信标继续" : "存档从本节开头继续")}）" : "Enter 读取　Delete 删除　Esc 返回";
             Rebuild(saving ? 1 : -1);
             ShapeBlades();
             Enter().Forget();

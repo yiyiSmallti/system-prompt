@@ -35,7 +35,7 @@ namespace SystemPrompt.Dungeon
         const float FlinchPace = 0.8f; // a hit's jolt, a little slower than the library's
         // The poses struck in place (SeaFigure.Act): how long after the start each has been reached and seen,
         // when the command goes on, the 道具's rice ball used up at that moment; the way back follows by itself.
-        const float GuardSeen = 0.75f, ItemUsed = 0.75f, ThinkSeen = 0.6f, FaceRound = 60f;
+        const float GuardSeen = 0.75f, ItemUsed = 0.75f, ThinkSeen = 0.6f, FaceRound = 145f;
         // The hit-stops (Freeze), three to ten frames, the heavier the blow the longer: the jab; the slash and the
         // sweep; the cross; the leap's landing; the shutter; 寒流's ice bursting, and each of 深海潜流's; a thrown
         // can or 辣条 bursting; a weakness or critical on top of its blow; a blow on a party member.
@@ -472,18 +472,20 @@ namespace SystemPrompt.Dungeon
 
         // Out on the member's outer side and behind, a little over their head, three and a half metres off: a pose
         // struck where they stand (防御, 道具, 深度思考) seen full length from over their shoulder, the rest of
-        // the party off to the side of the frame. Round degrees from straight behind: further round for a hand
-        // at the face (the rice ball, the fingers at the temple), which DeepSeek's hair hides from 45; much past
-        // 60 the one beside them comes in behind them, and it never gets round to the face. A pose with a hand up
+        // the party off to the side of the frame. Round degrees from straight behind; past 90 it is from in front
+        // and out on the same side (FaceRound, for a hand at the face: the rice ball, the fingers at the temple,
+        // which from behind DeepSeek's hair hides), the member then on the other side of the middle so the party
+        // beside them is still in. A pose with a hand up
         // `overhead` (the player's rice ball) is taken from further off and aimed higher, so the hand comes under
-        // the skill bar.
+        // the skill bar (from in front, further still and held lower in the frame).
         public Shot Aside(int member, float round = 45f, bool overhead = false)
         {
             var m = party[member].Home;
             var side = m.x >= 0f ? 1f : -1f;
-            var eye = m + Quaternion.Euler(0f, -round * side, 0f) * Vector3.back * (overhead ? 3.8f : 3.4f) + Vector3.up * 1.4f;
+            var front = round > 90f;
+            var eye = m + Quaternion.Euler(0f, -round * side, 0f) * Vector3.back * (overhead ? (front ? 4.4f : 3.8f) : 3.4f) + Vector3.up * 1.4f;
             // Off the middle toward the field, standing up off the cards.
-            return new Shot(eye, Aim(eye, m + Vector3.up * (overhead ? 1.25f : 0.95f), side > 0f ? 0.6f : 0.4f, overhead ? 0.64f : 0.57f, 42f, -5f * side), -5f * side, 42f, 0.02f);
+            return new Shot(eye, Aim(eye, m + Vector3.up * (overhead ? 1.25f : 0.95f), side > 0f != front ? 0.6f : 0.4f, overhead ? (front ? 0.5f : 0.64f) : 0.57f, 42f, -5f * side), -5f * side, 42f, 0.02f);
         }
 
         // Low and off to the left of the noise bodies, all down, turning slowly round them toward the front of the
@@ -507,14 +509,15 @@ namespace SystemPrompt.Dungeon
 
         // Up behind the party and out to their left, looking out over the field they have cleared: their backs and
         // raised arms right of the middle, over the cards, coming slowly round behind them (slow enough that a long
-        // look at the results, which cover the field, still leaves the camera behind them).
+        // look at the results, which cover the field, still leaves the camera behind them). One fighting alone stands
+        // further right, where their art comes in over them at the results, not left standing under the bands.
         public Shot Victory
         {
             get
             {
                 var at = PartyCentre + Vector3.up * 1f;
                 var eye = PartyCentre + new Vector3(-3.4f, 2.3f, -4f);
-                return new Shot(eye, Aim(eye, at, 0.66f, 0.53f, 40f, -4f), -4f, 40f, 0.03f, -1.5f, at);
+                return new Shot(eye, Aim(eye, at, party.Count > 1 ? 0.66f : 0.82f, 0.53f, 40f, -4f), -4f, 40f, 0.03f, -1.5f, at);
             }
         }
 

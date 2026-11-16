@@ -366,14 +366,18 @@ namespace SystemPrompt.UI
             game.Audio.Sfx("rise");
             game.Audio.Sfx("water", 0.7f);
             Fx.Flash(fx, color);
+            // The slider and its 「强度 Max」 hand over to her: gone as she slides in, not left half under her.
+            Fx.Dismiss(stamp).Forget();
             await Anim.Tween(0.35f, t =>
             {
                 hero.style.opacity = t;
                 hero.style.translate = new Translate((1 - t) * 500f, 0);
+                panel.style.opacity = 1f - t;
+                panel.style.translate = new Translate(-200f * t, 0);
             });
+            panel.RemoveFromHierarchy();
             Stage.Refresh();
             await WaitAdvance(0.8f, 3f);
-            await Fx.Dismiss(stamp);
             await Fx.Dismiss(nameRoot);
             await Ui.FadeOutAndRemove(layer, 0.3f);
         }

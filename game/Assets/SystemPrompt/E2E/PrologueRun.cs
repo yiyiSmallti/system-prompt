@@ -615,6 +615,21 @@ namespace SystemPrompt.E2E
             yield return Snap("dungeon-beacon-load", "读回信标存档：回到维护间门口的信标旁，门开着");
         }
 
+        // The server room's two patrols within 12 m of each other and every other noise body at least 4 m further
+        // from either: the one that spots the player calls the other, not one through a wall.
+        bool PatrolsPaired(DungeonWorld w)
+        {
+            SeaNoise a = Noise('2'), b = Noise('3');
+            var d = Vector3.Distance(a.Position, b.Position);
+            return d < 12f && Nearest(w, a, b) > d + 4f;
+        }
+
+        // The nearest active noise body to either of the two, besides them.
+        static float Nearest(DungeonWorld w, SeaNoise a, SeaNoise b) =>
+            w.Enemies.Where(o => o != a && o != b && o.Active)
+                .Select(o => Mathf.Min(Vector3.Distance(o.Position, a.Position), Vector3.Distance(o.Position, b.Position)))
+                .DefaultIfEmpty(float.MaxValue).Min();
+
         // 缓存海·深层: with DeepSeek fighting. Jump the dozing one at the server room's door from behind, east
         // through the long-context corridor (its fragment, the delay patch at the end), into the white-door
         // hall, where four turns of plates walk the lighthouse's light round to the hidden exit.
@@ -643,9 +658,11 @@ namespace SystemPrompt.E2E
             // it finds the party and calls the other over, and the two are fought as one battle.
             if (Noise('2').Active && Noise('3').Active)
             {
-                // The call reaches 18 m (DungeonScreen.CallRange) and their rounds are long: out of their sight until
-                // the two are near each other, or whether the other comes depends on how long the run took to get here.
-                yield return Lurk(() => Vector3.Distance(Noise('2').Position, Noise('3').Position) < 14f, "等机房的两只巡逻噪声体走近");
+                // The call reaches 18 m (DungeonScreen.CallRange), goes to the nearest one in reach through walls, and
+                // their rounds are long: out of their sight until the two are near each other and nearer each other
+                // than any other (the 标题党型 in the white hall, the one in the bin), with room for the walk out, or
+                // whether the other comes depends on how long the run took to get here.
+                yield return Lurk(() => PatrolsPaired(w), "等机房的两只巡逻噪声体走近");
                 if (finished) yield break;
                 yield return Walk(new Vector2Int(14, 13), "站到机房过道上，等巡逻的噪声体发现", 0.6f);
                 if (finished) yield break;
@@ -655,7 +672,7 @@ namespace SystemPrompt.E2E
                     if (finished) yield break;
                     var spotter = Noise('2').Alerted && !Noise('3').Alerted ? Noise('2') : Noise('3');
                     var other = spotter == Noise('3') ? Noise('2') : Noise('3');
-                    Check(other.Alerted, "被发现的噪声体叫来了另一只");
+                    Check(other.Alerted, $"被发现的噪声体叫来了另一只（相距 {Vector3.Distance(spotter.Position, other.Position):0.0} 米，其他噪声体最近 {Nearest(w, spotter, other):0.0} 米）");
                     yield return Fight(spotter, "迎击两只一起追来的噪声体", () => ShotInBattle("battle-joined", "两只噪声体合成一场战斗"));
                     if (finished) yield break;
                     Check(game.Battle.FoeKinds.Count >= 3, $"两只噪声体合成一场战斗（{game.Battle.FoeKinds.Count} 只）");

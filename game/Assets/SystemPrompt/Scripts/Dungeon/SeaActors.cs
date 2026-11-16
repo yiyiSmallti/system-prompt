@@ -1074,6 +1074,11 @@ namespace SystemPrompt.Dungeon
         readonly TextMesh[] adWords = new TextMesh[0];
         readonly int[] adCycle = new int[0];
         readonly Transform[] cards = new Transform[0];
+        // The 冷知识型's light bulb (its 「你知道吗？」), over the stack's corner, and the glass it lights.
+        readonly Transform bulb;
+        readonly Material bulbGlass;
+        static readonly Vector3 BulbAt = new Vector3(0.48f, 0.62f, -0.12f);
+        static readonly Color BulbColor = new Color(1f, 0.86f, 0.42f);
         readonly TextMesh[] facts = new TextMesh[0];
         readonly int[] factCycle = new int[0];
         readonly TextMesh snore;
@@ -1194,6 +1199,17 @@ namespace SystemPrompt.Dungeon
                     facts[i].gameObject.AddComponent<Billboard>();
                     factCycle[i] = int.MinValue;
                 }
+                // A light bulb over the stack's corner, its trivia's 「灵光一闪」: off the cards, so it stays put
+                // when they are dealt, flipped and fanned (AnimateCards lights it).
+                bulb = Parts.Node("Bulb", Body, BulbAt);
+                bulbGlass = SeaArt.Toon(Palette.Hex("#FFE9A8"), Palette.Hex("#D9B25A"), new Color(1f, 0.95f, 0.7f, 0.6f), BulbColor, 0.012f);
+                var metal = SeaArt.Toon(Palette.Hex("#B8C4D6"), Palette.Hex("#6A768C"), new Color(0.8f, 0.9f, 1f, 0.4f), default, 0.01f);
+                Parts.Shape("Glass", bulb, SeaArt.Sphere(0.16f, 0.05f), bulbGlass, new Vector3(0f, 0.28f, 0f));
+                Parts.Shape("Waist", bulb, SeaArt.Cylinder(0.07f, 0.12f, 0.12f, 14), bulbGlass, new Vector3(0f, 0.09f, 0f));
+                Parts.Shape("Neck", bulb, SeaArt.Cylinder(0.075f, 0.07f, 0.1f, 14), metal);
+                foreach (var y in new[] { 0.02f, 0.06f })
+                    Parts.Shape("Thread", bulb, SeaArt.Cylinder(0.082f, 0.082f, 0.018f, 14), metal, new Vector3(0f, y, 0f));
+                Parts.Shape("Tip", bulb, SeaArt.Cylinder(0.035f, 0.05f, 0.03f, 10), metal, new Vector3(0f, -0.03f, 0f));
                 eyeAt = new Vector3(0.24f, 0.12f, 0.07f);
                 eyeSize = new Vector3(0.2f, 0.08f, 0.04f);
             }
@@ -1507,6 +1523,19 @@ namespace SystemPrompt.Dungeon
                 var start = card.rotation;
                 Fly(card, keep, v, 4f, 2f, 0.9f, 0.6f, (s, t) =>
                     card.rotation = Quaternion.AngleAxis(spin * s, Vector3.up) * start * Quaternion.Euler(Mathf.Sin(s * 38f) * 25f, 0f, 0f)).Forget();
+            }
+            if (bulb != null)
+            {
+                // Popped off upward and out, tumbling, going out as it goes.
+                var b = bulb;
+                var axis = Random.onUnitSphere;
+                var start = b.rotation;
+                var glass = bulbGlass;
+                Fly(b, keep, Body.rotation * new Vector3(1.5f, 3.5f, -0.5f) + direction, 8f, 0.5f, 0.7f, 0.5f, (s, t) =>
+                {
+                    b.rotation = Quaternion.AngleAxis(540f * s, axis) * start;
+                    glass.SetColor(EmissionId, BulbColor * Mathf.Max(0f, 1f - t * 2f));
+                }).Forget();
             }
         }
 
@@ -1946,6 +1975,21 @@ namespace SystemPrompt.Dungeon
                     cards[i].localRotation = Quaternion.Slerp(turn, Quaternion.Euler(0f, 0f, fan * 14f), down);
                     cards[i].localScale = Vector3.one * (dealt > 0f ? Shown(cardGone[i]) : 0f);
                 }
+            if (bulb != null && scattered < 0f)
+            {
+                // Bobbing over the corner, glowing; now and then the glitch blinks it out (not with 减少闪烁), out for
+                // the flip of a blow, full on and swelling while it winds up to ask, dim and lying by the stack when
+                // it is knocked down, red with heat.
+                var calm = GameRoot.Instance != null && GameRoot.Instance.Settings.reduceFlash;
+                var blink = !calm && DungeonWorld.Hash(Mathf.FloorToInt(time * 7f), Mathf.FloorToInt(seed * 97f) + 11) < 0.1f;
+                var lit = Mathf.Lerp(0.4f, 1.6f, wound) * (blink ? 0.12f : 1f) * (flip < 1f ? 0.1f : 1f) * Mathf.Lerp(1f, 0.15f, down);
+                bulbGlass.SetColor(EmissionId, Color.Lerp(BulbColor, new Color(1f, 0.3f, 0.25f), heat * 0.6f) * lit);
+                var bob = new Vector3(0f, Mathf.Sin(time * 1.7f + seed) * 0.04f, 0f);
+                bulb.localPosition = Vector3.Lerp(BulbAt + bob + new Vector3(0f, 0.08f * wound, 0f), new Vector3(0.75f, -0.35f, 0.1f), down);
+                bulb.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-14f + Mathf.Sin(time * 1.1f + seed) * 6f, -80f, down));
+                // Lit up last as it comes together, after the cards are dealt.
+                bulb.localScale = Vector3.one * (1f + 0.15f * wound) * (formed < 1f ? OutBack(Mathf.Clamp01((formed - 0.6f) / 0.4f)) : 1f);
+            }
             // Wound up, every figure it quotes is the question; back to its figures once it has let go.
             if (asking != (wound > 0.5f))
             {

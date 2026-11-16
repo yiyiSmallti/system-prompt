@@ -568,15 +568,13 @@ namespace SystemPrompt.UI
             greenBand.AddToClassList("is-green");
             layer.Add(greenBand);
 
-            // The art: whoever in the party has a portrait (DeepSeek in the prologue), with a green echo.
-            var hero = party.Select(c => c.Unit.Id).FirstOrDefault(id => id == "DeepSeek");
-            Image art = null, echo = null;
-            if (hero != null)
-            {
-                echo = Ui.Picture(Ui.Tex("Art/Portraits/deepseek_battle"), ScaleMode.ScaleToFit, "sp-results__art is-echo", layer);
-                echo.tintColor = Palette.Green;
-                art = Ui.Picture(Ui.Tex("Art/Portraits/deepseek_battle"), ScaleMode.ScaleToFit, "sp-results__art", layer);
-            }
+            // The art, with a green echo: DeepSeek's battle art when she is in the party, else the player's own, so
+            // a battle fought alone does not leave the party's legs showing under the bands where hers would be.
+            var deepSeek = party.Any(c => c.Unit.Id == "DeepSeek");
+            var portrait = deepSeek ? "Art/Portraits/deepseek_battle" : GameData.PlayerPortrait(game.State.playerGender);
+            var echo = Ui.Picture(Ui.Tex(portrait), ScaleMode.ScaleToFit, "sp-results__art is-echo", layer);
+            echo.tintColor = Palette.Green;
+            var art = Ui.Picture(Ui.Tex(portrait), ScaleMode.ScaleToFit, "sp-results__art", layer);
 
             var brush = new Shape(Shape.Brush(31), Palette.Paper);
             brush.AddToClassList("sp-results__brush");
@@ -651,7 +649,7 @@ namespace SystemPrompt.UI
             }
 
             VisualElement bubble = null;
-            if (hero != null && !finisherShown) bubble = SpeechBubble(layer, "吃饭饭！", "sp-results__bubble");
+            if (deepSeek && !finisherShown) bubble = SpeechBubble(layer, "吃饭饭！", "sp-results__bubble");
 
             var prompt = Ui.El("sp-results__next", layer);
             Shape.Backdrop(prompt, Shape.Slant(16), Palette.Paper).Shadow(new Vector2(8, 8), Palette.Green);
