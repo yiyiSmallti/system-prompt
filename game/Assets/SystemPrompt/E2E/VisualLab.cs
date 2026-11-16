@@ -430,7 +430,7 @@ namespace SystemPrompt.E2E
             Def("sea", "sea-chest", "宝箱打开：盖子先往下压一下再弹开过头，缝里的光一亮再暗，金色光束、光点和三张卡片往上飞，镜头转向宝箱，放开操作后转回");
             Def("sea", "sea-bump", "推不动：缓存块推到东边机柜前再推一次，顶一下、灯闪红（它卡在角里本来就是红的），再回原色；之后撤回一步");
             Def("sea", "sea-block", "缓存块：最后一推滑进插槽（前十推直接传送着推完）：轮廓收起、落座、底座闪白、海床光环、电缆上的光点跑向闸门");
-            Def("sea", "sea-gate", "两块缓存块都进插槽后闸门打开：游戏画面（门在画面顶上、隔着机柜，切插入镜头）+ 门口的固定镜头");
+            Def("sea", "sea-gate", "三块缓存块都进插槽后闸门打开：游戏画面（门在画面顶上、隔着机柜，切插入镜头）+ 门口的固定镜头");
             Def("sea", "sea-firewall", "防火墙插入镜头：终端对话里 <<reveal firewall>> 的两段（维护间西墙、主航道北头；遮幅、下行光束、溶解、海床光环，第二段灯塔在墙后入画）");
             Def("sea", "sea-terminal", "终端：按下后屏幕滚日志、上行光束（游戏画面 + 终端东侧的固定镜头 + 正对屏幕的近景）");
             Def("sea", "sea-lamp", "主角脚下的海床光：站着时随呼吸胀缩（相隔半个呼吸的两张俯拍），被 4 号追着冲刺时放大、偏红（游戏画面 + 俯拍）");
@@ -2921,10 +2921,12 @@ namespace SystemPrompt.E2E
             {
                 var pushes = new[]
                 {
-                    (new Vector2Int(26, 12), Vector2Int.left), (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up),
-                    (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(24, 14), Vector2Int.left),
-                    (new Vector2Int(20, 11), Vector2Int.up), (new Vector2Int(19, 13), Vector2Int.right), (new Vector2Int(20, 13), Vector2Int.right),
-                    (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
+                    (new Vector2Int(21, 15), Vector2Int.down), (new Vector2Int(19, 12), Vector2Int.right), (new Vector2Int(26, 12), Vector2Int.left),
+                    (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
+                    (new Vector2Int(24, 14), Vector2Int.left), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
+                    (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(21, 11), Vector2Int.up), (new Vector2Int(20, 13), Vector2Int.right),
+                    (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
+                    (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
                 };
                 Film block = null, gate = null;
                 for (var i = 0; i < pushes.Length; i++)
@@ -2952,7 +2954,7 @@ namespace SystemPrompt.E2E
                 }
                 yield return WaitFilm(block);
                 yield return WaitFilm(gate);
-                if (!w.Puzzles.Solved) Fail(S("sea-gate"), "两块缓存块推完了闸门还没开");
+                if (!w.Puzzles.Solved) Fail(S("sea-gate"), "三块缓存块推完了闸门还没开");
             }
             if (S("sea-firewall").Selected)
             {

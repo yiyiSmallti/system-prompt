@@ -85,6 +85,31 @@ namespace SystemPrompt.UI
         bool seenThrough;        // 标题党型's fake weakness is exposed: ones called in later show the true one
         int summons;             // called in by the 转发型 this battle
         public int CalledIn { get; private set; } // in every battle so far, for the end-to-end run
+
+        // How each battle so far went, for the end-to-end run's report: how hard it was (design/prologue-playtest.md).
+        public sealed class Record
+        {
+            public string Id, Outcome = "中断"; // 胜利, 落败, 撑到底 (a siege), or 中断 (left by a load)
+            public BattleOpening Opening;
+            public int Turns, FoeActs;
+            public readonly Dictionary<string, float> LowestHp = new Dictionary<string, float>(); // fraction of max
+            public readonly Dictionary<string, int> LowestSp = new Dictionary<string, int>();     // points left
+            public readonly Dictionary<string, int> Commands = new Dictionary<string, int>();      // "名字·指令" → times
+        }
+        public readonly List<Record> Records = new List<Record>();
+        Record record;
+
+        // Each member's HP as a fraction of their max and SP left, each kept if lower than any yet this battle.
+        void NoteHp()
+        {
+            if (record == null) return;
+            foreach (var c in party)
+            {
+                var f = (float)c.Unit.Hp / Mathf.Max(1, c.Unit.MaxHp);
+                if (!record.LowestHp.TryGetValue(c.Unit.Name, out var low) || f < low) record.LowestHp[c.Unit.Name] = f;
+                if (!record.LowestSp.TryGetValue(c.Unit.Name, out var sp) || c.Unit.Sp < sp) record.LowestSp[c.Unit.Name] = c.Unit.Sp;
+            }
+        }
         public int Exposures { get; private set; } // lying weakness tags shattered by a hit on the truth, so far
         public int Perceived { get; private set; } // lying weakness tags the player saw through on aiming (细心)
         readonly HashSet<Combatant> perceiving = new HashSet<Combatant>(); // seen through, the tag still shattering
@@ -220,6 +245,8 @@ namespace SystemPrompt.UI
             numbers.Clear();
             hushed = false;
             Setup();
+            Records.Add(record = new Record { Id = battle.Id, Opening = opening });
+            NoteHp();
             await Intro();
             if (s.Over) return;
             if (opening == BattleOpening.Preemptive) await Banner("先制攻击！");
@@ -231,6 +258,7 @@ namespace SystemPrompt.UI
 
             for (var turn = 1; !s.Over; turn++)
             {
+                record.Turns = turn;
                 await TurnBeats(turn);
                 foreach (var card in party.Where(c => !c.Unit.Dead).OrderByDescending(c => c.Unit.Agi).ToList())
                 {
@@ -728,6 +756,8 @@ namespace SystemPrompt.UI
         // Returns true when this action knocked down an enemy that was standing (One More).
         async Awaitable<bool> Execute(Combatant unit, BattleAction action)
         {
+            var used = $"{unit.Name}·{(action.Skill != null ? action.Skill.Name : action.ItemId != null && GameData.Items.TryGetValue(action.ItemId, out var thing) ? thing.Name : action.Command == "guard" ? "防御" : action.Command)}";
+            record.Commands[used] = record.Commands.TryGetValue(used, out var times) ? times + 1 : 1;
             var card = CardOf(unit);
             var member = party.IndexOf(card);
             Quiet(true);
@@ -765,6 +795,7 @@ namespace SystemPrompt.UI
                 {
                     var skill = action.Skill;
                     unit.Sp -= skill.SpCost;
+                    NoteHp();
                     card?.Refresh();
                     await CutIn(unit, skill.Name);
                     var hitTargets = skill.AllTargets ? enemies.Where(v => !v.Unit.Dead).Select(v => v.Unit).ToList() : new List<Combatant> { action.Target };
@@ -1008,6 +1039,7 @@ namespace SystemPrompt.UI
                 return;
             }
             target.Hp = Mathf.Max(target.HpFloor, target.Hp - hit.Damage);
+            NoteHp();
             var tag = hit.Critical ? "CRITICAL" : hit.Affinity switch { Affinity.Weak => "WEAK", Affinity.Resist => "RESIST", Affinity.Null => "BLOCK", _ => null };
             Popup(target, hit.Damage.ToString(), view != null ? Palette.Paper : Palette.Red, tag);
             game.Audio.Sfx(hit.Affinity == Affinity.Weak || hit.Critical ? "crack" : "slap", 0.8f);
@@ -1086,6 +1118,7 @@ namespace SystemPrompt.UI
             var skill = e.Kind == "repost" ? Skills.Repost : Skills.NoiseStrike;
             var alive = party.Where(p => !p.Unit.Dead).ToList();
             if (alive.Count == 0) return;
+            record.FoeActs++;
             var victims = skill.AllTargets ? alive : new List<PartyCard> { alive[UnityEngine.Random.Range(0, alive.Count)] };
             // At one member: in behind them, the noise body over them; at the party: beside them, at it.
             if (victims.Count == 1) stage?.Move(stage.Threat(foe, party.IndexOf(victims[0])), 0.35f);
@@ -1162,6 +1195,7 @@ namespace SystemPrompt.UI
         async Awaitable Overrun()
         {
             Overruns++;
+            record.Outcome = "撑到底";
             Quiet(true, true);
             game.Audio.Sfx("glitch");
             stage?.Move(stage.Overview, 1f);
@@ -1210,6 +1244,7 @@ namespace SystemPrompt.UI
         async Awaitable Victory()
         {
             var s = session;
+            record.Outcome = "胜利";
             // The noise bodies burst first; the battle's last blow is seen a moment, its cubes still flying under the
             // camera going up behind the party (BattleStage.Dying).
             while (stage != null && stage.Dying && !s.Over) await Awaitable.NextFrameAsync();
@@ -1285,6 +1320,7 @@ namespace SystemPrompt.UI
 
         async Awaitable Defeat()
         {
+            record.Outcome = "落败";
             game.Audio.Sfx("glitch");
             stage?.Move(stage.Overview, 1f);
             Fx.Stamp(fx, "掉线……", Palette.Red, 140f, -6f, new Vector2(960, 480));

@@ -29,7 +29,7 @@ namespace SystemPrompt.Battle
         static readonly Dictionary<string, Growth> Table = new Dictionary<string, Growth>
         {
             [GameState.PlayerId] = new Growth { Hp = 60, Sp = 20, HpPerLevel = 9, SpPerLevel = 5, Base = new[] { 4f, 2f, 3f, 4f, 3f }, PerLevel = new[] { 1.0f, 0.6f, 0.8f, 1.0f, 0.6f } },
-            ["DeepSeek"] = new Growth { Hp = 45, Sp = 40, HpPerLevel = 6, SpPerLevel = 7, Base = new[] { 2f, 5f, 2f, 2f, 3f }, PerLevel = new[] { 0.5f, 1.4f, 0.7f, 0.5f, 0.9f } },
+            ["DeepSeek"] = new Growth { Hp = 45, Sp = 23, HpPerLevel = 6, SpPerLevel = 7, Base = new[] { 2f, 5f, 2f, 2f, 3f }, PerLevel = new[] { 0.5f, 1.4f, 0.7f, 0.5f, 0.9f } },
             ["ChatGPT"] = new Growth { Hp = 55, Sp = 38, HpPerLevel = 8, SpPerLevel = 6, Base = new[] { 2f, 4f, 4f, 3f, 2f }, PerLevel = new[] { 0.6f, 1.0f, 1.0f, 0.8f, 0.6f } },
             ["Claude"] = new Growth { Hp = 50, Sp = 42, HpPerLevel = 7, SpPerLevel = 7, Base = new[] { 2f, 5f, 3f, 3f, 2f }, PerLevel = new[] { 0.5f, 1.2f, 0.8f, 0.8f, 0.7f } },
         };

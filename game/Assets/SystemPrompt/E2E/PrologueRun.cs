@@ -517,16 +517,19 @@ namespace SystemPrompt.E2E
             Check(game.State.PearlsIn(w.Def.Id) == 5 && ui.Q<Label>(className: "sp-dungeon__pearls").text.EndsWith("5/5"), "浅层的数据珍珠全部捡齐（5/5）");
             Check(game.State.ItemCount("ice_soda") == sodas + 2 && game.State.tokens == tokens + 200, "捡齐奖励：冰镇汽水 ×2、200 token");
 
-            // The maintenance room: the right-hand block down and round into the left socket, which takes
-            // it only from the east; the left-hand block across into the right one.
+            // The maintenance room (17 pushes at the fewest): the block by the sockets first up and
+            // out of the way (down, it sticks on the south wall), the right-hand one down and round into the left socket,
+            // which takes a block only from the east, then the other two across into the middle and right ones.
             var pushes = new[]
             {
-                (new Vector2Int(26, 12), Vector2Int.left), (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up),
-                (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(24, 14), Vector2Int.left),
-                (new Vector2Int(20, 11), Vector2Int.up), (new Vector2Int(19, 13), Vector2Int.right), (new Vector2Int(20, 13), Vector2Int.right),
-                (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
+                (new Vector2Int(21, 15), Vector2Int.down), (new Vector2Int(19, 12), Vector2Int.right), (new Vector2Int(26, 12), Vector2Int.left),
+                (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
+                (new Vector2Int(24, 14), Vector2Int.left), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
+                (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(21, 11), Vector2Int.up), (new Vector2Int(20, 13), Vector2Int.right),
+                (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
+                (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
             };
-            Check(!w.Map.GateOpen && w.Puzzles.Sockets.Count == 2 && w.Puzzles.Blocks.Count == 2, "维护间：两块缓存块、两个插槽，门关着");
+            Check(!w.Map.GateOpen && w.Puzzles.Sockets.Count == 3 && w.Puzzles.Blocks.Count == 3, "维护间：三块缓存块、三个插槽，门关着");
             for (var i = 0; i < pushes.Length && !finished; i++)
             {
                 yield return Push(pushes[i].Item1, pushes[i].Item2, $"第 {i + 1} 推");
@@ -540,10 +543,10 @@ namespace SystemPrompt.E2E
                     Check(Maze.Undos == 1 && w.Map.Blocks.Contains(from) && !w.Map.Blocks.Contains(from + pushes[0].Item2), $"Backspace 撤回第 1 推，缓存块回到 {from}");
                     yield return Push(pushes[0].Item1, pushes[0].Item2, "撤回后重推第 1 推");
                 }
-                if (i == 3) yield return Snap("dungeon-push", "推缓存块（右边一块绕到左边插槽前）");
+                if (i == 5) yield return Snap("dungeon-push", "推缓存块（右边一块绕到左边插槽前）");
             }
             if (finished) yield break;
-            Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length + 1, $"{Maze.Pushes} 推（含撤回后重推的 1 推）后两块缓存块都在插槽里，门打开");
+            Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length + 1, $"{Maze.Pushes} 推（含撤回后重推的 1 推）后三块缓存块都在插槽里，门打开");
             Check(BeaconIn("维护间").Used, "维护间的信标点亮");
             var battlesBefore = 0;
             yield return BeaconSave(BeaconIn("维护间"), n => battlesBefore = n);
@@ -1901,6 +1904,24 @@ namespace SystemPrompt.E2E
             md.AppendLine();
             foreach (var p in passes) md.AppendLine($"- ✅ {p}");
             foreach (var f in failures) md.AppendLine($"- ❌ {f}");
+            md.AppendLine();
+            md.AppendLine("## 战斗难度");
+            md.AppendLine();
+            md.AppendLine("每场战斗打了几回合、敌人真正出手几次（起身和召唤不算）、每名队员这场里最低剩多少 HP 和 SP、各指令用了几次，" +
+                          "对照 design/prologue-playtest.md 的目标：浅层至少一场主角低于 50%，深层至少一场敌人出手 ≥ 2 次且 DeepSeek 用过两种以上指令。");
+            md.AppendLine();
+            md.AppendLine("| # | 战斗 | 开场 | 结果 | 回合 | 敌人出手 | 最低 HP | 最低 SP | 指令 |");
+            md.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+            var records = game.Battle.Records;
+            for (var i = 0; i < records.Count; i++)
+            {
+                var r = records[i];
+                var opening = r.Opening == SystemPrompt.Battle.BattleOpening.Preemptive ? "先制" : r.Opening == SystemPrompt.Battle.BattleOpening.Ambush ? "被偷袭" : "普通";
+                var lowest = string.Join("，", r.LowestHp.Select(kv => $"{kv.Key} {kv.Value * 100f:0}%"));
+                var sp = string.Join("，", r.LowestSp.Select(kv => $"{kv.Key} {kv.Value}"));
+                var used = string.Join("，", r.Commands.Select(kv => $"{kv.Key} ×{kv.Value}"));
+                md.AppendLine($"| {i + 1} | {r.Id} | {opening} | {r.Outcome} | {r.Turns} | {r.FoeActs} | {lowest} | {sp} | {used} |");
+            }
             md.AppendLine();
             md.AppendLine("## 转场用时与帧时间");
             md.AppendLine();
