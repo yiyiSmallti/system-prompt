@@ -918,6 +918,15 @@ namespace SystemPrompt.Dungeon
             at += turn * new Vector3(s, 0.7f * s, 0f);
         }
 
+        // The camera swung round to face a point (ZoneDef.Look), eased in the frame's update over about a second;
+        // the player's own turning takes over at once.
+        float? swingTo;
+        public void SwingCamera(Vector3 at)
+        {
+            var d = at - PlayerPosition;
+            if (new Vector2(d.x, d.z).sqrMagnitude > 0.01f) swingTo = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+        }
+
         public void Place(Vector2Int cell, float yaw) => Place(Map.World(cell), yaw);
 
         // On the seabed at `at` (somewhere free), facing `yaw`.
@@ -943,6 +952,7 @@ namespace SystemPrompt.Dungeon
         // move: x right, y forward relative to the camera; look: degrees to turn the camera this frame.
         public void Step(float dt, Vector2 move, bool sprint, float turnKeys, Vector2 lookDegrees)
         {
+            if (turnKeys != 0f || lookDegrees.x != 0f) swingTo = null;
             CameraYaw += turnKeys * KeyTurnSpeed * dt + lookDegrees.x;
             pitch = Mathf.Clamp(pitch - lookDegrees.y, -12f, 42f);
 
@@ -1821,6 +1831,12 @@ namespace SystemPrompt.Dungeon
             driven = false;
             if (struck != null) StepStrike(dt);
             Looks(dt);
+            if (swingTo is float to)
+            {
+                var gap = Mathf.DeltaAngle(CameraYaw, to);
+                CameraYaw += gap * (1f - Mathf.Exp(-4f * dt));
+                if (Mathf.Abs(gap) < 0.5f) swingTo = null;
+            }
             var speed = velocity.magnitude;
             Avatar.Animate(dt, speed);
             wake.Sprint(PlayerPosition + Vector3.up, speed > 0.01f ? -velocity / speed : Vector3.zero, speed, dt);

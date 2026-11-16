@@ -3218,11 +3218,11 @@ namespace SystemPrompt.E2E
             var w = World;
             if (S("deep-plate").Selected || S("deep-exit").Selected)
             {
-                // The east way round: (14,6) | → /, (17,6) - → /, (17,3) / → \, (11,3) | → \ (two turns back with Backspace).
+                // The east way round: (14,6) | → /, (17,3) | → \, (11,3) | → \ (both back with Backspace); (17,6) starts at / .
                 var turns = new[]
                 {
-                    (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), -1),
-                    (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), -1),
+                    (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 3), new Vector2Int(18, 3), -1),
+                    (new Vector2Int(11, 3), new Vector2Int(10, 3), -1),
                 };
                 for (var k = 0; k < turns.Length; k++)
                 {

@@ -507,8 +507,12 @@ namespace SystemPrompt.E2E
             yield return Walk(ridgeBeacon.Cell, "穿过墓地，到灯塔背面的信标", 2.2f);
             yield return Lurk(() => Maze.Exploring && ridgeBeacon.Used, "灯塔背面的信标点亮");
             yield return Pearl(3, "灯塔背面东头");
-            yield return Fight(Noise('4'), "下到机柜峡谷，和峡谷的噪声体战斗", SpareTheCaller);
+            var before = Maze.Ambushed;
+            yield return Fight(Noise('4'), "下到机柜峡谷，迎面让峡谷的噪声体看见、追上", SpareTheCaller, caught: true);
             if (finished) yield break;
+            var hurt = game.Battle.Records[game.Battle.Records.Count - 1];
+            Check(Maze.Ambushed == before + 1 && hurt.Opening == SystemPrompt.Battle.BattleOpening.Ambush,
+                $"峡谷的战斗是被偷袭（主角最低 HP {hurt.LowestHp.Values.DefaultIfEmpty(1f).Min() * 100f:0}%，敌人出手 {hurt.FoeActs} 次）");
             Check(game.Battle.CalledIn >= 1, $"转发型在战斗里召唤了标题党型（{game.Battle.CalledIn} 只）");
             var sodas = game.State.ItemCount("ice_soda");
             var tokens = game.State.tokens;
@@ -635,7 +639,7 @@ namespace SystemPrompt.E2E
 
         // 缓存海·深层: with DeepSeek fighting. Jump the dozing one at the server room's door from behind, east
         // through the long-context corridor (its fragment, the delay patch at the end), into the white-door
-        // hall, where four turns of plates walk the lighthouse's light round to the hidden exit.
+        // hall, where three turns of plates walk the lighthouse's light round to the hidden exit.
         IEnumerator Deep()
         {
             var w = World;
@@ -679,6 +683,8 @@ namespace SystemPrompt.E2E
                     yield return Fight(spotter, "迎击两只一起追来的噪声体", () => ShotInBattle("battle-joined", "两只噪声体合成一场战斗"));
                     if (finished) yield break;
                     Check(game.Battle.FoeKinds.Count >= 3, $"两只噪声体合成一场战斗（{game.Battle.FoeKinds.Count} 只）");
+                    var merged = game.Battle.Records[game.Battle.Records.Count - 1];
+                    Check(merged.Rushed >= 1, $"叫来的增援在第一回合前先出手（{merged.Rushed} 次，「增援冲上来了！」）");
                     Check(!spotter.Active && !other.Active, "两只噪声体都从迷宫里消失");
                 }
             }
@@ -713,16 +719,16 @@ namespace SystemPrompt.E2E
             yield return Walk(new Vector2Int(19, 5), "退到大厅东侧看光路", 1.2f);
             yield return Face(w.Map.World(new Vector2Int(14, 1))); // the white door, the light on it
             yield return Snap("dungeon-beam", "白门大厅：光照在白门上");
-            // The east way round: plates (14,6) | → /, (17,6) - → / (back with Backspace), (17,3) / → \, (11,3) | → \
-            // (back): north, east, north, west, north. (The west way, (14,6) | → \, (9,6) / → \, (9,2) \ → /, also takes five.)
-            var turns = new[] { (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), -1),
-                                (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), -1) };
+            // The east way round: plates (14,6) | → /, (17,3) | → \ and (11,3) | → \ (both back with Backspace), (17,6)
+            // already / : north, east, north, west, north. (The west way, (14,6) | → \, (9,6) / → \, (9,2) \ → /, takes five.)
+            var turns = new[] { (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 3), new Vector2Int(18, 3), -1),
+                                (new Vector2Int(11, 3), new Vector2Int(10, 3), -1) };
             foreach (var (plate, stand, times) in turns)
             {
                 yield return Turn(plate, stand, times);
                 if (finished) yield break;
             }
-            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 5, $"转了 {Maze.Turns} 次（两块逆时针转 1 次），光照到出口，出口出现");
+            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 3, $"东路转了 {Maze.Turns} 次（两块逆时针转 1 次），光照到出口，出口出现");
             // The exit's cutaway and DeepSeek's call-out come only once the light has run round (LightFound): the controls
             // are still free between the last turn and the cut. Enter only while they are taken (Lurk), or it would turn
             // the plate beside the player again.
@@ -901,20 +907,24 @@ namespace SystemPrompt.E2E
                     yield break;
                 }
             }
-            // Once the 深海潜流 has been filmed she attacks instead until the 饭勺's four ways in have all been seen: each
-            // needs an attack of hers, and with the skill ending the deep's battles early a run could go by with only
-            // three of them (the 跃劈 was then never filmed, and the run failed for that alone).
-            if (hers && game.Battle.FoesStanding >= 2 && v.Sp >= 8 && (!Seen("battle-maelstrom") || Seen("battle-spoon-leap")))
+            // With two or more standing she spends SP the way a player would: 深海潜流 while she has 8, then 寒流 at the first
+            // one while she has 4, then the 饭勺; against one alone the 饭勺, which costs nothing. Until the 饭勺's four ways in
+            // have all been seen she holds the 深海潜流 back against two (each way needs an attack of hers, and the skill ending
+            // the deep's battles early once left the 跃劈 unfilmed and failed the run), but not against three or more.
+            var group = game.Battle.FoesStanding;
+            var saving = !Seen("battle-spoon-leap") && Seen("battle-maelstrom") && group < 3;
+            var skill = !hers || group < 2 || saving ? null : v.Sp >= 8 ? "深海潜流" : v.Sp >= 4 ? "寒流" : null;
+            if (skill != null)
             {
                 for (var i = 0; i < 6 && !CommandSelected("技能"); i++) yield return Press(Key.DownArrow);
                 if (CommandSelected("技能"))
                 {
                     yield return Press(Key.Enter);
                     yield return Wait(0.3f);
-                    for (var i = 0; i < 6 && !SkillSelected("深海潜流"); i++) yield return Press(Key.DownArrow);
+                    for (var i = 0; i < 6 && !SkillSelected(skill); i++) yield return Press(Key.DownArrow);
                     yield return Press(Key.Enter);
                     yield return Wait(0.3f);
-                    yield return Press(Key.Enter);
+                    yield return Press(Key.Enter); // all of them, or the first one standing
                     yield return Wait(0.4f);
                     yield break;
                 }
@@ -1102,7 +1112,9 @@ namespace SystemPrompt.E2E
 
         // Goes after a patrolling one and attacks it as soon as it is in reach; if it notices first and
         // runs into the avatar, that starts the battle too. Fought through with the first command.
-        IEnumerator Fight(SeaNoise enemy, string what, Func<IEnumerator> inBattle = null)
+        // `caught`: walk up to it in the open and stand still once it has seen the player, so it runs the player down
+        // and the battle opens as an ambush, the way a careless player meets one (design/prologue-playtest.md 验证方式).
+        IEnumerator Fight(SeaNoise enemy, string what, Func<IEnumerator> inBattle = null, bool caught = false)
         {
             var driven = 0f;
             var last = Now;
@@ -1141,7 +1153,13 @@ namespace SystemPrompt.E2E
                     continue;
                 }
                 var w = World;
-                if (w.EnemyInReach(2.6f) == enemy)
+                if (caught && enemy.Alerted)
+                {
+                    Release();
+                    yield return null;
+                    continue;
+                }
+                if (!caught && w.EnemyInReach(2.6f) == enemy)
                 {
                     Release();
                     yield return Press(Key.Enter);
@@ -1404,7 +1422,7 @@ namespace SystemPrompt.E2E
             Watch("dungeon-alert", "噪声体发现主角（!）", () => Maze.Exploring && World.Enemies.Any(e => e.Alerted), 0.25f, false);
             Watch("dungeon-ambush", "被噪声体偷袭", () => StampShown("被偷袭！"), 0.15f, false);
             Watch("dungeon-zone", "进入新区域（区域名横幅）", () => Visible(ui.Q(className: "sp-dungeon__zone")) && ui.Q(className: "sp-dungeon__zone").resolvedStyle.opacity > 0.95f, 0.15f);
-            Watch("dungeon-zone-maintenance", "维护间（缓存块与插槽）", () => Maze.Talking && Maze.Zone?.Name == "维护间", 0.4f);
+            Watch("dungeon-zone-maintenance", "维护间：镜头转向插槽，看得到三块缓存块", () => Maze.Talking && Maze.Zone?.Name == "维护间", 1.2f);
             // Called out by DeepSeek from the top right (UI/Dungeon/NavCall.cs) while the player keeps going.
             Watch("dungeon-gate-open", "缓存块推进插槽，DeepSeek 在右上角播报「门开了！」，不打断探索", () => Maze.Nav.Said == "门开了！" && Maze.Exploring, 0.2f);
             Watch("dungeon-light-found", "光照到出口，DeepSeek 在右上角播报「出口出现了！」", () => Maze.Nav.Said == "出口出现了！" && Maze.Exploring, 0.2f);
@@ -1687,9 +1705,13 @@ namespace SystemPrompt.E2E
             Check(game.StoryString("$player_calls_deepseek") == Nickname, $"新存档读回来称呼还是「{Nickname}」");
         }
 
+        // How many battles had been recorded at each load: a battle met again after one is a replay (the 战斗难度 table).
+        readonly List<int> loadedAt = new List<int>();
+
         IEnumerator Load(SaveData save, string what)
         {
             yield return Idle();
+            loadedAt.Add(game.Battle.Records.Count);
             var before = game.StoryRunner;
             game.LoadGame(save);
             yield return Until(() => game.StoryRunner != before && game.StoryRunner?.CurrentNode == save.node && !game.Transitions.Busy, what);
@@ -1907,7 +1929,7 @@ namespace SystemPrompt.E2E
             md.AppendLine();
             md.AppendLine("## 战斗难度");
             md.AppendLine();
-            md.AppendLine("每场战斗打了几回合、敌人真正出手几次（起身和召唤不算）、每名队员这场里最低剩多少 HP 和 SP、各指令用了几次，" +
+            md.AppendLine("每场战斗打了几回合、敌人真正出手几次（起身和召唤不算）、每名队员这场里最低剩多少 HP 和 SP、各指令用了几次（读档后又打了一遍的标「重来」），" +
                           "对照 design/prologue-playtest.md 的目标：浅层至少一场主角低于 50%，深层至少一场敌人出手 ≥ 2 次且 DeepSeek 用过两种以上指令。");
             md.AppendLine();
             md.AppendLine("| # | 战斗 | 开场 | 结果 | 回合 | 敌人出手 | 最低 HP | 最低 SP | 指令 |");
@@ -1920,7 +1942,12 @@ namespace SystemPrompt.E2E
                 var lowest = string.Join("，", r.LowestHp.Select(kv => $"{kv.Key} {kv.Value * 100f:0}%"));
                 var sp = string.Join("，", r.LowestSp.Select(kv => $"{kv.Key} {kv.Value}"));
                 var used = string.Join("，", r.Commands.Select(kv => $"{kv.Key} ×{kv.Value}"));
-                md.AppendLine($"| {i + 1} | {r.Id} | {opening} | {r.Outcome} | {r.Turns} | {r.FoeActs} | {lowest} | {sp} | {used} |");
+                // The same battle again after a load from before it: marked, so a replay isn't read as another battle of the
+                // run. (Different noise bodies of the maze can share a battle id; with no load between, those aren't replays.)
+                var mark = loadedAt.Where(m => m <= i).DefaultIfEmpty(0).Max();
+                var again = records.Take(mark).Count(o => o.Id == r.Id);
+                var name = again > 0 ? $"{r.Id}（重来第 {again} 次）" : r.Id;
+                md.AppendLine($"| {i + 1} | {name} | {opening} | {r.Outcome} | {r.Turns} | {r.FoeActs} | {lowest} | {sp} | {used} |");
             }
             md.AppendLine();
             md.AppendLine("## 转场用时与帧时间");

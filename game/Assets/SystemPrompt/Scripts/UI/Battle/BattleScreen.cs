@@ -91,7 +91,7 @@ namespace SystemPrompt.UI
         {
             public string Id, Outcome = "中断"; // 胜利, 落败, 撑到底 (a siege), or 中断 (left by a load)
             public BattleOpening Opening;
-            public int Turns, FoeActs;
+            public int Turns, FoeActs, Rushed; // Rushed: called-in help that acted before the first round
             public readonly Dictionary<string, float> LowestHp = new Dictionary<string, float>(); // fraction of max
             public readonly Dictionary<string, int> LowestSp = new Dictionary<string, int>();     // points left
             public readonly Dictionary<string, int> Commands = new Dictionary<string, int>();      // "名字·指令" → times
@@ -255,6 +255,7 @@ namespace SystemPrompt.UI
                 await Banner("被偷袭！");
                 if (await EnemyPhase(s)) return;
             }
+            else if (def.Rushing > 0 && await EnemyPhase(s, def.Rushing)) return;
 
             for (var turn = 1; !s.Over; turn++)
             {
@@ -283,14 +284,16 @@ namespace SystemPrompt.UI
 
         // Every noise body acts once, after a beat for the party's last blow to play out (the throw, the number, the
         // way back) and the band that says so. True when the battle ended there (lost, or abandoned).
-        async Awaitable<bool> EnemyPhase(Session s)
+        // `rushing`: only the last this many, the help called in from the maze, before the first round (BattleDef.Rushing).
+        async Awaitable<bool> EnemyPhase(Session s, int rushing = 0)
         {
             await Anim.Wait(0.2f);
-            await Banner("敌人的回合", true);
+            await Banner(rushing > 0 ? "增援冲上来了！" : "敌人的回合", true);
             if (def.Siege > 0) await Reform();
-            foreach (var view in enemies.Where(v => !v.Unit.Dead).ToList())
+            foreach (var view in enemies.Skip(rushing > 0 ? enemies.Count - rushing : 0).Where(v => !v.Unit.Dead).ToList())
             {
                 if (s.Over) return true;
+                if (rushing > 0 && record != null) record.Rushed++;
                 await EnemyTurn(view);
             }
             if (def.Siege > 0 && !s.Over) await Crowd();

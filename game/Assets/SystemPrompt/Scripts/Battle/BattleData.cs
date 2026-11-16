@@ -120,6 +120,9 @@ namespace SystemPrompt.Battle
         public const float SiegeBreak = 0.3f;
         // Story nodes run as each round starts (the first round's first), null where there is none.
         public string[] TurnHints;
+        // The last this many enemies ran in from the maze as called-in help (Merge): they come in swinging, one
+        // action each before the first round, unless an ambush has already given the whole field one.
+        public int Rushing;
 
         // Two battles fought as one when a noise body called a neighbour in (UI/Dungeon/DungeonScreen.cs): every
         // enemy of both, the rewards added up, the harder hitters' scale.
@@ -131,6 +134,7 @@ namespace SystemPrompt.Battle
             Drops = (a.Drops ?? new (string, int)[0]).Concat(b.Drops ?? new (string, int)[0]).ToArray(),
             Tutorial = false,
             EnemyDamageScale = Mathf.Max(a.EnemyDamageScale, b.EnemyDamageScale),
+            Rushing = a.Rushing + b.Enemies.Length,
         };
     }
 

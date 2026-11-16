@@ -44,6 +44,7 @@ namespace SystemPrompt.Dungeon
         public ZoneStyle Style;
         public string Node;
         public SeaAir? Air;     // its water, where it differs from the area's (SeaAtmos)
+        public Vector2Int? Look; // on the first way in, the camera swings round to face this cell while Node plays
     }
 
     // One latent-space area (design/systems.md 潜空间探索). The map is read top row first; north is up.
@@ -174,6 +175,7 @@ namespace SystemPrompt.Dungeon
                     new ZoneDef { Name = "删帖墓地", Tag = "DELETED POSTS", Cells = new RectInt(0, 0, 10, 10), Style = ZoneStyle.Graveyard, Node = "Prologue_Sea_Zone_Graveyard",
                         Air = SeaAtmos.Shallows.With(fog: "#120810", mist: 0.9f, saturation: 0.85f, shadow: "#2A0A10", shadowAmount: 0.07f) },
                     new ZoneDef { Name = "维护间", Tag = "MAINTENANCE", Cells = new RectInt(18, 11, 11, 7), Style = ZoneStyle.Canyon, Node = "Prologue_Sea_Zone_Maintenance",
+                        Look = new Vector2Int(23, 14), // the sockets, while the narration counts the blocks
                         // Its own room in the canyon: steel-grey still water, clear and without the blue cast, so the orange
                         // sockets and gate stay the warmest things in it and the beacon's blue and green still read; little of
                         // the racks' cyan pools on its floor.
@@ -297,9 +299,10 @@ namespace SystemPrompt.Dungeon
                 LighthouseCell = new Vector2(14f, 29f),
                 Departure = Departure.Column,
                 Scene = "Scenes/CacheSeaDeep/cache_sea_deep",
-                // Two ways round: east (14,6) | → /, (17,6) - → /, (17,3) / → \, (11,3) | → \, five turns with one
-                // back; or west (14,6) | → \, (9,6) / → \, (9,2) \ → /, five turns by the west wall's pearl.
-                Plates = "\\|//|-",
+                // Two ways round: east (14,6) | → /, (17,3) | → \, (11,3) | → \, three turns, two of them back with Backspace;
+                // or west (14,6) | → \, (9,6) / → \, (9,2) \ → /, five turns but past the west wall's pearl (5 SP, which
+                // DeepSeek runs short of down here). (14,6) starts edge on so the light first falls on the white door.
+                Plates = "\\||/|/",
                 StartNode = "Prologue_Deep_Start",
                 LightNode = "Prologue_Deep_Light",
                 BeaconNode = "Prologue_Deep_Beacon",

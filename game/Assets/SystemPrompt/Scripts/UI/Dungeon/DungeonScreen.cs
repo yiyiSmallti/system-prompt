@@ -413,6 +413,7 @@ namespace SystemPrompt.UI
                     Banner(here).Forget();
                     if (here.Node != null)
                     {
+                        if (here.Look is Vector2Int toward) world.SwingCamera(world.Map.World(toward));
                         Act(s => Talk(here.Node, s));
                         return;
                     }
