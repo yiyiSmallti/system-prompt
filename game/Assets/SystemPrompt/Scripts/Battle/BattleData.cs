@@ -112,6 +112,14 @@ namespace SystemPrompt.Battle
         public bool Tutorial;
         public float EnemyDamageScale = 1f;
         public string Music = "battle"; // Resources/Audio/BGM
+        // A fight that cannot be won (BattleScreen.Overrun): no one falls — the noise bodies hang on at 1 and come
+        // together again whole each round, the player hangs on at 1 — and one more crowds in each round while there is room.
+        // Over after this many rounds, or with the player down to SiegeBreak of their HP; no results, the story goes
+        // on. 0 for an ordinary battle.
+        public int Siege;
+        public const float SiegeBreak = 0.3f;
+        // Story nodes run as each round starts (the first round's first), null where there is none.
+        public string[] TurnHints;
 
         // Two battles fought as one when a noise body called a neighbour in (UI/Dungeon/DungeonScreen.cs): every
         // enemy of both, the rewards added up, the harder hitters' scale.
@@ -151,6 +159,22 @@ namespace SystemPrompt.Battle
                 Drops = new[] { ("white_rice", 1) },
                 Tutorial = true,
                 EnemyDamageScale = 0.35f,
+            },
+            // At the lighthouse's foot, before the shadow speaks again (story/00-prologue.md 场景4): the player alone,
+            // DeepSeek with her hands over her ears, the noise bodies crowding in (BattleDef.Siege). Three rounds at most.
+            ["prologue_siege"] = new BattleDef
+            {
+                Id = "prologue_siege",
+                Music = "shadow", // the shadow's theme, from the story on
+                Enemies = new[]
+                {
+                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 28, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                    new EnemyDef { Kind = "repost", Name = "转发型", Hp = 34, Weak = Element.Ice, Resist = Element.Wind },
+                    new EnemyDef { Kind = "clickbait", Name = "标题党型", Hp = 28, Weak = Element.Ice, Resist = Element.Fire, FakeWeakness = "火" },
+                },
+                Siege = 3,
+                TurnHints = new[] { "Prologue_Siege_Start", "Prologue_Siege_Regrow", null },
+                EnemyDamageScale = 0.8f,
             },
             // The shallows of the cache sea, before the awakening: the player alone with the phone, so small
             // groups (Dungeon/DungeonData.cs). They hit hard enough that a round given away costs a sixth of
@@ -300,7 +324,9 @@ namespace SystemPrompt.Battle
     {
         public const float ChargeMultiplier = 2.5f;
 
-        public static Hit Compute(Combatant a, Combatant t, SkillDef s, BattleDef battle)
+        // `snapped`: the player's screenshot taken as the viewfinder closed (BattleScreen.ScreenshotFx) — sure to hit,
+        // and a crit unless the target nulls it.
+        public static Hit Compute(Combatant a, Combatant t, SkillDef s, BattleDef battle, bool snapped = false)
         {
             var hit = new Hit { Element = s.Element, Affinity = t.AffinityTo(s.Element) };
             var tutorial = battle.Tutorial;
@@ -308,7 +334,7 @@ namespace SystemPrompt.Battle
             // A normal attack counts as physical for hit and crit even when it is not (the screenshot is almighty).
             var struck = physical || s.Kind == SkillKind.Attack;
 
-            if (!tutorial)
+            if (!tutorial && !snapped)
             {
                 var baseHit = struck && !a.IsEnemy ? Skills.WeaponAccuracy(a.Id) : 95f;
                 var chance = Mathf.Clamp(baseHit * (1f + (a.Agi - t.Agi) / 100f), 5f, 99f);
@@ -329,7 +355,7 @@ namespace SystemPrompt.Battle
             if (struck && !tutorial && hit.Affinity != Affinity.Null)
             {
                 var critRate = Mathf.Clamp(5f + (a.Luck - t.Luck) * 0.5f, 1f, 40f);
-                hit.Critical = Random.value * 100f < critRate;
+                hit.Critical = snapped || Random.value * 100f < critRate;
                 if (hit.Critical) amount *= 1.5f;
             }
             if (a.Charged && s.Kind == SkillKind.Magic) amount *= ChargeMultiplier;

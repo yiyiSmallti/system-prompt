@@ -3312,6 +3312,18 @@
     color: var(--red);
 }
 
+/* Under the shutter's faint corners: when a press is a 抓拍 (BattleScreen.ScreenshotFx). */
+.sp-viewfinder__hint {
+    position: absolute;
+    left: -120px;
+    right: -120px;
+    top: 352px;
+    -unity-text-align: middle-center;
+    font-size: 26px;
+    color: var(--paper);
+    text-shadow: 2px 2px 0 #0C0C10;
+}
+
 .sp-cutin {
     position: absolute;
     left: -100px;

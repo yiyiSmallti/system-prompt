@@ -3215,10 +3215,10 @@ namespace SystemPrompt.E2E
             var w = World;
             if (S("deep-plate").Selected || S("deep-exit").Selected)
             {
-                // (14,6) | → /, (17,6) \ → /, (17,3) / → \, (11,3) | → \ (one turn back with Backspace).
+                // The east way round: (14,6) | → /, (17,6) - → /, (17,3) / → \, (11,3) | → \ (two turns back with Backspace).
                 var turns = new[]
                 {
-                    (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), 2),
+                    (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), -1),
                     (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), -1),
                 };
                 for (var k = 0; k < turns.Length; k++)
@@ -3242,7 +3242,7 @@ namespace SystemPrompt.E2E
                         {
                             yield return Wait(0.5f);
                             f = StartFilm(S("deep-exit"), null, 0.133f, 32, ScreenView(),
-                                FixedView("exit", "看终点的固定镜头", Cell(9, 6) + new Vector3(0f, 2f, 0f), Cell(11, 2) + Vector3.up * 1.0f));
+                                FixedView("exit", "看终点的固定镜头", Cell(10, 5) + new Vector3(0f, 2f, 0f), Cell(11, 2) + Vector3.up * 1.0f));
                             yield return Wait(0.13f);
                         }
                         yield return Press(times < 0 ? Key.Backspace : Key.Enter);

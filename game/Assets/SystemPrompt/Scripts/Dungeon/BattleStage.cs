@@ -154,6 +154,8 @@ namespace SystemPrompt.Dungeon
                 figure.TailTo = i > 0 && i == partyIds.Count - 1 ? 1f : -1f;
                 // The player, boy or girl, holds the phone ready before the chest in both hands.
                 figure.Ready = partyIds[i] != "DeepSeek";
+                // DeepSeek holds her 饭勺 low in her right hand instead of the casting idle's open palm.
+                figure.Paddle = partyIds[i] == "DeepSeek";
                 party.Add(new Member { Root = root, Figure = figure, Home = home, At = home, Was = home, Glance = 3f + 2.3f * i,
                     Shadow = SeaArt.Shadow(transform, 1f).transform });
             }
@@ -163,7 +165,8 @@ namespace SystemPrompt.Dungeon
                 // Four or more (noise bodies that joined up in the maze) stand closer, the inner ones further back.
                 var x = n == 1 ? 0f : n == 2 ? (i * 2 - 1) * 1.7f : n == 3 ? (i - 1) * 2.8f : (i - (n - 1) / 2f) * 2.3f;
                 var back = n == 3 && i == 1 || n >= 4 && i > 0 && i < n - 1;
-                var home = new Vector3(x, 0f, back ? 7.6f : 6.4f);
+                // 冷知识型, a flat stack of cards, only half as far back: a whole step behind it read as the smallest.
+                var home = new Vector3(x, 0f, !back ? 6.4f : foeKinds[i] == "coldfact" ? 7f : 7.6f);
                 var root = Parts.Node("Noise " + i, transform, home);
                 root.rotation = Quaternion.Euler(0f, 180f, 0f);
                 var look = new NoiseLook(foeKinds[i], root, i * 2.3f, true);

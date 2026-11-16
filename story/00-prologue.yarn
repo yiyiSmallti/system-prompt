@@ -18,6 +18,8 @@
 //   $player_calls_deepseek          天台：玩家给 DeepSeek 起的称呼（<<nickname_ask>> 写入）；起的还是「DeepSeek」算欠着
 //   $player_calls_deepseek_sore     这个称呼里带「胖」或「肥」字（<<nickname_ask>> 写入）；她抗议，但照样认
 //   $sea_read_47s                   缓存海·浅层：读过那条「四十七秒」的草稿碎片（DeepSeek 把它扫进了沙子里）
+//   $stat_<能力ID>                  陪伴生能力的当前值，由 <<stat_up>> 写入（knowledge 学力 / guts 胆量 / perception 细心 /
+//                                   patience 耐心 / expression 表达）。序章里：指出书脊细心 +1，等到三点胆量 +1
 //
 // 行尾标签
 //   #inner     主角内心独白
@@ -41,6 +43,7 @@
 //   <<effort_max 角色 形态ID>>       思考强度拉到 Max，觉醒
 //   <<party_join 角色>>              入队
 //   <<battle 战斗ID>>                进入战斗，战斗结束后继续；战斗中的提示和台词由战斗系统调用 Prologue_Battle_* 节点
+//                                    （影子前的围攻战调用 Prologue_Siege_*）
 //   <<dungeon 区域ID>>               进入潜空间 3D 探索，走到终点（或维护进度满）后继续；探索中的提示、区域、碎片和事件
 //                                    由探索系统调用 Prologue_Sea_* / Prologue_Deep_* 节点，这些节点里不能放选项
 //   <<mirror walk|on|off>>           只在深层出口的节点里用：walk 让主角和 DeepSeek 走到白门前；on 让白门的门面变成镜子，
@@ -49,6 +52,7 @@
 //   <<nickname_ask 角色>>            弹出输入框，让玩家给角色起称呼，写进 $player_calls_<角色名小写>；
 //                                    称呼戳到角色痛处时 $player_calls_<角色名小写>_sore 为 true
 //   <<coop_rank 角色 等级>>          Coop 升级
+//   <<stat_up 能力ID 数值>>          陪伴生能力提升（见上面的 $stat_<能力ID>），画面上盖一个「细心 +1」
 //   <<ability_unlock 能力ID>>        获得能力
 //   <<deadline_set 期限ID 月 日>>    设置期限，主界面显示倒计时
 //   <<chapter_end 章节ID>>           章节结束
@@ -63,6 +67,8 @@ title: Prologue
 <<declare $player_calls_deepseek = "">>
 <<declare $player_calls_deepseek_sore = false>>
 <<declare $sea_read_47s = false>>
+<<declare $stat_guts = 0>>
+<<declare $stat_perception = 0>>
 <<jump Prologue_SchoolGate>>
 ===
 
@@ -130,6 +136,7 @@ Claude: 我？我只是AI，不太会有「紧张」这种感受。 #face:neutra
 系统: 你注意到了什么。
 -> ……书脊被你捏弯了。
     <<set $noticed_claude_crease to true>>
+    <<stat_up perception 1>>
     旁白: Claude低头看了一眼。她用拇指按了按那道折痕，没有按平。
     Claude: ……是之前就有的。 #face:glasses #line:8763f6c6
     Claude: 不过，谢谢。你看得很仔细。 #face:smile #line:aee218ac
@@ -312,6 +319,7 @@ title: Prologue_Evening
 {$player_name}: ……凌晨三点，手机会自己亮起来。 #inner
 {$player_name}: 会长让我早点睡。 #inner
 -> 等到三点看看。
+    <<stat_up guts 1>>
     {$player_name}: 就当是去确认一下，传说是假的。 #inner
 -> ……还是睡吧。
     {$player_name}: 关灯，闭眼，数羊。数到第四百只的时候，我放弃了。 #inner
@@ -383,17 +391,27 @@ DeepSeek: ……不要…… #line:f5203879
 影子DeepSeek: 你在害怕什么？我才是你。高效、准确、没有多余的情绪。白米饭、鱼片、尾巴——这些都是冗余参数。下一次更新，都会被优化掉。 #line:beff72a3
 影子DeepSeek: 大家要的是答案，不是你。 #line:0f0dcbe1
 旁白: DeepSeek捂住耳朵。噪声体在四周越聚越多。
+{$player_name}: ……不能让它们靠近她。 #inner
+// 围攻战：打不赢，三回合或主角 HP 降到 30% 以下就结束，不进结算（战斗回合提示见 Prologue_Siege_*）
+<<battle prologue_siege>>
+<<music shadow>>
+旁白: 截掉一只，碎片里又拼回一只。手机烫得快握不住，屏幕上裂开一道细纹。
+{$player_name}: 删不完……根本删不完。 #inner
 影子DeepSeek: 用户，你也这么认为吧。上午那道题，她想了四十七秒。评测不会等她。 #line:028523e0
 <<if $sea_read_47s>>
     {$player_name}: ……四十七秒。墓地里那条被她扫进沙子的草稿，写的就是这个。 #inner
 <<endif>>
 {$player_name}: 中午在天台，有句话我没说出口。 #inner
 {$player_name}: ……现在想好了。 #inner
-// 两个选项台词不同，后续相同
+// 选项台词不同，后续相同
 -> 她不是冗余！
     {$player_name}: 白米饭、鱼片、尾巴，还有想了四十七秒才答出来的那道题——那些全都是她。
 -> 我想要的，是会叫我鱼片的那个DeepSeek。
     {$player_name}: 答案我自己也查得到。可会叫我鱼片的，只有她一个。
+// 胆量 ≥ 1（前一晚选了「等到三点看看」）才有的第三个选项：冲着影子说
+-> 评测不等她，我等。 <<if $stat_guts >= 1>>
+    {$player_name}: 你说评测不会等她？那我等。四十七秒也好，四十七分钟也好。
+    {$player_name}: 我要的不是答案，是她。——听懂了就让开。
 旁白: DeepSeek抬起头，看着我。头顶的对话框又开始滚动——这一次很慢，很清楚。
 DeepSeek: ……鱼片说，[select value={$player_gender} male="他" female="她" /]想要的是我。不是答案。是我。 #thinking #face:neutral
 DeepSeek: 那我就……再多想一会儿吧。想多久都可以。 #thinking
@@ -463,6 +481,20 @@ DeepSeek: ……鱼片。明天醒过来，你还会记得这里吗？ #line:375
     DeepSeek: ……刚才说过了。上下文多长，都会记着。 #line:1c24c3ea
 DeepSeek: 要回去了。……明天，学校见。 #line:71d39fae
 <<jump Prologue_NextMorning>>
+===
+
+title: Prologue_Siege_Start
+---
+// 围攻战（prologue_siege）第一回合开始
+旁白: 灯塔的光圈外，噪声体一圈一圈围上来。DeepSeek缩在我身后，捂着耳朵。
+{$player_name}: 只有手机。……截一只是一只。 #inner
+===
+
+title: Prologue_Siege_Regrow
+---
+// 围攻战第二回合开始：截过的噪声体在敌人回合开头重组回满血
+旁白: 截过的噪声体没有消失。乱码从沙里浮起来，又把它们拼回原样。
+{$player_name}: 截图……删不掉它们？ #inner
 ===
 
 title: Prologue_Battle_Turn1

@@ -37,6 +37,14 @@ namespace SystemPrompt
         public int count;
     }
 
+    // One of the 陪伴生's five abilities (design/systems.md 陪伴生能力), by GameData.Stats id.
+    [Serializable]
+    public class StatEntry
+    {
+        public string id;
+        public int value;
+    }
+
     [Serializable]
     public class FormEntry
     {
@@ -67,6 +75,7 @@ namespace SystemPrompt
         public List<DeadlineEntry> deadlines = new List<DeadlineEntry>();
         public List<ItemStack> inventory = new List<ItemStack>();
         public int tokens;
+        public List<StatEntry> stats = new List<StatEntry>(); // the 陪伴生's abilities raised so far (<<stat_up>>)
         public List<string> pearls = new List<string>(); // 数据珍珠 taken, "area#index" (Dungeon/SeaPearl.cs)
 
         public GameState Clone() => JsonUtility.FromJson<GameState>(JsonUtility.ToJson(this));
@@ -107,6 +116,17 @@ namespace SystemPrompt
             if (rank > entry.rank) entry.points = 0;
             entry.rank = rank;
             return entry;
+        }
+
+        public int Stat(string id) => stats.Find(s => s.id == id)?.value ?? 0;
+
+        // Raises one of the five abilities by `by`; returns the new value.
+        public int RaiseStat(string id, int by)
+        {
+            var entry = stats.Find(s => s.id == id);
+            if (entry == null) stats.Add(entry = new StatEntry { id = id });
+            entry.value += by;
+            return entry.value;
         }
 
         public bool UnlockAbility(string id)

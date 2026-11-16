@@ -309,6 +309,15 @@ namespace SystemPrompt
         // Every day in the prologue is clear (PV date card: 4/7 TUE 晴). Add a per-date table when a chapter needs rain.
         public static string WeatherOn(int month, int day) => "晴";
 
+        // The 陪伴生's five abilities (design/systems.md 陪伴生能力), in the order the phone lists them: <<stat_up id n>>
+        // raises one, and a Yarn variable $stat_<id> mirrors it for the script's conditions.
+        public static readonly (string Id, string Label)[] Stats =
+        {
+            ("knowledge", "学力"), ("guts", "胆量"), ("perception", "细心"), ("patience", "耐心"), ("expression", "表达"),
+        };
+
+        public static string StatLabel(string id) => Array.Find(Stats, s => s.Id == id).Label;
+
         public static readonly Dictionary<string, AbilityDef> Abilities = new Dictionary<string, AbilityDef>
         {
             ["deep_dive"] = new AbilityDef("deep_dive", "深海潜行", "DeepSeek", "在潜空间中不易被敌人发现。"),

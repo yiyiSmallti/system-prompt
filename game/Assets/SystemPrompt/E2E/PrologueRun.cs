@@ -283,6 +283,16 @@ namespace SystemPrompt.E2E
             if (finished) yield break;
             yield return OldSaves();
             if (finished) yield break;
+            // 影子前的围攻战：打不赢，三回合或主角 HP 降到 30% 以下就结束，不进结算，DeepSeek 还没入队。
+            // OldSaves has already fought it twice, once for each old save it played the shadow scene from.
+            var hpBefore = game.State.Member(GameState.PlayerId).hp;
+            var overrun = game.Battle.Overruns;
+            yield return Pump(() => game.InBattle, "进入影子前的围攻战");
+            Check(game.Battle.BattleId == "prologue_siege", $"灯塔脚下先打围攻战（实际 {game.Battle.BattleId}）");
+            yield return Pump(() => !game.InBattle, "围攻战结束");
+            Check(game.Battle.Overruns == overrun + 1 && Seen("battle-siege"), $"围攻战盖章「删不完……」结束、不进结算（第 {game.Battle.Overruns} 次）");
+            Check(game.State.party.Count == 1 && game.State.Member(GameState.PlayerId).hp == hpBefore,
+                $"围攻战时只有主角，掉的血不带出战斗（HP {hpBefore} → {game.State.Member(GameState.PlayerId).hp}）");
             yield return Pump(() => game.InBattle, "进入教学战斗");
             yield return Pump(() => !game.InBattle, "教学战斗结束");
             var deepSeek = game.State.members.Find(m => m.id == "DeepSeek");
@@ -311,6 +321,12 @@ namespace SystemPrompt.E2E
             Check(heardAt.TryGetValue("awakening", out var wakeAt) && wakeAt == "story:cache_sea", $"觉醒的曲子在剧情里先响、接进教学战斗（实际 {heardAtOr("awakening")}）");
             Check(heardAt.TryGetValue("deep", out var deepAt) && deepAt == "dungeon", $"深层的曲子在深层探索里响起（实际 {heardAtOr("deep")}）");
             Check(heardAt.TryGetValue("results", out var resultsAt) && resultsAt == "battle", $"结算的曲子在战斗结算时响起（实际 {heardAtOr("results")}）");
+            // 第一项选项指出了书脊、等到了三点：细心和胆量各 +1，深层瞄准标题党型时直接看穿假弱点。
+            Check(game.State.Stat("perception") == 1 && game.State.Stat("guts") == 1,
+                $"细心和胆量各 +1（细心 {game.State.Stat("perception")}，胆量 {game.State.Stat("guts")}）");
+            Check(game.Battle.Perceived > 0, $"深层瞄准标题党型时看穿了假弱点 {game.Battle.Perceived} 次");
+            Check(game.Battle.Snapped > 0 && Seen("battle-snap"), $"截图快门在取景框合拢时按下是抓拍（{game.Battle.Snapped} 次）");
+            Check(unsnapped > 0, $"没按快门的截图到时自己拍下（{unsnapped} 次）");
             var voiceTally = string.Join("、", voices.Select(kv => $"{kv.Key} {kv.Value}"));
             Check(new[] { "ChatGPT", "Claude", "DeepSeek", "影子DeepSeek", "？？？" }.All(voices.ContainsKey),
                 $"ChatGPT、Claude、DeepSeek、影子和门后的声音都有配音（{voiceTally}）");
@@ -559,12 +575,20 @@ namespace SystemPrompt.E2E
             if (finished) yield break;
             Check(Maze.Preemptive == 1, "先制攻击");
             Check(game.Battle.Earned == 52, $"先制奖励：EXP 40 → {game.Battle.Earned}");
-            Check(game.Battle.LiesDoubted >= 1, "辣条打在标题党型的耐性上，假弱点名牌变成「？？？」");
+            // With 细心 the cursor landing on the 标题党型 sees through its lie before the 辣条 flies (BattleScreen.Perceive):
+            // the tag already says 冰, so there is nothing left for the throw to cast doubt on.
+            if (game.State.Stat("perception") >= 1)
+                Check(game.Battle.LiesDoubted == 0 && game.Battle.Perceived > 0, $"有细心时选中标题党型就看穿假弱点，辣条不用再试探（看穿 {game.Battle.Perceived} 次）");
+            else Check(game.Battle.LiesDoubted >= 1, "辣条打在标题党型的耐性上，假弱点名牌变成「？？？」");
 
             // The server room's two patrols walk the rows either side of the aisle. Standing on the lower one's lane,
             // it finds the party and calls the other over, and the two are fought as one battle.
             if (Noise('2').Active && Noise('3').Active)
             {
+                // The call reaches 18 m (DungeonScreen.CallRange) and their rounds are long: out of their sight until
+                // the two are near each other, or whether the other comes depends on how long the run took to get here.
+                yield return Lurk(() => Vector3.Distance(Noise('2').Position, Noise('3').Position) < 14f, "等机房的两只巡逻噪声体走近");
+                if (finished) yield break;
                 yield return Walk(new Vector2Int(14, 13), "站到机房过道上，等巡逻的噪声体发现", 0.6f);
                 if (finished) yield break;
                 if (Noise('2').Active && Noise('3').Active)
@@ -611,21 +635,21 @@ namespace SystemPrompt.E2E
             yield return Walk(new Vector2Int(19, 5), "退到大厅东侧看光路", 1.2f);
             yield return Face(w.Map.World(new Vector2Int(14, 4)));
             yield return Snap("dungeon-beam", "白门大厅：光照在白门上");
-            // Plates (14,6) | → /, (17,6) \ → /, (17,3) / → \, (11,3) | → \ (one turn back with Backspace instead of
-            // three on): north, east, north, west, north.
-            var turns = new[] { (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), 2),
+            // The east way round: plates (14,6) | → /, (17,6) - → / (back with Backspace), (17,3) / → \, (11,3) | → \
+            // (back): north, east, north, west, north. (The west way, (14,6) | → \, (9,6) / → \, (9,2) \ → /, also takes five.)
+            var turns = new[] { (new Vector2Int(14, 6), new Vector2Int(14, 5), 1), (new Vector2Int(17, 6), new Vector2Int(18, 6), -1),
                                 (new Vector2Int(17, 3), new Vector2Int(18, 3), 2), (new Vector2Int(11, 3), new Vector2Int(10, 3), -1) };
             foreach (var (plate, stand, times) in turns)
             {
                 yield return Turn(plate, stand, times);
                 if (finished) yield break;
             }
-            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 6, $"转了 {Maze.Turns} 次（最后一块逆时针转 1 次），光照到出口，出口出现");
+            Check(w.Puzzles.Lit && w.GoalOpen && Maze.Turns == 5, $"转了 {Maze.Turns} 次（两块逆时针转 1 次），光照到出口，出口出现");
             // The exit's cutaway and DeepSeek's call-out come only once the light has run round (LightFound): the controls
             // are still free between the last turn and the cut. Enter only while they are taken (Lurk), or it would turn
             // the plate beside the player again.
             yield return Lurk(() => Maze.Exploring && Maze.Nav.Said == "出口出现了！", "出口出现的插入镜头和提示");
-            yield return Walk(new Vector2Int(9, 6), "退到大厅西南角看光路", 1.2f);
+            yield return Walk(new Vector2Int(10, 5), "退到大厅西侧看光路", 1.2f);
             yield return Face(w.Map.World(new Vector2Int(14, 3)));
             yield return Snap("dungeon-light", "光绕过大厅照到出口");
 
@@ -745,8 +769,34 @@ namespace SystemPrompt.E2E
         // party's one tactic once DeepSeek fights, after Advance picks it. Before her the shallows are the screenshot alone.
         IEnumerator Advance()
         {
-            if (game.InBattle && Visible(ui.Q(className: "sp-battle__menu"))) yield return SmartCommand();
+            if (game.InBattle && game.Battle.Aiming) yield return Shutter();
+            else if (game.InBattle && Visible(ui.Q(className: "sp-battle__menu"))) yield return SmartCommand();
             else yield return Press(Key.Enter);
+        }
+
+        // The screenshot's shutter, from Advance: every other shot is a 抓拍 (Enter once the viewfinder has closed on its
+        // faint corners, the first one pictured), the rest left to go off by themselves. Enter only while the shutter is
+        // still open: a press after it went off would be taken by whatever comes next.
+        bool snapNext = true;
+        int unsnapped;
+        IEnumerator Shutter()
+        {
+            var snap = snapNext;
+            snapNext = !snapNext;
+            var t0 = Now;
+            while (game.Battle.Aiming && !game.Battle.ShutterOpen && Now - t0 < 3f) yield return null;
+            if (snap && game.Battle.ShutterOpen)
+            {
+                yield return Press(Key.Enter);
+                if (!Seen("battle-snap"))
+                {
+                    yield return Wait(0.15f);
+                    yield return Snap("battle-snap", "截图快门：取景框合拢的一瞬按下，抓拍（必中 + 暴击）");
+                }
+                yield break;
+            }
+            while (game.Battle.Aiming && Now - t0 < 3f) yield return null;
+            unsnapped++;
         }
 
         // 白米饭 for whoever is under 40% HP, 深海潜流 from DeepSeek while two or more noise bodies stand (but see below), else the attack.
@@ -1330,6 +1380,7 @@ namespace SystemPrompt.E2E
             Film("battle-allout-dash", "集成：三人轮流冲刺斩", () => OnStage("Streak"), 10, 0.13f);
             Watch("battle-allout", "集成：光之鲸掠过战场", () => OnStage("Whale"), 0.75f);
             Watch("battle-finish", "收尾特写", () => Exists("sp-allout__finish"), 0.4f);
+            Watch("battle-siege", "影子前的围攻战：截图删不完，噪声体越聚越多", () => StampShown("删不完……"), 0.3f);
             Watch("battle-results", "战斗结算", () => Exists("sp-results"), 2.6f);
             // The party cards' faces acting (UI/Battle/BattleViews.cs CardFace), filmed over the card row only.
             // Last in the list, so the shots of the same moments above go first; the win is short of the 1.2 s
@@ -1446,8 +1497,9 @@ namespace SystemPrompt.E2E
             ("小胖鲸", "小胖鲸", "要赔我一盒白米饭", true),
         };
 
-        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；Tried 里的称呼逐个起一遍，每次读回天台开头的
-        // 快速存档重来；最后起「大肥鱼」，她抗议但照样认，接下来的台词用上这个称呼。
+        // 天台：DeepSeek 想不出称呼，让玩家起。别的角色的名字不能用；Tried 里的称呼逐个起一遍，每次读回教室里
+        // Claude 第一次说话时的快速存档、从教室重新走到天台；最后起「大肥鱼」，她抗议但照样认，接下来的台词用上这个称呼。
+        // 所以教室、上课和天台的配音在报告的配音统计里重复算了好几遍（2026-11-15 那次班主任 4 句记了 32 次），不是重复播放的错。
         IEnumerator Naming()
         {
             yield return Pump(() => game.Nickname.IsOpen, "起称呼的输入框打开");
@@ -1477,7 +1529,7 @@ namespace SystemPrompt.E2E
 
                 yield return Idle();
                 yield return Press(Key.F9);
-                yield return Until(() => !Said(line), "读回天台开头的快速存档");
+                yield return Until(() => !Said(line), "读回教室里的快速存档");
                 yield return Pump(() => game.Nickname.IsOpen, "读档后重新问称呼");
                 if (finished) yield break;
                 Check(game.StoryString("$player_calls_deepseek") == "", "读档后上一次起的称呼不留");

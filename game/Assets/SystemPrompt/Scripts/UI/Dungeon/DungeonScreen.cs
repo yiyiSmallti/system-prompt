@@ -28,6 +28,9 @@ namespace SystemPrompt.UI
         const float AttackReach = 2.6f;
         const float MetresPerPercent = 6f;
         const float BattlePercent = 6f;
+        // Each turn of a light plate, either way: the white hall's puzzle costs maintenance time too, so its two ways
+        // round (design/prologue-playtest.md 改法 8) and a turn too many are felt on the meter.
+        const float TurnPercent = 1f;
         const float BounceMeter = 60f;   // where the meter falls back to when it ran out (Bounce)
         const float CallRange = 18f;     // a noise body that spots the player calls another this close to it
         const float JoinRange = 20f;     // one alerted this close to the one fought joins the battle
@@ -456,6 +459,7 @@ namespace SystemPrompt.UI
             if (plate != null)
             {
                 Turns++;
+                if (def.Meter) meter += TurnPercent;
                 game.Audio.Sfx("key", 0.7f);
                 if (world.Turn(plate)) LightFound(session).Forget();
                 return;
@@ -531,6 +535,7 @@ namespace SystemPrompt.UI
             if (plate != null)
             {
                 Turns++;
+                if (def.Meter) meter += TurnPercent;
                 game.Audio.Sfx("key", 0.7f);
                 if (world.Turn(plate, -1)) LightFound(session).Forget();
                 return;

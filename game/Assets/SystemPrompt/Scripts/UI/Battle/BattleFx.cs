@@ -102,29 +102,53 @@ namespace SystemPrompt.UI
         }
 
         // 截图: a first-person viewfinder locks onto the target, then the shutter flashes, on the field too. Done at
-        // the shutter, the hit landing with it (the field held a moment unless the shot `missed`).
-        async Awaitable ScreenshotFx(EnemyView target, int member, bool missed)
+        // the shutter, the hit landing with it (the field held a moment unless the shot missed).
+        // The shutter (design/systems.md 截图快门): the viewfinder closes in on the target from CloseFrom times its size
+        // over CloseIn seconds onto faint corners of its own size, and rests there SnapHold more. Enter (or a click)
+        // once it is within SnapFrom of them is a 抓拍 — sure to hit, and a crit. Earlier is an ordinary shot then and
+        // there; no press goes off by itself as the rest ends, also ordinary: nothing is lost for not pressing. The
+        // tutorial's shots go straight off as before, its numbers scripted.
+        const float CloseFrom = 2.2f, CloseIn = 0.8f, SnapFrom = 1.1f, SnapHold = 0.14f;
+
+        // `shoot` gives the hit, told whether it was a 抓拍, as the shutter goes.
+        async Awaitable<Hit> ScreenshotFx(EnemyView target, int member, Func<bool, Hit> shoot)
         {
             const float w = 440f, h = 340f;
+            var timed = !def.Tutorial;
             var frame = Ui.El("sp-viewfinder", fx);
+            // The faint corners it closes on, unscaled: where a press is a 抓拍.
+            var aim = timed ? Ui.El("sp-viewfinder", fx) : null;
             // On the target wherever the camera, coming round over the shoulder, has it.
             void Follow()
             {
-                frame.style.left = target.Center.x - w / 2f;
-                frame.style.top = target.Center.y - h / 2f;
+                foreach (var e in new[] { frame, aim })
+                {
+                    if (e == null) continue;
+                    e.style.left = target.Center.x - w / 2f;
+                    e.style.top = target.Center.y - h / 2f;
+                }
             }
             Follow();
             frame.schedule.Execute(Follow).Every(0);
-            frame.style.width = w;
-            frame.style.height = h;
-            foreach (var (fx0, fy0) in new[] { (false, false), (true, false), (false, true), (true, true) })
+            var corners = new List<Shape>();
+            foreach (var e in new[] { aim, frame })
             {
-                var corner = new Shape(Corner(fx0, fy0, 10f), Palette.Green).Shadow(new Vector2(4, 4), Palette.Ink);
-                corner.AddToClassList("sp-viewfinder__corner");
-                corner.style.left = fx0 ? w - 70f : 0f;
-                corner.style.top = fy0 ? h - 70f : 0f;
-                frame.Add(corner);
+                if (e == null) continue;
+                e.style.width = w;
+                e.style.height = h;
+                foreach (var (fx0, fy0) in new[] { (false, false), (true, false), (false, true), (true, true) })
+                {
+                    var corner = e == frame
+                        ? new Shape(Corner(fx0, fy0, 10f), Palette.Green).Shadow(new Vector2(4, 4), Palette.Ink)
+                        : new Shape(Corner(fx0, fy0, 6f), new Color(Palette.Green.r, Palette.Green.g, Palette.Green.b, 0.4f));
+                    corner.AddToClassList("sp-viewfinder__corner");
+                    corner.style.left = fx0 ? w - 70f : 0f;
+                    corner.style.top = fy0 ? h - 70f : 0f;
+                    e.Add(corner);
+                    if (e == frame) corners.Add(corner);
+                }
             }
+            if (aim != null) Ui.Text("合拢的一瞬按 Enter：抓拍", "sp-viewfinder__hint", aim, FontKind.Bold);
             Ui.El("sp-viewfinder__cross-h", frame);
             Ui.El("sp-viewfinder__cross-v", frame);
             var rec = Ui.El("sp-viewfinder__rec", frame);
@@ -132,15 +156,65 @@ namespace SystemPrompt.UI
             Ui.Text("REC", "sp-viewfinder__rec-text", rec, FontKind.MonoBold);
 
             game.Audio.Sfx("cursor");
-            await Anim.Tween(0.25f, t => Ui.Zoom(frame, Mathf.Lerp(1.9f, 1f, t)));
-            await Anim.Wait(0.15f);
+            var snapped = false;
+            if (timed)
+            {
+                var s = session;
+                var previous = mode;
+                shutterPressed = false;
+                mode = Mode.Aim;
+                try
+                {
+                    for (var t = 0f; t < CloseIn + SnapHold && !s.Over; t += Time.unscaledDeltaTime)
+                    {
+                        var zoom = Mathf.Lerp(CloseFrom, 1f, t / CloseIn);
+                        Ui.Zoom(frame, zoom);
+                        ShutterOpen = zoom <= SnapFrom;
+                        if (shutterPressed)
+                        {
+                            snapped = ShutterOpen;
+                            break;
+                        }
+                        await Awaitable.NextFrameAsync();
+                    }
+                }
+                finally
+                {
+                    ShutterOpen = false;
+                    if (mode == Mode.Aim) mode = previous;
+                }
+            }
+            else
+            {
+                await Anim.Tween(0.25f, t => Ui.Zoom(frame, Mathf.Lerp(1.9f, 1f, t)));
+                await Anim.Wait(0.15f);
+            }
+            var hit = shoot(snapped);
+            if (snapped)
+            {
+                Snapped++;
+                Ui.Zoom(frame, 1f);
+                foreach (var corner in corners) corner.Fill(Palette.Paper);
+                Snap(target).Forget();
+            }
             game.Audio.Sfx("shutter");
             var photo = stage?.Photo(member, enemies.IndexOf(target), 640, 360);
-            stage?.Capture(member, enemies.IndexOf(target), missed);
-            Fx.Flash(fx, Color.white, 0.22f);
-            Fx.Shake(Root, 12f, 0.2f);
+            stage?.Capture(member, enemies.IndexOf(target), hit.Missed);
+            Fx.Flash(fx, Color.white, snapped ? 0.32f : 0.22f);
+            Fx.Shake(Root, snapped ? 18f : 12f, 0.2f);
             if (photo != null) Thumbnail(photo).Forget();
             Ui.FadeOutAndRemove(frame, 0.15f).Forget();
+            if (aim != null) Ui.FadeOutAndRemove(aim, 0.15f).Forget();
+            return hit;
+        }
+
+        // 「抓拍！」 over the viewfinder, a moment.
+        async Awaitable Snap(EnemyView target)
+        {
+            game.Audio.Sfx("crack", 0.7f);
+            var stamp = Fx.Stamp(fx, "抓拍！", Palette.Paper, 76f, -8f, target.Center + new Vector2(0f, -210f), zoomFrom: 1.6f);
+            await Anim.Wait(0.5f);
+            await Fx.Dismiss(stamp);
         }
 
         // The shot just taken, like a phone's: big in the middle of the screen, then down to the bottom left

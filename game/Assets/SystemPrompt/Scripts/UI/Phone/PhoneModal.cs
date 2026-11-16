@@ -228,6 +228,9 @@ namespace SystemPrompt.UI
                 Ui.Text($"{name}　Lv{m.level}　HP {m.hp}/{stats.MaxHp}　SP {m.sp}/{stats.MaxSp}", "sp-inv__line", scroll, FontKind.MonoBold);
             }
 
+            Section(scroll, "陪伴生能力");
+            Ui.Text(string.Join("　", Array.ConvertAll(GameData.Stats, st => $"{st.Label} {s.Stat(st.Id)}")), "sp-inv__line", scroll, FontKind.MonoBold);
+
             Section(scroll, "道具");
             if (s.inventory.Count == 0) Ui.Text("没有道具。", "sp-inv__line is-dim", scroll, FontKind.Bold);
             foreach (var stack in s.inventory)

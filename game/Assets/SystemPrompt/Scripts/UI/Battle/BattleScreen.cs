@@ -16,7 +16,7 @@ namespace SystemPrompt.UI
     // effects on top. In the tutorial, Tutorial.Rule limits the commands each turn and the hint nodes run as scripted.
     public sealed partial class BattleScreen : IInputLayer, ILinePresenter
     {
-        enum Mode { Idle, Command, Skill, Item, Target, Hint, Prompt, Results }
+        enum Mode { Idle, Command, Skill, Item, Target, Hint, Prompt, Results, Aim }
 
         struct BattleAction
         {
@@ -86,6 +86,15 @@ namespace SystemPrompt.UI
         int summons;             // called in by the 转发型 this battle
         public int CalledIn { get; private set; } // in every battle so far, for the end-to-end run
         public int Exposures { get; private set; } // lying weakness tags shattered by a hit on the truth, so far
+        public int Perceived { get; private set; } // lying weakness tags the player saw through on aiming (细心)
+        readonly HashSet<Combatant> perceiving = new HashSet<Combatant>(); // seen through, the tag still shattering
+        // The screenshot's shutter (ScreenshotFx): Aiming while the viewfinder closes in, ShutterOpen in the moment a
+        // press is a 抓拍; Snapped counts those so far, for the end-to-end run.
+        public bool Aiming => mode == Mode.Aim;
+        public bool ShutterOpen { get; private set; }
+        public int Snapped { get; private set; }
+        public int Overruns { get; private set; } // sieges fought to their end (BattleDef.Siege), for the end-to-end run
+        bool shutterPressed;
         public int LiesDoubted { get; private set; } // lying tags turned 「？？？」 by a hit on their own element, so far
         int earned;              // EXP for each member standing at the end, the called-in ones' included
         public int Earned => earned;
@@ -93,6 +102,7 @@ namespace SystemPrompt.UI
         public bool Preemptive => opening == BattleOpening.Preemptive;
         (string Id, int Count)[] dropped; // what the victory gave, the preemptive bonus included
         public IReadOnlyList<string> FoeKinds => enemies.Select(v => v.Unit.Kind).ToList();
+        public string BattleId => def?.Id;
         public int FoesStanding => enemies.Count(v => !v.Unit.Dead);
         public bool FoeStands(string kind) => enemies.Any(v => !v.Unit.Dead && v.Unit.Kind == kind); // for the end-to-end run
         // A member's HP, max HP and SP in the battle going on, for the end-to-end run's choices.
@@ -165,6 +175,7 @@ namespace SystemPrompt.UI
                 if (e.button != 0) return;
                 if (mode == Mode.Hint) advance = true;
                 else if (mode == Mode.Results) picked = 0;
+                else if (mode == Mode.Aim) shutterPressed = true;
             });
             Root.schedule.Execute(Pin).Every(0);
             HideMenus();
@@ -202,6 +213,7 @@ namespace SystemPrompt.UI
             finisherShown = false;
             results = null;
             seenThrough = false;
+            perceiving.Clear();
             summons = 0;
             calledLastTurn.Clear();
             lastTarget.Clear();
@@ -232,6 +244,12 @@ namespace SystemPrompt.UI
                 if (s.Over) return;
                 if (turn == 1 && opening == BattleOpening.Preemptive) continue; // their first turn is lost
                 if (await EnemyPhase(s)) return;
+                var player = party[0].Unit;
+                if (def.Siege > 0 && (turn >= def.Siege || player.Hp <= player.MaxHp * BattleDef.SiegeBreak))
+                {
+                    await Overrun();
+                    return;
+                }
             }
         }
 
@@ -241,11 +259,13 @@ namespace SystemPrompt.UI
         {
             await Anim.Wait(0.2f);
             await Banner("敌人的回合", true);
+            if (def.Siege > 0) await Reform();
             foreach (var view in enemies.Where(v => !v.Unit.Dead).ToList())
             {
                 if (s.Over) return true;
                 await EnemyTurn(view);
             }
+            if (def.Siege > 0 && !s.Over) await Crowd();
             if (s.Over) return true;
             if (party.All(c => c.Unit.Dead) || party[0].Unit.Dead)
             {
@@ -277,7 +297,7 @@ namespace SystemPrompt.UI
             {
                 var member = state.Member(id);
                 var unit = Combatant.FromMember(member, id == GameState.PlayerId ? state.playerName : id);
-                unit.HpFloor = def.Tutorial ? 1 : 0;
+                unit.HpFloor = def.Tutorial || def.Siege > 0 ? 1 : 0;
                 var card = new PartyCard(unit, partyRow, state.playerGender);
                 card.Root.RegisterCallback<ClickEvent>(e =>
                 {
@@ -291,7 +311,7 @@ namespace SystemPrompt.UI
         // A noise body's plate, after the stage's noise bodies: the plate of the nth goes over the nth on the field.
         EnemyView AddEnemy(Combatant unit)
         {
-            unit.HpFloor = def.Tutorial ? 1 : 0;
+            unit.HpFloor = def.Tutorial || def.Siege > 0 ? 1 : 0;
             var view = new EnemyView(unit, enemyLayer);
             view.SetQuiet(hushed);
             view.Root.RegisterCallback<PointerEnterEvent>(_ => HoverTarget(view.Unit));
@@ -376,6 +396,8 @@ namespace SystemPrompt.UI
             var s = session;
             Quiet(false);
             if (turn == 2 && def.Tutorial) await Expose();
+            var said = def.TurnHints != null && turn <= def.TurnHints.Length ? def.TurnHints[turn - 1] : null;
+            if (said != null && !s.Over) await story.RunHint(said, this);
             if (!def.Tutorial || s.Over) return;
             var node = Tutorial.HintAtTurnStart(turn);
             if (node != null && !s.Over) await story.RunHint(node, this);
@@ -431,7 +453,8 @@ namespace SystemPrompt.UI
                     var knockedDown = await Execute(unit, action.Value);
                     if (s.Over) return false;
                     if (AllEnemiesDead) return true;
-                    if (AllEnemiesDown) return await AllOut();
+                    // Never in a siege: the 集成's finisher takes the HP floor away (BattleFx Strike) and would win it.
+                    if (AllEnemiesDown && def.Siege == 0) return await AllOut();
                     if (!knockedDown) return false;
 
                     oneMore = true;
@@ -643,6 +666,25 @@ namespace SystemPrompt.UI
             var foe = enemies.FindIndex(v => v.Unit == current);
             stage?.Pick(foe);
             if (foe >= 0 && actor >= 0) stage?.Move(stage.Behind(actor, foe), 0.3f);
+            if (foe >= 0 && SeesThrough(current)) Perceive(enemies[foe]).Forget();
+        }
+
+        // 细心 (raised in the classroom by 「……书脊被你捏弯了。」, <<stat_up perception 1>>): in the deep layer a
+        // 标题党型 aimed at gives its lying tag away at once, rather than after a hit on the truth
+        // (design/prologue-playtest.md 改法 7). The shallows and the tutorial still teach the lie the hard way.
+        bool SeesThrough(Combatant c) =>
+            c.IsEnemy && !c.Dead && c.WeaknessLabel != c.TrueWeakness && !perceiving.Contains(c) && !def.Tutorial && def.Id.StartsWith("sea_")
+            && game.State.Stat("perception") >= 1;
+
+        async Awaitable Perceive(EnemyView v)
+        {
+            Perceived++;
+            perceiving.Add(v.Unit);
+            game.Audio.Sfx("crack", 0.6f);
+            v.Peek(0.9f);
+            await v.Shatter();
+            // Still under the cursor: what the aimed element does is known now.
+            if (targets.Count > 0 && targets[targetIndex] == v.Unit) v.SetTargeted(true, Forecast(v.Unit));
         }
 
         void HoverTarget(Combatant c)
@@ -696,21 +738,26 @@ namespace SystemPrompt.UI
                     var view = ViewOf(action.Target);
                     SkillBar(unit, action.Skill.Name).Forget();
                     card?.Face.Play(FaceAct.Attack);
-                    // Known before the blow, so a miss isn't held; the hit lands on the frame the blow does.
-                    var hit = DamageCalc.Compute(unit, action.Target, action.Skill, def);
+                    // Known before the blow, so a miss isn't held; the hit lands on the frame the blow does. The player's
+                    // is known as the shutter goes, a 抓拍 being sure to hit.
+                    Hit hit;
                     if (unit.Id == GameState.PlayerId)
                     {
                         // The player shoots from where they stand, the phone up; DeepSeek runs in and strikes, a
                         // whoosh as each swing comes round.
                         stage?.Shoot(member, enemies.IndexOf(view));
-                        await ScreenshotFx(view, member, hit.Missed);
+                        hit = await ScreenshotFx(view, member, snapped => DamageCalc.Compute(unit, action.Target, action.Skill, def, snapped));
                     }
-                    else if (stage != null)
+                    else
                     {
-                        await stage.Dash(member, enemies.IndexOf(view), () => game.Audio.Sfx("whoosh", 0.8f), hit.Missed);
-                        stage.Slash(enemies.IndexOf(view), hit.Missed);
+                        hit = DamageCalc.Compute(unit, action.Target, action.Skill, def);
+                        if (stage != null)
+                        {
+                            await stage.Dash(member, enemies.IndexOf(view), () => game.Audio.Sfx("whoosh", 0.8f), hit.Missed);
+                            stage.Slash(enemies.IndexOf(view), hit.Missed);
+                        }
+                        else game.Audio.Sfx("whoosh", 0.8f);
                     }
-                    else game.Audio.Sfx("whoosh", 0.8f);
                     await ApplyHit(action.Target, hit, false, true);
                     return hit.KnockedDown;
                 }
@@ -1027,8 +1074,9 @@ namespace SystemPrompt.UI
                 return;
             }
             // 转发型 calls in a 标题党型 every other turn while the line has room (design/systems.md; never in the
-            // scripted tutorial), and hits the party in between.
-            if (e.Kind == "repost" && !def.Tutorial && !calledLastTurn.Contains(e) && summons < MaxSummons && enemies.Count(v => !v.Unit.Dead) < 3)
+            // scripted tutorial), and hits the party in between. Not in a battle that opened with three or more (joined
+            // up in the maze, or the siege): calls on top of those dragged it out to six.
+            if (e.Kind == "repost" && !def.Tutorial && def.Enemies.Length < 3 && !calledLastTurn.Contains(e) && summons < MaxSummons && enemies.Count(v => !v.Unit.Dead) < 3)
             {
                 calledLastTurn.Add(e);
                 await Call(view);
@@ -1060,11 +1108,17 @@ namespace SystemPrompt.UI
             stage?.Move(stage.Watch(from), 0.4f);
             stage?.Brace(from);
             await EnemyBar(caller, "转发到十个群");
+            summons++;
+            CalledIn++;
+            await Arrive(from);
+        }
+
+        // A weaker 标题党型 comes together out of what `from` throws up, onto the line.
+        async Awaitable Arrive(int from)
+        {
             var unit = Battles.Spawn(Battles.Summoned);
             unit.Summoned = true;
             if (seenThrough) unit.WeaknessLabel = unit.TrueWeakness;
-            summons++;
-            CalledIn++;
             game.Audio.Sfx("glitch");
             stage?.Move(stage.Overview, 0.5f);
             var rise = stage?.Summon(unit.Kind, from); // on the field before its plate, which Pin puts over it
@@ -1072,6 +1126,50 @@ namespace SystemPrompt.UI
             if (rise != null) await rise;
             Fx.Shake(view.Root, 12f, 0.25f);
             await Anim.Wait(0.3f);
+        }
+
+        // The siege (BattleDef.Siege), as the noise bodies' turn starts: every one a screenshot took from (down to
+        // 1 at most) comes together again, whole and standing.
+        async Awaitable Reform()
+        {
+            var torn = enemies.Where(v => !v.Unit.Dead && v.Unit.Hp < v.Unit.MaxHp).ToList();
+            if (torn.Count == 0) return;
+            game.Audio.Sfx("glitch");
+            stage?.Move(stage.Overview, 0.4f);
+            foreach (var v in torn)
+            {
+                v.Unit.Hp = v.Unit.MaxHp;
+                v.Unit.Down = false;
+                v.SetDown(false);
+                stage?.Down(enemies.IndexOf(v), false);
+                v.Refresh();
+                Fx.Shake(v.Root, 10f, 0.25f);
+                Popup(v.Unit, "重组", Palette.Red, null);
+            }
+            await Anim.Wait(0.8f);
+        }
+
+        // The siege, as their turn ends: one more out of the crowd while the line has room.
+        async Awaitable Crowd()
+        {
+            var standing = enemies.Where(v => !v.Unit.Dead).ToList();
+            if (standing.Count == 0 || standing.Count >= Battles.MaxFoes) return;
+            await Arrive(enemies.IndexOf(standing[UnityEngine.Random.Range(0, standing.Count)]));
+        }
+
+        // The siege's end: more than a phone can delete. No results, and nothing of the HP lost goes back into
+        // GameState (ApplyRewards is not reached): the story takes it from here, the awakening after it.
+        async Awaitable Overrun()
+        {
+            Overruns++;
+            Quiet(true, true);
+            game.Audio.Sfx("glitch");
+            stage?.Move(stage.Overview, 1f);
+            await Anim.Wait(0.8f); // the camera back far enough for the crowd before the stamp
+            Fx.Shake(Root, 14f, 0.4f);
+            var stamp = Fx.Stamp(fx, "删不完……", Palette.Red, 130f, -6f, new Vector2(960, 190)); // over the crowd, clear of the player
+            await Anim.Wait(1.8f);
+            await Fx.Dismiss(stamp);
         }
 
         async Awaitable<bool> AllOut()
@@ -1345,6 +1443,9 @@ namespace SystemPrompt.UI
                     break;
                 case Mode.Results:
                     if (GameInput.Consume(Btn.Confirm)) picked = 0;
+                    break;
+                case Mode.Aim:
+                    if (GameInput.Consume(Btn.Confirm)) shutterPressed = true;
                     break;
                 default:
                     if (GameInput.Consume(Btn.Menu)) game.Menu.Open();

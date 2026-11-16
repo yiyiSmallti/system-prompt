@@ -213,6 +213,14 @@ namespace SystemPrompt.Dungeon
         float readyShare;      // how much of it shows: none while a motion plays or the figure walks
         Vector3 readyAt;       // where it puts the phone, for the 截图 to bring it up from
         Quaternion readyTurn;
+        // DeepSeek's stance instead holds the 饭勺 low in her right hand (HoldPaddle), where the library's casting
+        // idle had the open palm up at the foe, which read as a wave or a "stop". The paddle is a hand and a half
+        // long, too short to shoulder, so it is held like a little blade: the elbow down at her side, the hand before
+        // her waist, the wrist straight and the thumb up, the paddle on along the forearm at the noise bodies. It stays in her hand through the
+        // battle; an action whose own hands are busy (防御, 道具, 深度思考) puts it away until she settles again.
+        public bool Paddle;
+        float paddleShare;
+        Vector3 handFingers, handPalm; // the right hand's fingers and palm in its own space, as the model stands in its file
         float settleTime, settlePhase;
         Vector3 nudge;
         float nudgeTime, nudgeRise = 1f, nudgeFall = 1f;
@@ -545,6 +553,12 @@ namespace SystemPrompt.Dungeon
                 hipsAhead = Animator.GetBoneTransform(HumanBodyBones.Hips).InverseTransformDirection(Root.forward);
                 carriedRest = tail[0].localRotation;
             }
+
+            // The models stand in their files with the arms out and the palms down, the wrists straight: a straight
+            // wrist's fingers go on along the forearm (HoldPaddle; a battle dress has no finger bones to say so).
+            Transform rightHand = Animator.GetBoneTransform(HumanBodyBones.RightHand), rightForearm = Animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            handFingers = rightHand.InverseTransformDirection(rightHand.position - rightForearm.position).normalized;
+            handPalm = rightHand.InverseTransformDirection(-Root.up);
 
             graph = PlayableGraph.Create("Figure " + model);
             graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
@@ -1016,10 +1030,17 @@ namespace SystemPrompt.Dungeon
                 var w = Ease.InOutCubic(readyShare);
                 phone.SetPositionAndRotation(Vector3.Lerp(at, readyAt, w), Quaternion.Slerp(turn, readyTurn, w));
             }
+            // The 饭勺 held low while only the stance plays (or a motion of hers that swings it is fading back into it).
+            var settled = Paddle && inStance && !carriesPhone ? (1f - actionShare) * (1f - Mathf.Clamp01(speed / WalkSpeed)) : 0f;
+            paddleShare = Mathf.MoveTowards(paddleShare, settled, dt / 0.25f);
+            if (paddleShare > 0f) HoldPaddle(Ease.InOutCubic(paddleShare));
             if (Explorer || Attentive) Look(dt);
+            if (Paddle && spoon == null) spoon = BuildSpoon();
             if (spoon != null)
             {
-                spoonShown = Mathf.MoveTowards(spoonShown, wielding ? 1f : 0f, dt / RiceGrow);
+                // Held all through the battle, put away only while her hands are on something else.
+                var kept = Paddle && inStance && !(action.IsValid() && actionWeight > 0f && HandsBusy(actionName));
+                spoonShown = Mathf.MoveTowards(spoonShown, wielding || kept ? 1f : 0f, dt / RiceGrow);
                 spoon.gameObject.SetActive(spoonShown > 0f);
                 if (spoonShown > 0f)
                 {
@@ -1296,6 +1317,38 @@ namespace SystemPrompt.Dungeon
             Grip(HumanBodyBones.RightHand, HumanBodyBones.RightIndexProximal, HumanBodyBones.RightLittleProximal, HumanBodyBones.RightMiddleProximal, side, readyTurn, w);
             Reach(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, Bone(HumanBodyBones.LeftHand), End(-1f), -side, w);
             Grip(HumanBodyBones.LeftHand, HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftMiddleProximal, -side, readyTurn, w);
+        }
+
+        // The motions whose hands have no room for the 饭勺: guarding, eating the 白米饭, thinking with a hand at the
+        // chin, casting a spell out of the right palm, throwing.
+        static bool HandsBusy(string motion) =>
+            motion != null && (motion.StartsWith("Guard") || motion.StartsWith("Item") || motion.StartsWith("Think")
+                               || motion == "Cast" || motion.StartsWith("Throw"));
+
+        // DeepSeek's 饭勺 held low (Paddle), w of the way: the right hand a forearm before her waist and a little in,
+        // the elbow down and out at her side, the wrist straight with the thumb up and the palm in toward her middle.
+        // Set off the shoulders like HoldReady.
+        void HoldPaddle(float w)
+        {
+            var up = Root.up;
+            var s = height / 1.7f;
+            Transform left = Bone(HumanBodyBones.LeftUpperArm), right = Bone(HumanBodyBones.RightUpperArm);
+            var chest = Vector3.ProjectOnPlane(Vector3.Cross(right.position - left.position, up), up);
+            if (chest.sqrMagnitude < 1e-6f) chest = Root.forward;
+            chest.Normalize();
+            var side = Vector3.Cross(up, chest); // to her right
+            var target = right.position + (chest * 0.3f - up * 0.24f - side * 0.04f) * s;
+            Transform hand = Bone(HumanBodyBones.RightHand), forearm = Bone(HumanBodyBones.RightLowerArm);
+            Reach(HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, hand, target, side, w);
+            // The wrist straightened onto the forearm, then rolled about it until the palm faces in.
+            var along = (hand.position - forearm.position).normalized;
+            var straight = Quaternion.FromToRotation(hand.rotation * handFingers, along) * hand.rotation;
+            var palm = straight * handPalm;
+            var palmWant = Vector3.ProjectOnPlane(-side, along);
+            var roll = palmWant.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.ProjectOnPlane(palm, along), palmWant) : Quaternion.identity;
+            hand.rotation = Quaternion.Slerp(hand.rotation, roll * straight, w);
+            // The paddle itself goes where her swings carry it (SpoonInHand): out of the palm along the forearm, here
+            // forward and a little up at the noise bodies.
         }
 
         // The head turned over the pose onto LookAt's point, the neck taking 0.4 of the turn: up to 70 degrees aside, 20 up

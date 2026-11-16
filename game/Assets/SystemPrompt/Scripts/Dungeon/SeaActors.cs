@@ -1127,6 +1127,8 @@ namespace SystemPrompt.Dungeon
             // A size and a turn of its own.
             var mark = Mathf.FloorToInt(seed * 113f);
             restScale = Vector3.one * (0.94f + 0.12f * DungeonWorld.Hash(mark, 5));
+            // 冷知识型's cards are flat: on the battle field a size up, or beside the others' lumps it reads as small.
+            if (battle && kind == "coldfact") restScale *= 1.2f;
             Form.localScale = restScale;
             Form.localRotation = Quaternion.Euler(0f, (DungeonWorld.Hash(mark, 9) - 0.5f) * 12f, 0f);
             // Lit by its mood alone (Eyes): dark where its emission isn't.
@@ -1166,6 +1168,7 @@ namespace SystemPrompt.Dungeon
             else if (kind == "coldfact")
             {
                 skin = SeaArt.Glitch(Palette.Hex("#8FC8FF"), Palette.Cold, 0.12f);
+                skin.SetFloat("_Card", 1f); // ruled paper rotting a cell at a time (Glitch.shader)
                 // A stack of index cards fanned a little, the front one (+z) carrying the eyes.
                 var card = SeaArt.Box(new Vector3(1.2f, 0.8f, 0.08f), 0.03f);
                 cards = new Transform[4];

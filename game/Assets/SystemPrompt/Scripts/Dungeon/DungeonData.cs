@@ -142,7 +142,7 @@ namespace SystemPrompt.Dungeon
                     "#F=.=.=.=.#..LLL..####.###4##",
                     "#.........#..LLL..####.##%.##",
                     "#.=.=#=.=.#.......####.###.##",
-                    "#3.......f#...G...####...#.##",
+                    "#3.....f..#...G...####...#.##",
                     "#.=#=.=.=.#.......####..F#.##",
                     "#.......F.#.......#######%.##",
                     "#.........#===X===########g##",
@@ -224,7 +224,9 @@ namespace SystemPrompt.Dungeon
                     new EnemySpawn { Mark = '1', Kind = "clickbait", Dozing = true, Facing = Vector2Int.down, Battle = "shallow_clickbait" },
                     // Along the top of the coral, across the way north.
                     new EnemySpawn { Mark = '2', Kind = "repost", Route = "e", Battle = "shallow_repost" },
-                    // Along the lane between the graves.
+                    // Along the lane between the graves, turning back two cells short of the east wall: going east it
+                    // sees up the east side, going west it doesn't, so the player can slip past it up that side instead of
+                    // fighting (design/prologue-playtest.md 改法 9).
                     new EnemySpawn { Mark = '3', Kind = "clickbait", Route = "f", Battle = "shallow_pair" },
                     // Up and down the canyon's long straight, in the way down to the maintenance room.
                     new EnemySpawn { Mark = '4', Kind = "repost", Route = "g", Battle = "shallow_mixed" },
@@ -234,7 +236,8 @@ namespace SystemPrompt.Dungeon
             // room's middle aisle, over the low wall into the white hall, and stops on the white door. The
             // way there goes round: west through the recycle bin (short, a beacon) or east through the
             // long-context corridor (long, but the delay patch is there). In the hall four light plates have
-            // to be turned until the light reaches the exit beside the door; until then it stays dark. Among the
+            // to be turned until the light reaches the exit beside the door; until then it stays dark. Two ways round
+            // the hall do it (Plates). Among the
             // noise bodies here are 冷知识型, which shrug off ice; they run faster than the shallows', and the
             // meter running out throws the party back to the last beacon (UI/Dungeon/DungeonScreen.cs Bounce).
             ["cache_sea_deep"] = new DungeonDef
@@ -248,11 +251,11 @@ namespace SystemPrompt.Dungeon
                 {
                     "#############################",
                     "#############DDD#############",
-                    "##......#..G........#.......#",
+                    "##......#M.G........#.......#",
                     "##.####.#..M.....M..#.#####.#",
                     "#............=.=......#####.#",
                     "#.==..=.#...........#.......#",
-                    "#....j..#.....M..M..#######.#",
+                    "#....j..#M....M..M..#######.#",
                     "#.F..=..#.6.......m.#######.#",
                     "#.......######=############.#",
                     "#%...=..#...........#.......#",
@@ -294,7 +297,9 @@ namespace SystemPrompt.Dungeon
                 LighthouseCell = new Vector2(14f, 29f),
                 Departure = Departure.Column,
                 Scene = "Scenes/CacheSeaDeep/cache_sea_deep",
-                Plates = "|/|\\",
+                // Two ways round: east (14,6) | → /, (17,6) - → /, (17,3) / → \, (11,3) | → \, five turns with one
+                // back; or west (14,6) | → \, (9,6) / → \, (9,2) \ → /, five turns by the west wall's pearl.
+                Plates = "\\|//|-",
                 StartNode = "Prologue_Deep_Start",
                 LightNode = "Prologue_Deep_Light",
                 BeaconNode = "Prologue_Deep_Beacon",

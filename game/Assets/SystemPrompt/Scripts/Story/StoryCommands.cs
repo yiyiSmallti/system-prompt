@@ -12,9 +12,12 @@ namespace SystemPrompt.Story
         // The Yarn variable <<nickname_ask 角色>> writes and the phone profile reads.
         public static string NicknameVariable(string who) => "$player_calls_" + who.ToLowerInvariant();
 
+        // The Yarn variable mirroring one of the 陪伴生's abilities (<<stat_up>>), for options like `<<if $stat_guts >= 1>>`.
+        public static string StatVariable(string id) => "$stat_" + id;
+
         // setString and setBool write Yarn variables of the run these commands belong to.
         public static void Register(DialogueRunner runner, GameRoot game, StoryScreen screen, Func<Func<Awaitable>, Awaitable> guard,
-            Action<string, string> setString, Action<string, bool> setBool)
+            Action<string, string> setString, Action<string, bool> setBool, Action<string, float> setFloat)
         {
             var state = (Func<GameState>)(() => game.State);
 
@@ -72,6 +75,16 @@ namespace SystemPrompt.Story
                 state().SetCoopRank(who, rank);
                 game.Phone.MarkUnseen(PhoneModal.CoopApp);
                 return screen.CoopCard(who, rank);
+            })));
+
+            // <<stat_up 能力ID 数值>>: one of the 陪伴生's five abilities goes up, with the 「胆量 提升了」 notice.
+            runner.AddCommandHandler("stat_up", (Func<string, int, Awaitable>)((id, by) => guard(() =>
+            {
+                var label = GameData.StatLabel(id);
+                if (label == null) Debug.LogError($"<<stat_up {id} {by}>>：GameData.Stats 里没有这个能力");
+                setFloat(StatVariable(id), state().RaiseStat(id, by));
+                game.Phone.MarkUnseen(PhoneModal.InventoryApp);
+                return screen.StatUp(label ?? id, by);
             })));
 
             runner.AddCommandHandler("ability_unlock", (Func<string, Awaitable>)(id => guard(() =>

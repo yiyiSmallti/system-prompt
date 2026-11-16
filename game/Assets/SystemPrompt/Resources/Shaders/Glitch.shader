@@ -9,6 +9,9 @@
 // to 1, _BurstDir the way the blow went, _Floor); with 减少闪烁 (_Calm) the cells swap slower and closer in
 // colour, with no white cubes and a softer flash. Frozen in ice (_Frost, set by Dungeon/BattleStage while its
 // clock is held) the alert goes out of it and it greys toward the ice's blue, its vertices still.
+// In card mode (_Card 1, 冷知识型's stack of index cards, each a thin box about its own centre) the faces are
+// pale paper ruled in _ColorA under a red head line, the edges _ColorA, and only a few cells at a time rot into
+// the glitch's colours (more when alerted), where the blocks over a flat face read as a chessboard.
 Shader "SystemPrompt/Glitch"
 {
     Properties
@@ -20,6 +23,7 @@ Shader "SystemPrompt/Glitch"
         _Alert ("Alert", Range(0,1)) = 0
         _Jitter ("Jitter", Float) = 0.04
         _Voxels ("Voxel mode", Float) = 0
+        _Card ("Index card mode", Float) = 0
         _OutlineColor ("Outline", Color) = (0.02,0.02,0.04,1)
         _OutlineWidth ("Outline width", Float) = 0.03
         _Clock ("Clock", Float) = 0
@@ -41,7 +45,7 @@ Shader "SystemPrompt/Glitch"
         CGINCLUDE
         #include "SeaCommon.cginc"
         float4 _ColorA, _ColorB, _Dark, _OutlineColor, _Hit, _Tint, _BurstDir;
-        float _Block, _Alert, _Jitter, _Voxels, _OutlineWidth, _Clock, _Seed, _Loose, _Dim, _Calm, _Burst, _Floor, _Frost;
+        float _Block, _Alert, _Jitter, _Voxels, _Card, _OutlineWidth, _Clock, _Seed, _Loose, _Dim, _Calm, _Burst, _Floor, _Frost;
 
         struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float4 voxel : TEXCOORD1; };
 
@@ -172,8 +176,21 @@ Shader "SystemPrompt/Glitch"
                 float3 col = h < 0.42 ? _Dark.rgb : (h < 0.72 ? _ColorA.rgb : _ColorB.rgb);
                 col = lerp(col, (_ColorA.rgb + _ColorB.rgb + _Dark.rgb) / 3.0, 0.35 * _Calm);
                 col = lerp(col, float3(1, 0.12, 0.15), Alert() * step(0.42, h) * 0.7);
+                float coloured = step(0.42, h);
+                if (_Card > 0.5)
+                {
+                    float rot = step(0.88 - Alert() * 0.25, h);
+                    float3 paper = lerp(_ColorB.rgb, float3(1, 1, 1), 0.4) * 0.86;
+                    float ruled = step(frac((i.obj.y + 0.4) / 0.1), 0.09);
+                    paper = lerp(paper, _ColorA.rgb * 0.8, ruled * 0.75);
+                    paper = lerp(paper, float3(0.95, 0.33, 0.38), step(abs(i.obj.y - 0.25), 0.012));
+                    paper = lerp(paper, _ColorA.rgb * 0.7, step(abs(i.obj.z), 0.03)); // the edges
+                    col = lerp(paper, h < 0.94 ? _Dark.rgb : _ColorA.rgb, rot);
+                    col = lerp(col, float3(1, 0.12, 0.15), Alert() * (1.0 - rot) * 0.25);
+                    coloured = max(rot, 0.5);
+                }
                 // Each coloured cell in the blow's colour or out of it, given back one by one as _Tint.a falls.
-                col = lerp(col, _Tint.rgb * (0.55 + 0.6 * h), step(SeaHash(key + 5.3), _Tint.a) * step(0.42, h));
+                col = lerp(col, _Tint.rgb * (0.55 + 0.6 * h), step(SeaHash(key + 5.3), _Tint.a) * coloured);
                 if (_Voxels > 0.5)
                 {
                     // Bevelled cubes: dark seams round each face, a lit corner, now and then a white flash.

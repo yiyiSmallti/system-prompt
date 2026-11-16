@@ -406,6 +406,21 @@ namespace SystemPrompt.UI
             await Ui.FadeOutAndRemove(layer, 0.25f);
         }
 
+        // <<stat_up 能力ID 数值>>: 「细心 +1」 slammed over the scene, the line it follows still showing, and the
+        // phone pulsing where the abilities are listed (持有物).
+        public async Awaitable StatUp(string label, int by)
+        {
+            var layer = Ui.El("fx-stat", fx);
+            Ui.Fill(layer);
+            layer.pickingMode = PickingMode.Ignore;
+            game.Audio.Sfx("levelup", 0.7f);
+            var stamp = Fx.Stamp(layer, $"{label} +{by}", Palette.Green, 76f, -8f, new Vector2(1380, 300));
+            PulsePhone();
+            await WaitAdvance(0.4f, 1.6f);
+            await Fx.Dismiss(stamp);
+            layer.RemoveFromHierarchy();
+        }
+
         // <<deadline_set 期限ID 月 日>>: the countdown slams into the HUD.
         public async Awaitable DeadlineSet()
         {
