@@ -45,7 +45,7 @@ namespace SystemPrompt.Dungeon
             PropKind.Fragment => "调查",
             PropKind.Chest => "打开",
             PropKind.Terminal => "接入",
-            PropKind.Beacon => "休息",
+            PropKind.Beacon => "休息·存档", // lit as the player passes; Enter at a lit one (DungeonScreen.Use)
             PropKind.Console => "缓存块复位",
             _ => "",
         };

@@ -1023,17 +1023,22 @@ namespace SystemPrompt.Dungeon
         public const float Radius = 0.6f;  // how far its body reaches out round the centre (a 转发型's arrows aside)
         public const float Top = 1f;       // how high over the centre its highest part reaches (the 转发型's top arrow)
         public const float ShadowSize = 1.8f; // across, on the seabed under it
-        const float Voxel = 0.3f;
+        const float Voxel = 0.18f; // the 标题党型's cubes
+        const float MouthY = -0.18f; // the middle of its mouth, two rows tall
+        const float SpineSize = 1.25f; // the 转发型's arrows on it, to the one it shoots
         const float Socket = 0.01f; // the dark outline round its eyes, widened when it is angry
         const float AdSeconds = 2.8f, GhostSeconds = 1.9f, FactSeconds = 2.4f;
         static readonly string[] Ads = { "震惊！", "点击领取", "99%", "恭喜中奖", "限时免费" };
         static readonly string[] Facts = { "99.7%", "据统计", "你知道吗", "每天一个", "第 3 条", "其实" };
-        // Where the 转发型's arrows point, none in front of its eyes.
+        // Where the 转发型's arrows point: a hedgehog's spines, laid back over its back and down its sides and
+        // rump, none in front of its face or under its belly, so its snout and body still show from the front. The first three are the ones its attacks throw (Throw).
         static readonly Vector3[] ArrowDirs =
         {
-            new Vector3(0f, 1f, 0.15f), new Vector3(0.9f, 0.35f, 0.1f), new Vector3(-0.9f, 0.35f, 0.1f),
-            new Vector3(0.6f, -0.6f, 0.45f), new Vector3(-0.6f, -0.6f, 0.45f), new Vector3(0.45f, 0.35f, -0.85f),
-            new Vector3(-0.45f, 0.35f, -0.85f), new Vector3(0f, -0.5f, -0.85f),
+            new Vector3(0f, 0.8f, -0.6f), new Vector3(0.5f, 0.7f, -0.5f), new Vector3(-0.5f, 0.7f, -0.5f),
+            new Vector3(0f, 0.45f, -0.9f), new Vector3(0.45f, 0.4f, -0.8f), new Vector3(-0.45f, 0.4f, -0.8f),
+            new Vector3(0.8f, 0.35f, -0.5f), new Vector3(-0.8f, 0.35f, -0.5f), new Vector3(0.65f, 0f, -0.75f),
+            new Vector3(-0.65f, 0f, -0.75f), new Vector3(0f, 0f, -1f), new Vector3(0.4f, -0.3f, -0.85f),
+            new Vector3(-0.4f, -0.3f, -0.85f),
         };
         static readonly Color Unlit = new Color(0.05f, 0.05f, 0.05f);
         static readonly Color Blank = new Color(1.6f, 1.6f, 1.6f); // a blow's flash, just over the glow's threshold
@@ -1138,8 +1143,10 @@ namespace SystemPrompt.Dungeon
             if (kind == "repost")
             {
                 skin = SeaArt.Glitch(Palette.Sea, Palette.Cold, 0.16f);
-                var ball = SeaArt.Sphere(0.55f);
-                var fork = ForkedArrow(0.42f);
+                // An arrow hedgehog: its body modelled in Blender (assets/characters/noise/repost_body.py), snout
+                // to the front under its eyes, its spines forked arrows a size up from the ones it shoots.
+                var ball = Shape("RepostBody");
+                var fork = ForkedArrow(0.36f, SpineSize);
                 core = Parts.Shape("Core", Form, ball, skin).transform;
                 arrows = new Transform[ArrowDirs.Length];
                 arrowRest = new Quaternion[arrows.Length];
@@ -1162,7 +1169,7 @@ namespace SystemPrompt.Dungeon
                     ghostLooks[i] = SeaArt.Glow(SeaArt.White, Palette.Cold);
                     ghosts[i] = Parts.Shape("Copy", parent, ghost, ghostLooks[i]).transform;
                 }
-                eyeAt = new Vector3(0.17f, 0.12f, 0.53f);
+                eyeAt = new Vector3(0.17f, 0.18f, 0.5f);
                 eyeSize = new Vector3(0.16f, 0.07f, 0.04f);
             }
             else if (kind == "coldfact")
@@ -1194,11 +1201,11 @@ namespace SystemPrompt.Dungeon
             {
                 skin = SeaArt.Glitch(Palette.Red, Palette.Hex("#FFD23F"), 0.2f);
                 skin.SetFloat("_Voxels", 1f);
-                // Lumps of its own; the front row with the eyes stays put, and in a battle the two cells under them
-                // that carry its mouth. Its cubes fly metres off when it bursts, which the mesh's bounds take in, or
-                // it is culled while they are still in view.
-                var cells = SeaArt.Voxels(BlockCells(Mathf.FloorToInt(seed * 7f) % 5), Voxel, 0.012f,
-                    c => c.z == 1 && (c.y == 0 || (battle && c.y == -1 && (c.x == -1 || c.x == 0))));
+                // A pop-up window grown a face (BlockCells): the front row with the eyes stays put, and its fangs and
+                // close box, and in a battle the rows round its mouth. Its cubes fly metres off when it bursts, which
+                // the mesh's bounds take in, or it is culled while they are still in view.
+                var cells = SeaArt.Voxels(BlockCells(Mathf.FloorToInt(seed * 7f) % 5), Voxel, 0.008f,
+                    c => c.z == 1 && (c.y == 1 || BlockRole(c) == 3 || (battle && c.y >= -2)), BlockRole);
                 cells.bounds = new Bounds(cells.bounds.center, cells.bounds.size + Vector3.one * 7f);
                 block = Parts.Shape("Block", Form, cells, skin).transform;
                 drips = new Transform[4];
@@ -1232,14 +1239,14 @@ namespace SystemPrompt.Dungeon
                 {
                     // Its mouth under the eyes, on the cells that keep still: a slot dark as its pop-ups' pages
                     // under their red bar, its 「震惊！」 in it, shut (flat) till it shouts (Face).
-                    mouth = Parts.Node("Mouth", Form, new Vector3(0f, -0.15f, 0.61f));
+                    mouth = Parts.Node("Mouth", Form, new Vector3(0f, MouthY, 2f * Voxel + 0.01f));
                     Parts.Shape("Slot", mouth, SeaArt.Box(new Vector3(0.36f, 0.16f, 0.02f), 0.02f), page);
                     Parts.Shape("Lip", mouth, SeaArt.Box(new Vector3(0.38f, 0.04f, 0.025f), 0.01f), bar, new Vector3(0f, 0.08f, 0.002f));
                     shout = SeaArt.Text("Shout", mouth, "震惊！", 0.07f, ShoutColor, new Vector3(0f, -0.01f, 0.015f));
                     shout.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // read from in front of the face
                     mouth.localScale = new Vector3(1f, 0f, 1f);
                 }
-                eyeAt = new Vector3(0.22f, 0.16f, 0.62f);
+                eyeAt = new Vector3(1.5f * Voxel, 1.5f * Voxel, 2f * Voxel + 0.01f);
                 eyeSize = new Vector3(0.2f, 0.08f, 0.04f);
             }
             faceZ = eyeAt.z;
@@ -1289,52 +1296,87 @@ namespace SystemPrompt.Dungeon
             skin.SetFloat(ClockId, Clock); // its own tick from the first frame drawn
         }
 
-        // The 标题党型's voxels, in cells of Voxel round the centre: a 4 × 4 × 4 block with most corners and
-        // some edges knocked off, and a few lumps standing out of it (none on the front, where the eyes are),
-        // which ones by `variant` (0 to 4); the row with the eyes is always whole.
+        // The 标题党型's voxels, in cells of Voxel round the centre (x -4 to 3, y -3 to 2, z -2 to 1, the front at
+        // +z): a pop-up window 8 × 6 × 4 with its red title bar along the top, its close box (white) at the
+        // right end of it, its eyes on the row under the bar, and under them a mouth two rows tall across the
+        // front, dark inside, a white fang hanging at each end. Bitten into here and there round the back and the edges, and a few
+        // lumps standing off its back and top, which ones by `variant` (0 to 4); the bar, the eyes' row and the
+        // mouth always whole.
         static List<Vector3Int> BlockCells(int variant)
         {
             var cells = new List<Vector3Int>();
-            for (var x = -2; x < 2; x++)
-            for (var y = -2; y < 2; y++)
+            for (var x = -4; x < 4; x++)
+            for (var y = -3; y < 3; y++)
             for (var z = -2; z < 2; z++)
             {
-                var outer = (x == -2 || x == 1 ? 1 : 0) + (y == -2 || y == 1 ? 1 : 0) + (z == -2 || z == 1 ? 1 : 0);
+                var c = new Vector3Int(x, y, z);
+                if (z == 1 && (y == -1 || y == -2) && x > -4 && x < 3 && BlockRole(c) != 3) continue; // the mouth
+                var keep = y >= -2 && (y != 0 || z == 1);
+                var outer = (x == -4 || x == 3 ? 1 : 0) + (y == -3 ? 1 : 0) + (z == -2 ? 1 : 0);
                 var h = DungeonWorld.Hash(x * 3 + z + 20 + variant * 31, y * 5 + z * 7 + 20);
-                var face = z == 1 && y == 0;
-                if (!face && ((outer == 3 && h < 0.7f) || (outer == 2 && h < 0.22f))) continue;
-                cells.Add(new Vector3Int(x, y, z));
+                if (!keep && ((outer >= 2 && h < 0.55f) || (outer == 1 && z == -2 && h < 0.18f))) continue;
+                cells.Add(c);
             }
             var inside = new HashSet<Vector3Int>(cells);
-            for (var x = -3; x < 3; x++)
-            for (var y = -2; y < 3; y++)
-            for (var z = -3; z < 2; z++)
+            for (var x = -5; x < 5; x++)
+            for (var y = -3; y < 4; y++)
+            for (var z = -3; z < 1; z++)
             {
                 var c = new Vector3Int(x, y, z);
                 if (inside.Contains(c)) continue;
                 var touching = inside.Contains(c + Vector3Int.right) || inside.Contains(c + Vector3Int.left) || inside.Contains(c + Vector3Int.down)
-                    || inside.Contains(c + Vector3Int.forward) || inside.Contains(c + Vector3Int.back);
-                if (touching && DungeonWorld.Hash(x * 11 + 40 + variant * 31, y * 13 + z * 17 + 40) < 0.1f) cells.Add(c);
+                    || inside.Contains(c + Vector3Int.forward);
+                if (touching && DungeonWorld.Hash(x * 11 + 40 + variant * 31, y * 13 + z * 17 + 40) < 0.07f) cells.Add(c);
             }
             return cells;
         }
 
-        // The 转发型's arrow, along +y from `from` inside the core: a stem forking into two arrowheads. Its
-        // 转发保平安 shoots them (BattleEffects.Forward).
-        internal static Mesh ForkedArrow(float from)
+        // A 标题党型 cube's colour (SeaArt.Voxels): 1 the title bar's red, 3 the white of its close box and fangs,
+        // 0 the dark inside its mouth; -1 any of its flickering colours.
+        static int BlockRole(Vector3Int c)
+        {
+            if (c.y == 2) return c.x == 2 && c.z == 1 ? 3 : 1;
+            if (c.y == -1 && c.z == 1 && (c.x == -3 || c.x == 2)) return 3;
+            if ((c.y == -1 || c.y == -2) && c.z == 0 && c.x > -4 && c.x < 3) return 0;
+            return -1;
+        }
+
+        static readonly Dictionary<string, Mesh> shapes = new Dictionary<string, Mesh>();
+
+        // A body modelled in Blender (Resources/Models/Noise), as one mesh in metres with its front to +z, so the
+        // skin's cells (Glitch.shader, in the mesh's own space) come out the size they are on the code-built ones.
+        // Kept for the run, shared by every body of its kind, out of Parts.Free's reach.
+        static Mesh Shape(string name)
+        {
+            if (shapes.TryGetValue(name, out var m) && m != null) return m;
+            var prefab = Resources.Load<GameObject>("Models/Noise/" + name);
+            if (prefab == null) throw new System.InvalidOperationException($"找不到噪声体模型 Resources/Models/Noise/{name}");
+            var parts = new List<(Mesh, Matrix4x4)>();
+            foreach (var f in prefab.GetComponentsInChildren<MeshFilter>())
+                parts.Add((f.sharedMesh, prefab.transform.worldToLocalMatrix * f.transform.localToWorldMatrix));
+            if (parts.Count == 0) throw new System.InvalidOperationException($"噪声体模型 {name} 没有网格");
+            m = SeaArt.Combine(name, parts);
+            m.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            return shapes[name] = m;
+        }
+
+        // The 转发型's arrow, along +y from `from` inside the core: a stem forking into two arrowheads, `size`
+        // times the one its 转发保平安 shoots (BattleEffects.Forward).
+        internal static Mesh ForkedArrow(float from, float size = 1f)
         {
             // Round rods, standing on their foot (SeaArt.Cylinder runs from 0 up).
             var stem = SeaArt.Cylinder(0.045f, 0.04f, 0.3f, 8);
             var twig = SeaArt.Cylinder(0.034f, 0.03f, 0.26f, 8);
             var head = SeaArt.Cone(0.11f, 0.2f, 8);
-            var fork = new Vector3(0f, from + 0.28f, 0f);
-            var parts = new List<(Mesh, Matrix4x4)> { (stem, Matrix4x4.Translate(new Vector3(0f, from, 0f))) };
+            var grow = Matrix4x4.Scale(Vector3.one * size);
+            var fork = new Vector3(0f, from / size + 0.28f, 0f);
+            var parts = new List<(Mesh, Matrix4x4)> { (stem, grow * Matrix4x4.Translate(new Vector3(0f, from / size, 0f))) };
             foreach (var lean in new[] { -30f, 30f })
             {
                 var turn = Quaternion.Euler(0f, 0f, lean);
                 var dir = turn * Vector3.up;
-                parts.Add((twig, Matrix4x4.TRS(fork - dir * 0.01f, turn, Vector3.one)));
-                parts.Add((head, Matrix4x4.TRS(fork + dir * 0.24f, turn, Vector3.one)));
+                parts.Add((twig, grow * Matrix4x4.TRS(fork - dir * 0.01f, turn, Vector3.one)));
+                parts.Add((head, grow * Matrix4x4.TRS(fork + dir * 0.24f, turn, Vector3.one)));
             }
             var arrow = SeaArt.Combine("Forked Arrow", parts);
             Object.Destroy(stem);
@@ -1544,7 +1586,7 @@ namespace SystemPrompt.Dungeon
         {
             if (block != null)
             {
-                if (i >= ads.Length) return new Thrown(Body, Form.TransformPoint(new Vector3(0f, -0.15f, faceZ)), Quaternion.LookRotation(-Form.forward, Form.up), 0.4f, "震惊！");
+                if (i >= ads.Length) return new Thrown(Body, Form.TransformPoint(new Vector3(0f, MouthY, faceZ)), Quaternion.LookRotation(-Form.forward, Form.up), 0.4f, "震惊！");
                 adGone[i] = 0f;
                 adCycle[i] = int.MinValue; // somewhere new when it comes back
                 return new Thrown(Body, windows[i].position, windows[i].rotation, ads[i].lossyScale.x, adWords[i].text);
@@ -1553,7 +1595,7 @@ namespace SystemPrompt.Dungeon
             {
                 var arrow = arrows[i % 3];
                 arrowGone[i % 3] = 0f;
-                return new Thrown(Body, arrow.TransformPoint(new Vector3(0f, 0.95f, 0f)), arrow.rotation, arrow.lossyScale.x);
+                return new Thrown(Body, arrow.TransformPoint(new Vector3(0f, 1f, 0f)), arrow.rotation, arrow.lossyScale.x * SpineSize);
             }
             var card = cards[1 + i % (cards.Length - 1)];
             cardGone[1 + i % (cards.Length - 1)] = 0f;

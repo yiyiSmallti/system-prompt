@@ -44,8 +44,10 @@
 //   <<party_join 角色>>              入队
 //   <<battle 战斗ID>>                进入战斗，战斗结束后继续；战斗中的提示和台词由战斗系统调用 Prologue_Battle_* 节点
 //                                    （影子前的围攻战调用 Prologue_Siege_*）
-//   <<dungeon 区域ID>>               进入潜空间 3D 探索，走到终点（或维护进度满）后继续；探索中的提示、区域、碎片和事件
-//                                    由探索系统调用 Prologue_Sea_* / Prologue_Deep_* 节点，这些节点里不能放选项
+//   <<dungeon 区域ID>>               进入潜空间 3D 探索，走到终点后继续；探索中的提示、区域、碎片和事件
+//                                    由探索系统调用 Prologue_Sea_* / Prologue_Deep_* 节点，这些节点里不能放选项。
+//                                    <<dungeon>> 单独放在一个节点里（后面只跟 <<jump>>）：信标存档读回来时从这个节点开头
+//                                    直接回到迷宫
 //   <<mirror walk|on|off>>           只在深层出口的节点里用：walk 让主角和 DeepSeek 走到白门前；on 让白门的门面变成镜子，
 //                                    镜子里的主角穿着潜空间战斗服；off 让镜像变回主角本来的样子
 //   <<reveal firewall>>              只在终端的节点里用：插入镜头依次拍到防火墙消失
@@ -372,6 +374,12 @@ DeepSeek: 所以要在维护结束前找到出口。出口每次都换地方，�
 DeepSeek: ……我从来不敢靠近灯塔。那里有「它」在。每一次，它都站得离我更近一点。 #line:ff968be6
 DeepSeek: ……我打不过它们。每一次，我都只是躲起来，等维护结束。 #face:pout #line:a0756a3e
 DeepSeek: 但是鱼片一个人去的话，会被噪声体拖走的。……一起去吧。我认得路。 #face:neutral #line:9c9fc2b6
+<<jump Prologue_Shallows>>
+===
+
+title: Prologue_Shallows
+---
+// 浅层探索单独一个节点：节点开头是存档点，在点亮的信标旁存的档读回来直接回到迷宫里，不再重放前面的剧情
 <<dungeon cache_sea_shallows>>
 <<jump Prologue_Lighthouse>>
 ===
@@ -472,7 +480,19 @@ DeepSeek: 维护还没结束。鱼片，要在那之前走到出口。 #line:a4e
 -> 下面有什么？
     DeepSeek: 不知道。我总是梦见很深很深的海。……现在有鱼片在，可以去看看了。 #face:pout #line:f265a72d
 旁白: 灯塔的光从头顶扫过。刚才战斗留下的疲惫，一下子轻了。
+<<jump Prologue_Deep>>
+===
+
+title: Prologue_Deep
+---
+// 深层探索单独一个节点（同浅层）
 <<dungeon cache_sea_deep>>
+<<jump Prologue_Surface>>
+===
+
+title: Prologue_Surface
+---
+// 深层出口之后：浮上去，维护结束
 旁白: 光把我们往上托。四周的机柜一座接一座地熄灭，远处传来倒计时般的电子音：维护即将结束。
 DeepSeek: ……鱼片。明天醒过来，你还会记得这里吗？ #line:375f2e74
 -> 会记得。

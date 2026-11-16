@@ -195,6 +195,38 @@ namespace SystemPrompt.Dungeon
 
         public bool InSocket(CacheBlock b) => Sockets.Contains(b.Cell);
 
+        // A beacon save read back (DungeonScreen.Resume): each block on its cell and each plate turned to its facing, at
+        // once (a time long past: no slide, no turn, nothing for Undo to take back), the gate open if every socket is
+        // full and the light found if it reaches the goal. Lists from another layout of the area are left alone.
+        public void Restore(IReadOnlyList<Vector2Int> blocks, IReadOnlyList<int> facings)
+        {
+            if (blocks.Count == Blocks.Count)
+            {
+                map.Blocks.Clear();
+                for (var i = 0; i < Blocks.Count; i++)
+                {
+                    map.Blocks.Add(blocks[i]);
+                    Blocks[i].Slide(blocks[i], -100f);
+                }
+                pushes.Clear();
+                if (Sockets.Count > 0 && Sockets.TrueForAll(map.Blocks.Contains))
+                {
+                    Solved = true;
+                    map.GateOpen = true;
+                }
+            }
+            if (facings.Count == Plates.Count)
+                for (var i = 0; i < Plates.Count; i++)
+                {
+                    var step = ((facings[i] - Plates[i].Facing) % LightPlate.Shapes.Length + LightPlate.Shapes.Length) % LightPlate.Shapes.Length;
+                    if (step != 0) Plates[i].Turn(-100f, step);
+                }
+            Refresh();
+            reach = beamLength; // the light all the way along at once
+            LightArrived = Lit && reachesGoal;
+            if (source.HasValue) ShowLight();
+        }
+
         // A low plate with a mark on it pointing in from every side and a band of light round its edge, and over
         // it the outline of a block, a scan line passing up through it: where a cache block goes. The outline
         // goes once one is in, and the mark and band turn green.

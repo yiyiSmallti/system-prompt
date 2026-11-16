@@ -14,6 +14,7 @@ namespace SystemPrompt.EditorTools
     {
         const string ModelRoot = "Assets/SystemPrompt/Resources/Models/";
         const string PropRoot = ModelRoot + "Props/"; // still things (Dungeon/SeaModels.cs): plain meshes
+        const string NoiseRoot = ModelRoot + "Noise/"; // the noise bodies' shapes (Dungeon/SeaActors.cs NoiseLook): plain meshes
         const string SceneRoot = "Assets/SystemPrompt/Resources/Scenes/"; // Dungeon/SeaScene.cs
 
         void OnPreprocessModel()
@@ -42,10 +43,12 @@ namespace SystemPrompt.EditorTools
             // 32-bit indices where needed: in 16 bits DeepSeek's battle dress (83k vertices) came in cut into two
             // meshes, and the face capture and the chin only see one.
             importer.indexFormat = ModelImporterIndexFormat.Auto;
-            if (assetPath.StartsWith(PropRoot))
+            if (assetPath.StartsWith(PropRoot) || assetPath.StartsWith(NoiseRoot))
             {
                 importer.animationType = ModelImporterAnimationType.None;
                 importer.importAnimation = false;
+                // NoiseLook copies the noise bodies' meshes into its own at run time, which needs them readable.
+                if (assetPath.StartsWith(NoiseRoot)) importer.isReadable = true;
                 return;
             }
             importer.animationType = ModelImporterAnimationType.Human;
@@ -66,7 +69,7 @@ namespace SystemPrompt.EditorTools
 
         void OnPreprocessAnimation()
         {
-            if (!assetPath.StartsWith(ModelRoot) || assetPath.StartsWith(PropRoot)) return;
+            if (!assetPath.StartsWith(ModelRoot) || assetPath.StartsWith(PropRoot) || assetPath.StartsWith(NoiseRoot)) return;
             var importer = (ModelImporter)assetImporter;
             var battle = Battle.TryGetValue(System.IO.Path.GetFileNameWithoutExtension(assetPath), out var cut) && assetPath.StartsWith(ModelRoot + "Motions/");
             var rate = importer.importedTakeInfos.Length > 0 ? importer.importedTakeInfos[0].sampleRate : 24f;

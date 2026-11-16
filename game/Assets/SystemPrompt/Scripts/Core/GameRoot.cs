@@ -57,7 +57,10 @@ namespace SystemPrompt
         string storyMusic;             // <<music 曲名>>: instead of the scene's, until the scene changes or a battle or the maze starts
         bool resultsUp;                // the battle is won and its results are on screen
         public StoryController StoryRunner => story;
-        public bool CanSave => story?.Checkpoint != null && !InBattle && !InDungeon;
+        // In the latent space only beside a lit beacon (DungeonScreen.AtBeacon), and then with the maze's state.
+        public bool CanSave => story?.Checkpoint != null && !InBattle && (!InDungeon || Dungeon.AtBeacon);
+        // A beacon save being loaded: its area's <<dungeon>> picks it up (RunDungeon).
+        DungeonSave resume;
 
         void Awake()
         {
@@ -236,7 +239,11 @@ namespace SystemPrompt
         {
             StoryController run = null;
             Transitions.Play(Wipe.Slash,
-                () => run = BeginStory(data.state.Clone(), data.playSeconds),
+                () =>
+                {
+                    run = BeginStory(data.state.Clone(), data.playSeconds);
+                    resume = data.InDungeon ? data.dungeon : null;
+                },
                 after: () =>
                 {
                     if (run == story) run.StartFrom(data);
@@ -267,14 +274,19 @@ namespace SystemPrompt
 
         void StopStory()
         {
+            // The story let go of first: aborting a battle or a dive runs what awaited it there and then, and that
+            // checks it is still the story's (run == story) before it goes on, or a dive left for a load would play
+            // its way back up after the load's own dive and take that one down with it.
+            var old = story;
+            story = null;
+            resume = null;
             Battle.Abort();
             InBattle = false;
             Dungeon.Abort();
             InDungeon = false;
             storyMusic = null;
             resultsUp = false;
-            story?.Stop();
-            story = null;
+            old?.Stop();
         }
 
         void OnStoryFinished()
@@ -382,7 +394,9 @@ namespace SystemPrompt
                 {
                     SetScreen(Dungeon);
                     UpdateMusic();
-                    explore = Dungeon.Run(id, run, world);
+                    var from = resume != null && resume.area == id ? resume : null;
+                    resume = null;
+                    explore = Dungeon.Run(id, run, world, from);
                 }
                 else if (world != null) world.Drop();
             }
@@ -413,10 +427,16 @@ namespace SystemPrompt
         {
             if (!CanSave)
             {
-                Notice(InBattle ? "战斗中无法存档" : InDungeon ? "潜空间里无法存档" : "现在无法存档");
+                Notice(InBattle ? "战斗中无法存档" : InDungeon ? "潜空间里只能在点亮的信标旁存档" : "现在无法存档");
                 return false;
             }
-            var data = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(story.Checkpoint));
+            SaveData data;
+            if (InDungeon)
+            {
+                data = story.Snapshot();
+                data.dungeon = Dungeon.Capture();
+            }
+            else data = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(story.Checkpoint));
             data.playSeconds = PlaySeconds;
             try
             {
@@ -434,7 +454,7 @@ namespace SystemPrompt
 
         public void QuickSave()
         {
-            if (SaveTo(SaveSystem.QuickSlot)) Notice("快速存档完成（从本节开头继续）");
+            if (SaveTo(SaveSystem.QuickSlot)) Notice(InDungeon ? "快速存档完成（从这座信标继续）" : "快速存档完成（从本节开头继续）");
         }
 
         public void QuickLoad()

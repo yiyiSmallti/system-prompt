@@ -545,6 +545,10 @@ namespace SystemPrompt.E2E
             if (finished) yield break;
             Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length + 1, $"{Maze.Pushes} 推（含撤回后重推的 1 推）后两块缓存块都在插槽里，门打开");
             Check(BeaconIn("维护间").Used, "维护间的信标点亮");
+            var battlesBefore = 0;
+            yield return BeaconSave(BeaconIn("维护间"), n => battlesBefore = n);
+            if (finished) yield break;
+            w = World;
 
             var terminal = w.Props.Find(p => p.Kind == PropKind.Terminal);
             yield return Walk(terminal.Cell, "穿过打开的门，走到维护终端", 2f);
@@ -553,8 +557,62 @@ namespace SystemPrompt.E2E
             Check(w.Map.FirewallOpen, "防火墙全部解除");
 
             yield return Walk(w.Map.Find('G')[0], "穿过两道防火墙走到灯塔", 0f, () => !game.InDungeon);
-            Check(Maze.Battles >= 4, $"浅层战斗 {Maze.Battles} 场（先制 {Maze.Preemptive}，被偷袭 {Maze.Ambushed}）");
+            Check(battlesBefore + Maze.Battles >= 4, $"浅层战斗 {battlesBefore + Maze.Battles} 场（读档前 {battlesBefore} 场）");
             Check(Maze.ZonesVisited >= 7, $"浅层走过 {Maze.ZonesVisited} 个区域");
+        }
+
+        // 信标存档: back at a lit beacon, Enter opens the save screen (the save itself straight into slot 5: the slots by
+        // key are the menu's save earlier on), then that save is read back at once. The maze comes back as it was — the
+        // gate, the blocks, the pearls, the beaten noise bodies, the props used, the meter, the bag — with the party
+        // beside the beacon, and the run goes on from there in the new world. `battles`: the fights before the load,
+        // the maze's counters starting over with it.
+        IEnumerator BeaconSave(SeaProp beacon, Action<int> battles)
+        {
+            var w = World;
+            yield return Walk(beacon.Cell, "回到维护间门口点亮的信标", 2.2f);
+            if (finished) yield break;
+            Release();
+            yield return Idle();
+            Check(w.PropInReach() == beacon && Maze.AtBeacon && game.CanSave, "站在点亮的信标旁可以存档（按键提示「休息·存档」）");
+            yield return Press(Key.Enter);
+            yield return Until(() => game.SaveLoad.IsOpen, "在信标旁按 Enter 打开存档");
+            if (finished) yield break;
+            yield return Wait(0.5f);
+            yield return Snap("dungeon-beacon-save", "信标旁打开存档");
+            var saved = new
+            {
+                Meter = Maze.Meter,
+                Used = Enumerable.Range(0, w.Props.Count).Where(i => w.Props[i].Used).ToList(),
+                Gone = Enumerable.Range(0, w.Enemies.Count).Where(i => !w.Enemies[i].Active).ToList(),
+                Blocks = w.Puzzles.Blocks.Select(b => b.Cell).ToList(),
+                Soda = game.State.ItemCount("ice_soda"),
+                Pearls = game.State.PearlsIn(w.Def.Id),
+                Battles = Maze.Battles,
+            };
+            Check(game.SaveTo(5), "信标旁存到第 5 格");
+            var data = SaveSystem.Read(5).Data;
+            Check(data != null && data.InDungeon && data.node == "Prologue_Shallows" && data.dungeon.beacon == w.Props.IndexOf(beacon),
+                $"存下的是信标存档（节点 {data?.node}，区域 {data?.dungeon?.area}，信标 {data?.dungeon?.beacon}）");
+            yield return Press(Key.Escape);
+            yield return Until(() => !game.SaveLoad.IsOpen && Maze.Exploring, "关掉存档，回到探索");
+            if (finished || data == null) yield break;
+            battles(saved.Battles);
+
+            yield return Load(data, "读回信标存档");
+            yield return Pump(() => Maze.Exploring, "读档后潜回浅层");
+            if (finished) yield break;
+            var n = World;
+            var used = Enumerable.Range(0, n.Props.Count).Where(i => n.Props[i].Used).ToList();
+            var gone = Enumerable.Range(0, n.Enemies.Count).Where(i => !n.Enemies[i].Active).ToList();
+            Check(n != w && n.Def.Id == "cache_sea_shallows", "读档后重新建了浅层");
+            Check(Vector3.Distance(n.PlayerPosition, n.Props[data.dungeon.beacon].Position) < 4f, "读档后站在存档的信标旁");
+            Check(n.Puzzles.Solved && n.Map.GateOpen && n.Puzzles.Blocks.Select(b => b.Cell).SequenceEqual(saved.Blocks), "维护间的缓存块还在插槽里，门开着");
+            Check(used.SequenceEqual(saved.Used), $"用过的碎片、宝箱和点亮的信标照旧（{used.Count} 个）");
+            Check(gone.SequenceEqual(saved.Gone), $"打倒的噪声体没有回来（{gone.Count} 只）");
+            Check(game.State.PearlsIn(n.Def.Id) == saved.Pearls && n.Pearls.Count(p => p.Taken) == saved.Pearls, $"数据珍珠照旧（{saved.Pearls} 颗）");
+            Check(game.State.ItemCount("ice_soda") == saved.Soda, $"背包照旧（冰镇汽水 {saved.Soda}）");
+            Check(Mathf.Abs(Maze.Meter - saved.Meter) < 1f, $"维护进度照旧（{saved.Meter:0.0}% → {Maze.Meter:0.0}%）");
+            yield return Snap("dungeon-beacon-load", "读回信标存档：回到维护间门口的信标旁，门开着");
         }
 
         // 缓存海·深层: with DeepSeek fighting. Jump the dozing one at the server room's door from behind, east

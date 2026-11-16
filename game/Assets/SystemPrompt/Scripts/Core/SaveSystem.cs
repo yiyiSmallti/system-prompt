@@ -15,7 +15,25 @@ namespace SystemPrompt
     [Serializable]
     public class BoolVar { public string name; public bool value; }
 
-    // A save is a checkpoint taken when a Yarn node starts: loading replays that node from its first line.
+    // Where a save made at a lit beacon in the latent space left the area (UI/Dungeon/DungeonScreen.cs Capture,
+    // Resume): the beacon, the maintenance meter, and what had changed in the maze. Pearls are in GameState already.
+    // `area` is empty on every other save (JsonUtility gives an empty one, never null).
+    [Serializable]
+    public class DungeonSave
+    {
+        public string area;
+        public int beacon;                           // the beacon's index in DungeonWorld.Props
+        public float meter;
+        public List<int> used = new List<int>();     // props used (fragments, chests, the terminal, beacons lit), by index
+        public List<int> gone = new List<int>();     // noise bodies beaten, by index in DungeonWorld.Enemies
+        public List<int> blocks = new List<int>();   // each cache block's cell, x then y, in SeaPuzzles.Blocks order
+        public List<int> plates = new List<int>();   // each light plate's facing, in SeaPuzzles.Plates order
+        public List<string> zones = new List<string>(); // zones whose banner has been shown
+        public bool warned, beaconTold, spottedTold, firewallTold, ambushTold, stuckTold, sodaTold;
+    }
+
+    // A save is a checkpoint taken when a Yarn node starts: loading replays that node from its first line. One
+    // made at a beacon is the state at that moment instead, with the area's (dungeon), and goes back into the maze.
     [Serializable]
     public class SaveData
     {
@@ -27,6 +45,8 @@ namespace SystemPrompt
         public List<StringVar> strings = new List<StringVar>();
         public List<FloatVar> floats = new List<FloatVar>();
         public List<BoolVar> bools = new List<BoolVar>();
+        public DungeonSave dungeon = new DungeonSave();
+        public bool InDungeon => dungeon != null && !string.IsNullOrEmpty(dungeon.area);
 
         public DateTime SavedAtLocal =>
             DateTime.TryParse(savedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var t) ? t.ToLocalTime() : DateTime.MinValue;

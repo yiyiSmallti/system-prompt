@@ -918,9 +918,12 @@ namespace SystemPrompt.Dungeon
             at += turn * new Vector3(s, 0.7f * s, 0f);
         }
 
-        public void Place(Vector2Int cell, float yaw)
+        public void Place(Vector2Int cell, float yaw) => Place(Map.World(cell), yaw);
+
+        // On the seabed at `at` (somewhere free), facing `yaw`.
+        public void Place(Vector3 at, float yaw)
         {
-            PlayerPosition = Map.World(cell);
+            PlayerPosition = at;
             PlayerYaw = yaw;
             CameraYaw = yaw;
             velocity = Vector3.zero;

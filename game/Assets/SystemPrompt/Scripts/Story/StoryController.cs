@@ -213,10 +213,17 @@ namespace SystemPrompt.Story
         void OnNodeEntered(string node)
         {
             CurrentNode = node;
+            Checkpoint = Snapshot();
+        }
+
+        // The game and the story's variables as they are now, to go on from the current node: a save at a beacon
+        // (GameRoot.SaveTo), made while the node waits on its <<dungeon>>.
+        public SaveData Snapshot()
+        {
             var (floats, strings, bools) = storage.GetAllVariables();
-            Checkpoint = new SaveData
+            return new SaveData
             {
-                node = node,
+                node = CurrentNode ?? "",
                 state = game.State.Clone(),
                 floats = floats.Select(kv => new FloatVar { name = kv.Key, value = kv.Value }).ToList(),
                 strings = strings.Select(kv => new StringVar { name = kv.Key, value = kv.Value }).ToList(),

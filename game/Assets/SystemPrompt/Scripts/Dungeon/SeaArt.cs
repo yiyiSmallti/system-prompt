@@ -1350,8 +1350,10 @@ namespace SystemPrompt.Dungeon
         // Cubes of `size` at the given cells (cell (x, y, z) spans x·size to (x + 1)·size), each `gap` short of
         // its cell on every side so the seams show, their edges bevelled like keycaps. For the Glitch shader's voxel
         // mode: uv runs 0..1 over each face (the bevels sit in the dark seam), uv2 holds the cube's centre and an
-        // id in (0, 1], negative for the cubes in `still`.
-        public static Mesh Voxels(IList<Vector3Int> cells, float size, float gap, System.Predicate<Vector3Int> still = null)
+        // id in (0, 1], negative for the cubes in `still`; `role` gives a cube a fixed colour of the skin's (0 to
+        // 3, in the vertex colour) in place of its flicker, or -1 to leave it be.
+        public static Mesh Voxels(IList<Vector3Int> cells, float size, float gap, System.Predicate<Vector3Int> still = null,
+            System.Func<Vector3Int, int> role = null)
         {
             var b = new Builder();
             var set = new HashSet<Vector3Int>(cells);
@@ -1364,7 +1366,9 @@ namespace SystemPrompt.Dungeon
                 var id = 0.05f + 0.95f * DungeonWorld.Hash(c.x * 7 + c.z * 13, c.y * 5 - c.z * 3);
                 var info = new Vector4(centre.x, centre.y, centre.z, still != null && still(c) ? -id : id);
                 var h = size / 2f - gap;
-                b.Chamfered(centre, Vector3.one * h, h * 0.24f, info, Color.white);
+                // A fixed colour (Glitch.shader: 0 dark, 1 and 2 its two colours, 3 white) in a clear alpha.
+                var r = role?.Invoke(c) ?? -1;
+                b.Chamfered(centre, Vector3.one * h, h * 0.24f, info, r < 0 ? Color.white : new Color(r / 3f, 0f, 0f, 0f));
             }
             return b.Build("Voxels");
         }

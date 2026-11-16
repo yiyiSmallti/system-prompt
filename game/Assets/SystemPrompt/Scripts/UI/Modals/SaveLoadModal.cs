@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using SystemPrompt.Dungeon;
 using UnityEngine.UIElements;
 
 namespace SystemPrompt.UI
@@ -165,6 +166,13 @@ namespace SystemPrompt.UI
             ShowPreview(slots.Index >= 0 ? infos[slots.Index] : null, false);
         }
 
+        // The scene, or for a save at a beacon the area it goes back into.
+        static string Place(SaveData data)
+        {
+            var area = data.InDungeon ? Dungeons.Get(data.dungeon.area) : null;
+            return area != null ? $"{area.Area}·{area.Layer}　信标" : GameData.SceneLabel(data.state.scene);
+        }
+
         VisualElement BuildSlot(SaveSlotInfo info)
         {
             var slot = Ui.El("sp-snapcard");
@@ -181,7 +189,7 @@ namespace SystemPrompt.UI
             {
                 var s = data.state;
                 Ui.Text($"{s.DateLabel}　{GameData.SlotLabel(s.slot)}", "sp-snapcard__date", texts, FontKind.Black);
-                Ui.Text(GameData.SceneLabel(s.scene), "sp-snapcard__place", texts, FontKind.Bold);
+                Ui.Text(Place(data), "sp-snapcard__place", texts, FontKind.Bold);
                 Ui.Text($"PLAY {GameMenu.FormatTime(data.playSeconds)}　{data.SavedAtLocal:yyyy/MM/dd HH:mm}", "sp-snapcard__meta", texts, FontKind.MonoBold);
             }
             else if (info.Error != null)
@@ -232,7 +240,7 @@ namespace SystemPrompt.UI
                 bigDate.text = s.DateLabel;
                 slotTime.text = GameData.SlotLabel(s.slot);
                 var chapterName = GameData.Chapters.TryGetValue(s.chapter ?? "", out var c) ? c : "";
-                chapter.text = $"{chapterName}　{GameData.SceneLabel(s.scene)}";
+                chapter.text = $"{chapterName}　{Place(data)}";
                 meta.text = $"{s.playerName}　PLAY {GameMenu.FormatTime(data.playSeconds)}　SAVED {data.SavedAtLocal:yyyy/MM/dd HH:mm}";
             }
             else

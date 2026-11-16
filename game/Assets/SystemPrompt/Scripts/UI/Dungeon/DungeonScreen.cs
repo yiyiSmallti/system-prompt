@@ -217,7 +217,8 @@ namespace SystemPrompt.UI
         // ------------------------------------------------------------------ run
 
         // built: the area, from DungeonWorld.Create; it is the screen's from here on.
-        public async Awaitable Run(string id, StoryController run, DungeonWorld built)
+        // `resume`: a save made at a beacon here, read back (GameRoot.LoadGame): the maze as it was left (Resume).
+        public async Awaitable Run(string id, StoryController run, DungeonWorld built, DungeonSave resume = null)
         {
             Abort();
             var s = session = new Session { Over = false };
@@ -275,12 +276,14 @@ namespace SystemPrompt.UI
                 alertMarks[e] = Ui.Text("", "sp-dungeon__alert", marks, FontKind.Black);
                 phraseMarks[e] = Ui.Text(e.Phrase, "sp-dungeon__phrase", marks, FontKind.Black);
             }
+            if (resume != null) Resume(resume);
             mode = Mode.Busy;
             world.Show(shown);
 
             await Anim.Until(() => !game.Transitions.Busy);
             if (s.Over) return;
-            if (def.StartNode != null) await Talk(def.StartNode, s);
+            if (resume != null) NoticeAfterBanner("从信标继续").Forget();
+            else if (def.StartNode != null) await Talk(def.StartNode, s);
             if (s.Over) return;
             mode = Mode.Explore;
             await done.Awaitable;
@@ -911,6 +914,14 @@ namespace SystemPrompt.UI
                     game.Notice("缓存块已回到原位");
                     await Anim.Wait(0.3f);
                     break;
+                case PropKind.Beacon:
+                    // A lit beacon again: a rest, and the save screen; a save here goes on from this beacon.
+                    game.Audio.Sfx("rise", 0.5f);
+                    RestoreParty();
+                    BuildParty();
+                    game.SaveLoad.OpenSave();
+                    await Anim.Until(() => !game.SaveLoad.IsOpen || s.Over);
+                    break;
                 case PropKind.Terminal:
                     // Open at once; the walls are shown going by the node's <<reveal firewall>>, or go after it.
                     game.Audio.Sfx("key");
@@ -1011,15 +1022,7 @@ namespace SystemPrompt.UI
             SeaProp beacon = null;
             foreach (var p in world.Props)
                 if (p.Kind == PropKind.Beacon && p.Used) beacon = p;
-            var cell = beacon != null ? FloorBeside(beacon.Cell) : world.Map.Find('S')[0];
-            // Facing the beacon, its light in front of them (来时那片光), not its roof across the lens behind them.
-            var yaw = world.PlayerYaw;
-            if (beacon != null)
-            {
-                var to = beacon.Position - world.Map.World(cell);
-                yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
-            }
-            world.Place(cell, yaw);
+            StandAt(beacon);
             world.Restore(0.8f).Forget(); // 再睁开眼，我们站在来时那片光里
             foreach (var e in world.Enemies) e.Revive();
             world.SafeUntil = world.Time + 3f;
@@ -1029,6 +1032,91 @@ namespace SystemPrompt.UI
             RestoreParty();
             BuildParty();
             game.Notice($"维护进度退回 {BounceMeter:0}%，打倒的噪声体又聚了起来");
+        }
+
+        // The party beside a beacon (the way in, with none), facing it: its light in front of them (来时那片光), not its
+        // roof across the lens behind them.
+        void StandAt(SeaProp beacon)
+        {
+            if (beacon == null)
+            {
+                world.Place(world.Map.Find('S')[0], world.PlayerYaw);
+                return;
+            }
+            // Toward the seabed beside it, but inside its reach (a cell away is out of it), so it can be used again
+            // straight off.
+            var away = world.Map.World(FloorBeside(beacon.Cell)) - beacon.Position;
+            away.y = 0f;
+            var at = beacon.Position + away.normalized * Mathf.Min(away.magnitude, beacon.Reach - 0.6f);
+            at.y = 0f;
+            world.Place(at, Mathf.Atan2(-away.x, -away.z) * Mathf.Rad2Deg);
+        }
+
+        // ------------------------------------------------------------------ beacon saves
+
+        // A lit beacon within its reach: the latent space's one place to save (GameRoot.CanSave).
+        public bool AtBeacon => world != null && mode != Mode.Off && !departing && !cutting && BeaconInReach() != null;
+
+        SeaProp BeaconInReach() => world?.Props.Find(p => p.Kind == PropKind.Beacon && p.Used && Vector3.Distance(p.Position, world.PlayerPosition) < p.Reach);
+
+        // What a save at the beacon keeps of the maze (GameRoot.SaveTo).
+        public DungeonSave Capture()
+        {
+            var d = new DungeonSave
+            {
+                area = def.Id, beacon = world.Props.IndexOf(BeaconInReach()), meter = meter,
+                warned = warned, beaconTold = beaconTold, spottedTold = spottedTold, firewallTold = firewallTold,
+                ambushTold = ambushTold, stuckTold = stuckTold, sodaTold = sodaTold,
+            };
+            for (var i = 0; i < world.Props.Count; i++)
+                if (world.Props[i].Used) d.used.Add(i);
+            for (var i = 0; i < world.Enemies.Count; i++)
+                if (!world.Enemies[i].Active) d.gone.Add(i);
+            foreach (var b in world.Puzzles.Blocks)
+            {
+                d.blocks.Add(b.Cell.x);
+                d.blocks.Add(b.Cell.y);
+            }
+            foreach (var p in world.Puzzles.Plates) d.plates.Add(p.Facing);
+            foreach (var z in visited) d.zones.Add(z.Name);
+            return d;
+        }
+
+        // The maze as a beacon save left it, all at once: props used, noise bodies beaten gone, the walls the terminal
+        // opened open, the blocks and plates where they were (the gate open, the exit up), the party beside the beacon.
+        void Resume(DungeonSave d)
+        {
+            meter = d.meter;
+            warned = d.warned;
+            beaconTold = d.beaconTold;
+            spottedTold = d.spottedTold;
+            firewallTold = d.firewallTold;
+            ambushTold = d.ambushTold;
+            stuckTold = d.stuckTold;
+            sodaTold = d.sodaTold;
+            foreach (var i in d.used)
+            {
+                if (i < 0 || i >= world.Props.Count) continue;
+                var p = world.Props[i];
+                p.Use(-100f);
+                if (p.Kind != PropKind.Terminal) continue;
+                world.OpenFirewall();
+                p.Settle();
+                if (def.ObjectiveAfterTerminal != null) objective.text = def.ObjectiveAfterTerminal;
+            }
+            foreach (var i in d.gone)
+                if (i >= 0 && i < world.Enemies.Count) world.Enemies[i].Remove();
+            var cells = new List<Vector2Int>();
+            for (var i = 0; i + 1 < d.blocks.Count; i += 2) cells.Add(new Vector2Int(d.blocks[i], d.blocks[i + 1]));
+            world.Puzzles.Restore(cells, d.plates);
+            if (world.Puzzles.Solved) world.OpenGateVisual();
+            if (world.Puzzles.HasLight && world.Puzzles.Lit) world.RiseExit();
+            foreach (var z in def.Zones)
+                if (d.zones.Contains(z.Name)) visited.Add(z);
+            StandAt(d.beacon >= 0 && d.beacon < world.Props.Count ? world.Props[d.beacon] : null);
+            zone = world.Zone;
+            if (zone != null) visited.Add(zone);
+            areaZone.text = zone != null ? "· " + zone.Name : "";
         }
 
         // A seabed cell next to the beacon's own, to stand on.

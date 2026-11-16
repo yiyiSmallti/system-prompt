@@ -2,6 +2,8 @@
 // little now and then, an ink outline. _Alert pushes everything toward red. In voxel mode (_Voxels 1, on a
 // Dungeon/SeaArt.Voxels mesh) each cube flickers on its own with bevelled seams, and now and then one
 // jumps out of the body; uv2 holds the cube's centre and its id, negative for the cubes that stay put.
+// A cube with a clear vertex colour keeps one colour instead of flickering: red × 3 picks _Dark, _ColorA,
+// _ColorB or white (0 to 3; the 标题党型's title bar, close box, fangs and mouth).
 // Each body runs on its own clock and seed (_Clock, _Seed, set by Dungeon/SeaActors.cs NoiseLook), so two of
 // a kind never flicker in step. A hit flashes it (_Hit, in rgb, by a), knocks cubes loose (_Loose) and takes
 // the coloured cells into the blow's colour (_Tint, giving them back cell by cell); knocked down it dims (_Dim);
@@ -47,7 +49,7 @@ Shader "SystemPrompt/Glitch"
         float4 _ColorA, _ColorB, _Dark, _OutlineColor, _Hit, _Tint, _BurstDir;
         float _Block, _Alert, _Jitter, _Voxels, _Card, _OutlineWidth, _Clock, _Seed, _Loose, _Dim, _Calm, _Burst, _Floor, _Frost;
 
-        struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float4 voxel : TEXCOORD1; };
+        struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float4 voxel : TEXCOORD1; float4 color : COLOR; };
 
         // How fast it ticks: a quarter as fast with 减少闪烁.
         float Rate() { return 1.0 - 0.75 * _Calm; }
@@ -151,7 +153,7 @@ Shader "SystemPrompt/Glitch"
             #pragma vertex vert
             #pragma fragment frag
 
-            struct v2f { float4 pos : SV_POSITION; float3 obj : TEXCOORD0; float3 world : TEXCOORD1; float3 normal : TEXCOORD2; float2 uv : TEXCOORD3; float id : TEXCOORD4; };
+            struct v2f { float4 pos : SV_POSITION; float3 obj : TEXCOORD0; float3 world : TEXCOORD1; float3 normal : TEXCOORD2; float2 uv : TEXCOORD3; float id : TEXCOORD4; float role : TEXCOORD5; };
 
             v2f vert(appdata v)
             {
@@ -163,6 +165,8 @@ Shader "SystemPrompt/Glitch"
                 o.pos = UnityWorldToClipPos(o.world);
                 o.uv = v.uv;
                 o.id = abs(v.voxel.w);
+                // A cube with a colour of its own (SeaArt.Voxels' role, in a clear vertex colour): 0 to 3, else -1.
+                o.role = _Voxels > 0.5 && v.color.a < 0.5 ? v.color.r * 3.0 : -1.0;
                 return o;
             }
 
@@ -174,9 +178,15 @@ Shader "SystemPrompt/Glitch"
                 float tick = floor(_Clock * 6.0 * Rate() + SeaHash(offset) * 6.0);
                 float h = SeaHash(key + tick * 0.37);
                 float3 col = h < 0.42 ? _Dark.rgb : (h < 0.72 ? _ColorA.rgb : _ColorB.rgb);
-                col = lerp(col, (_ColorA.rgb + _ColorB.rgb + _Dark.rgb) / 3.0, 0.35 * _Calm);
-                col = lerp(col, float3(1, 0.12, 0.15), Alert() * step(0.42, h) * 0.7);
                 float coloured = step(0.42, h);
+                if (i.role > -0.5)
+                {
+                    // The 标题党型's title bar, close box, fangs and the dark of its mouth hold still in colour.
+                    col = i.role < 0.5 ? _Dark.rgb : (i.role < 1.5 ? _ColorA.rgb : (i.role < 2.5 ? _ColorB.rgb : float3(0.94, 0.95, 1.0)));
+                    coloured = step(0.5, i.role);
+                }
+                col = lerp(col, (_ColorA.rgb + _ColorB.rgb + _Dark.rgb) / 3.0, 0.35 * _Calm);
+                col = lerp(col, float3(1, 0.12, 0.15), Alert() * coloured * 0.7);
                 if (_Card > 0.5)
                 {
                     float rot = step(0.88 - Alert() * 0.25, h);
@@ -196,7 +206,7 @@ Shader "SystemPrompt/Glitch"
                     // Bevelled cubes: dark seams round each face, a lit corner, now and then a white flash.
                     float2 e = min(i.uv, 1.0 - i.uv);
                     col *= lerp(0.4, 1.0, smoothstep(0.03, 0.14, min(e.x, e.y)));
-                    col += step(0.42, h) * smoothstep(0.3, 0.0, length(i.uv - float2(0.22, 0.78))) * 0.25;
+                    col += coloured * smoothstep(0.3, 0.0, length(i.uv - float2(0.22, 0.78))) * 0.25;
                     col = lerp(col, float3(1, 1, 1), step(0.975, h) * 0.85 * (1.0 - _Calm));
                 }
                 col += (col * 0.6 + 0.1) * SeaFlash(i.world, normalize(i.normal));
