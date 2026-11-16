@@ -428,7 +428,7 @@ namespace SystemPrompt.E2E
             Def("sea", "sea-pearl", "捡数据珍珠：跑过去、珍珠被收走、提示");
             Def("sea", "sea-beacon", "信标：休息前静帧、走近点亮的胶片、休息后静帧");
             Def("sea", "sea-chest", "宝箱打开：盖子先往下压一下再弹开过头，缝里的光一亮再暗，金色光束、光点和三张卡片往上飞，镜头转向宝箱，放开操作后转回");
-            Def("sea", "sea-bump", "推不动：缓存块推到东边机柜前再推一次，顶一下、灯闪红（它卡在角里本来就是红的），再回原色；之后撤回一步");
+            Def("sea", "sea-bump", "推不动：缓存块推到北边机柜前再推一次，顶一下、灯闪红，再回原色；之后撤回一步");
             Def("sea", "sea-block", "缓存块：最后一推滑进插槽（前十推直接传送着推完）：轮廓收起、落座、底座闪白、海床光环、电缆上的光点跑向闸门");
             Def("sea", "sea-gate", "三块缓存块都进插槽后闸门打开：游戏画面（门在画面顶上、隔着机柜，切插入镜头）+ 门口的固定镜头");
             Def("sea", "sea-firewall", "防火墙插入镜头：终端对话里 <<reveal firewall>> 的两段（维护间西墙、主航道北头；遮幅、下行光束、溶解、海床光环，第二段灯塔在墙后入画）");
@@ -2893,24 +2893,25 @@ namespace SystemPrompt.E2E
             }
             if (S("sea-bump").Selected)
             {
-                // The block by the east racks pushed against them: once into (26,12), a corner, where it turns red; then
+                // The middle block of the north row pushed against the racks: once into (21,11), against them; then
                 // again, and it knocks against the racks. The push is taken back after, for the blocks' own run.
                 var sc = S("sea-bump");
-                var at = new Vector2Int(25, 12);
-                var d3 = DungeonMap.Direction(Vector2Int.right);
+                var at = new Vector2Int(21, 12);
+                var step = Vector2Int.down; // north
+                var d3 = DungeonMap.Direction(step);
                 Teleport(w.Map.World(at) - d3 * 2.6f, YawOf(d3));
                 yield return Frames(3);
                 yield return Press(Key.Enter);
                 yield return Wait(0.6f);
-                if (!w.Map.Blocks.Contains(at + Vector2Int.right)) throw new LabFailure("缓存块没推到东边机柜前");
-                Teleport(w.Map.World(at + Vector2Int.right) - d3 * 2.6f, YawOf(d3));
+                if (!w.Map.Blocks.Contains(at + step)) throw new LabFailure("缓存块没推到北边机柜前");
+                Teleport(w.Map.World(at + step) - d3 * 2.6f, YawOf(d3));
                 yield return Wait(1.0f);
                 var f = StartFilm(sc, null, 0.05f, 16, ScreenView(),
-                    FixedView("near", "缓存块南侧的固定镜头", Cell(26, 14) + new Vector3(0f, 1.6f, 0f), Cell(26, 12) + Vector3.up * 1.2f));
+                    FixedView("near", "缓存块南侧的固定镜头", Cell(22, 13) + new Vector3(0f, 1.6f, 0f), Cell(21, 11) + Vector3.up * 1.2f));
                 yield return Wait(0.05f);
                 yield return Press(Key.Enter);
                 yield return WaitFilm(f);
-                if (!w.Map.Blocks.Contains(at + Vector2Int.right)) Fail(sc, "推不动的缓存块动了");
+                if (!w.Map.Blocks.Contains(at + step)) Fail(sc, "推不动的缓存块动了");
                 Teleport(w.Map.World(at) - d3 * 2.6f, YawOf(d3));
                 yield return Frames(3);
                 yield return Press(Key.Backspace);
@@ -2921,12 +2922,13 @@ namespace SystemPrompt.E2E
             {
                 var pushes = new[]
                 {
-                    (new Vector2Int(21, 15), Vector2Int.down), (new Vector2Int(19, 12), Vector2Int.right), (new Vector2Int(26, 12), Vector2Int.left),
-                    (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
-                    (new Vector2Int(24, 14), Vector2Int.left), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
-                    (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(21, 11), Vector2Int.up), (new Vector2Int(20, 13), Vector2Int.right),
-                    (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
-                    (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
+                    (new Vector2Int(21, 15), Vector2Int.down), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
+                    (new Vector2Int(20, 11), Vector2Int.up), (new Vector2Int(19, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right),
+                    (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(24, 14), Vector2Int.left),
+                    (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right),
+                    (new Vector2Int(21, 11), Vector2Int.up), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
+                    (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(22, 13), Vector2Int.right),
+                    (new Vector2Int(24, 12), Vector2Int.up),
                 };
                 Film block = null, gate = null;
                 for (var i = 0; i < pushes.Length; i++)

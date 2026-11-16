@@ -128,7 +128,7 @@ namespace SystemPrompt.Dungeon
             // 场景4：维护时刻。DeepSeek walks along but can't fight yet: the player fights alone with the
             // phone's screenshot, starting with the noise body dozing at the mouth of the reef. Around the
             // lighthouse the long way (west through the coral, north through the graveyard, behind the
-            // lighthouse, down the canyon) to the maintenance room, where two cache blocks pushed into their
+            // lighthouse, down the canyon) to the maintenance room, where three cache blocks pushed into their
             // sockets open the gate to the terminal; the terminal opens both firewalls, and the east one lets
             // out into the main channel, the lighthouse straight ahead.
             ["cache_sea_shallows"] = new DungeonDef
@@ -150,7 +150,7 @@ namespace SystemPrompt.Dungeon
                     "#.........#===X===########g##",
                     "####.######......%########.##",
                     "#2......e.#......%#.......B##",
-                    "#..##%.#..#..===..X.K.==.K.##",
+                    "#..##%.#..#..===..X.KK==...##",
                     "#%.#.%.##.#..===..#........##",
                     "#%........#..===..#.=KOOO..##",
                     "#....B.....%......#R.......##",
@@ -176,7 +176,8 @@ namespace SystemPrompt.Dungeon
                     new ZoneDef { Name = "删帖墓地", Tag = "DELETED POSTS", Cells = new RectInt(0, 0, 10, 10), Style = ZoneStyle.Graveyard, Node = "Prologue_Sea_Zone_Graveyard",
                         Air = SeaAtmos.Shallows.With(fog: "#120810", mist: 0.9f, saturation: 0.85f, shadow: "#2A0A10", shadowAmount: 0.07f) },
                     new ZoneDef { Name = "维护间", Tag = "MAINTENANCE", Cells = new RectInt(18, 11, 11, 7), Style = ZoneStyle.Canyon, Node = "Prologue_Sea_Zone_Maintenance",
-                        Look = new Vector2Int(23, 14), // the sockets, while the narration counts the blocks
+                        Look = new Vector2Int(23, 14), // the sockets, while the narration counts the blocks (none starts on that line
+                                                       // from the way in: one at (25,12) hid them, so it went to (21,12))
                         // Its own room in the canyon: steel-grey still water, clear and without the blue cast, so the orange
                         // sockets and gate stay the warmest things in it and the beacon's blue and green still read; little of
                         // the racks' cyan pools on its floor.

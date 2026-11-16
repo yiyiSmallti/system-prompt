@@ -521,17 +521,18 @@ namespace SystemPrompt.E2E
             Check(game.State.PearlsIn(w.Def.Id) == 5 && ui.Q<Label>(className: "sp-dungeon__pearls").text.EndsWith("5/5"), "浅层的数据珍珠全部捡齐（5/5）");
             Check(game.State.ItemCount("ice_soda") == sodas + 2 && game.State.tokens == tokens + 200, "捡齐奖励：冰镇汽水 ×2、200 token");
 
-            // The maintenance room (17 pushes at the fewest): the block by the sockets first up and
-            // out of the way (down, it sticks on the south wall), the right-hand one down and round into the left socket,
-            // which takes a block only from the east, then the other two across into the middle and right ones.
+            // The maintenance room (19 pushes at the fewest, scratchpad solver): the block by the sockets first up and
+            // out of the way (down, it sticks on the south wall), then the three worked east along row 13 and down into
+            // the sockets one at a time, the left socket taking a block only from the east.
             var pushes = new[]
             {
-                (new Vector2Int(21, 15), Vector2Int.down), (new Vector2Int(19, 12), Vector2Int.right), (new Vector2Int(26, 12), Vector2Int.left),
-                (new Vector2Int(24, 11), Vector2Int.up), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
-                (new Vector2Int(24, 14), Vector2Int.left), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
-                (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(21, 11), Vector2Int.up), (new Vector2Int(20, 13), Vector2Int.right),
-                (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left),
-                (new Vector2Int(22, 13), Vector2Int.right), (new Vector2Int(24, 12), Vector2Int.up),
+                (new Vector2Int(21, 15), Vector2Int.down), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
+                (new Vector2Int(20, 11), Vector2Int.up), (new Vector2Int(19, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right),
+                (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(24, 14), Vector2Int.left),
+                (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right), (new Vector2Int(22, 13), Vector2Int.right),
+                (new Vector2Int(21, 11), Vector2Int.up), (new Vector2Int(20, 13), Vector2Int.right), (new Vector2Int(21, 13), Vector2Int.right),
+                (new Vector2Int(24, 12), Vector2Int.up), (new Vector2Int(25, 14), Vector2Int.left), (new Vector2Int(22, 13), Vector2Int.right),
+                (new Vector2Int(24, 12), Vector2Int.up),
             };
             Check(!w.Map.GateOpen && w.Puzzles.Sockets.Count == 3 && w.Puzzles.Blocks.Count == 3, "维护间：三块缓存块、三个插槽，门关着");
             for (var i = 0; i < pushes.Length && !finished; i++)
@@ -547,7 +548,7 @@ namespace SystemPrompt.E2E
                     Check(Maze.Undos == 1 && w.Map.Blocks.Contains(from) && !w.Map.Blocks.Contains(from + pushes[0].Item2), $"Backspace 撤回第 1 推，缓存块回到 {from}");
                     yield return Push(pushes[0].Item1, pushes[0].Item2, "撤回后重推第 1 推");
                 }
-                if (i == 5) yield return Snap("dungeon-push", "推缓存块（右边一块绕到左边插槽前）");
+                if (i == 8) yield return Snap("dungeon-push", "推缓存块（第一块推进插槽之后）");
             }
             if (finished) yield break;
             Check(w.Puzzles.Solved && w.Map.GateOpen && Maze.Pushes == pushes.Length + 1, $"{Maze.Pushes} 推（含撤回后重推的 1 推）后三块缓存块都在插槽里，门打开");
@@ -1422,7 +1423,7 @@ namespace SystemPrompt.E2E
             Watch("dungeon-alert", "噪声体发现主角（!）", () => Maze.Exploring && World.Enemies.Any(e => e.Alerted), 0.25f, false);
             Watch("dungeon-ambush", "被噪声体偷袭", () => StampShown("被偷袭！"), 0.15f, false);
             Watch("dungeon-zone", "进入新区域（区域名横幅）", () => Visible(ui.Q(className: "sp-dungeon__zone")) && ui.Q(className: "sp-dungeon__zone").resolvedStyle.opacity > 0.95f, 0.15f);
-            Watch("dungeon-zone-maintenance", "维护间：镜头转向插槽，看得到三块缓存块", () => Maze.Talking && Maze.Zone?.Name == "维护间", 1.2f);
+            Watch("dungeon-zone-maintenance", "维护间：镜头转向插槽，三个插槽都在画面里", () => Maze.Talking && Maze.Zone?.Name == "维护间", 1.2f);
             // Called out by DeepSeek from the top right (UI/Dungeon/NavCall.cs) while the player keeps going.
             Watch("dungeon-gate-open", "缓存块推进插槽，DeepSeek 在右上角播报「门开了！」，不打断探索", () => Maze.Nav.Said == "门开了！" && Maze.Exploring, 0.2f);
             Watch("dungeon-light-found", "光照到出口，DeepSeek 在右上角播报「出口出现了！」", () => Maze.Nav.Said == "出口出现了！" && Maze.Exploring, 0.2f);
