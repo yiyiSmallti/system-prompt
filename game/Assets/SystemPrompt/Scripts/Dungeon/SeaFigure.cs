@@ -130,7 +130,9 @@ namespace SystemPrompt.Dungeon
             m.SetColor("_RimColor", model.StartsWith("DeepSeek") ? DeepSeekRim : PlayerRim);
             m.SetFloat("_RimGain", RimGain);
             m.SetFloat("_Scan", 1f);
-            if (model == "DeepSeek") m.SetFloat("_Starlit", 1f);
+            if (model != "DeepSeek") return;
+            m.SetFloat("_Starlit", 1f);
+            m.SetFloat("_Trim", 1f); // her ear fins and bows (ModelAssetImporter.Trim)
         }
         // No outline as the scenery has it (a hull some centimetres out): on a generated mesh the hull of the fringe
         // and the jaw showed through as thick black strokes across the eyes and cheeks.
@@ -248,6 +250,7 @@ namespace SystemPrompt.Dungeon
         readonly Dictionary<int, (int index, float weight)[]> faceShapeIndex = new Dictionary<int, (int, float)[]>();
         readonly List<int> faceShapesUsed = new List<int>();
         readonly SeaSprings springs;
+        readonly SeaTrinkets trinkets; // the light it wears (wrist bands, waist motes, DeepSeek's halo)
         (int eyes, int mouth, int blush) face = (None, None, None);
         Vector4 faceShown = new Vector4(None, None, None, 0f);
         float blinkIn = 2.5f, blinkLeft, talkTime;
@@ -513,6 +516,7 @@ namespace SystemPrompt.Dungeon
 
             var skull = Animator.GetBoneTransform(HumanBodyBones.Head);
             headUp = skull.InverseTransformDirection(Root.up);
+            trinkets = new SeaTrinkets(Root, Animator, this.height, model.StartsWith("DeepSeek"));
             headAhead = skull.InverseTransformDirection(Root.forward);
             // As the model stands in its file its arms are straight, so each hand runs on the way its forearm does
             // (the battle dress has no finger bones to tell by).
@@ -1081,6 +1085,7 @@ namespace SystemPrompt.Dungeon
             tailSpeed = speed;
             LayTail(dt);
             springs?.Step(dt);
+            trinkets.Step(dt);
             if (Explorer) Steps(dt, speed);
 
             // A blink every few seconds, now and then a double one.
@@ -1166,6 +1171,7 @@ namespace SystemPrompt.Dungeon
         public void Dispose()
         {
             if (graph.IsValid()) graph.Destroy();
+            trinkets.Dispose();
         }
 
         // A phone held landscape, its lens toward +z and its lit screen toward the one holding it. Its case is pale

@@ -44,12 +44,12 @@ namespace SystemPrompt.Dungeon
             return m;
         }
 
-        // See-through light with a bright edge and scan lines, the texture showing faintly inside: the 集成's whale.
-        public static Material Holo(Color color, Texture texture)
+        // The big moves' whale of light (Phantom.shader on Models/Props/WhalePhantom): see-through, white at its
+        // outline, stars and the pleats of its throat in light, called up out of sparks (_Shown).
+        public static Material Phantom(Color color)
         {
-            var m = new Material(Load("Holo"));
+            var m = new Material(Load("Phantom"));
             m.SetColor("_Color", color);
-            m.mainTexture = texture;
             return m;
         }
 

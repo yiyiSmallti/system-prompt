@@ -69,6 +69,8 @@ Shader "SystemPrompt/Toon"
         _StarColor ("The starlit tail's glow", Color) = (0.45,0.85,1,1)
         _Scan ("A data scan band sweeps up it now and then", Float) = 0
         _ScanColor ("The scan band", Color) = (0.55,0.95,1,1)
+        _Trim ("Ear fins and bows glow where the mesh marks them (vertex blue: 0 a fin, half a bow)", Float) = 0
+        _TrimColor ("Their glow", Color) = (0.5,0.9,1,1)
         _CastOwn ("How much of the figure's own shadows it takes (hair on the brow, a hem on the thighs)", Float) = 1
         _HairGloss ("Band of light round hair", Float) = 0
         _HairGlossColor ("Its colour", Color) = (0.5,0.6,0.8,1)
@@ -181,8 +183,8 @@ Shader "SystemPrompt/Toon"
             float _Wrap, _Sink, _Lift, _BackLit, _Legs, _Inner, _Sheen, _HairGloss, _Chin, _SwayAmp, _SwayAnchor, _SwayLength;
             float4 _InnerColor, _SkinEdge, _LegTop0, _LegEnd0, _LegTop1, _LegEnd1, _HairGlossColor, _ChinAt, _ChinUp, _ChinAhead;
             float4 _HeadAt;
-            float _FaceRound, _CastOwn, _ShadePure, _RimGain, _Starlit, _Scan;
-            float4 _StarColor, _ScanColor;
+            float _FaceRound, _CastOwn, _ShadePure, _RimGain, _Starlit, _Scan, _Trim;
+            float4 _StarColor, _ScanColor, _TrimColor;
             sampler2D _Faces, _FaceDepth;
             float _FaceOn;
             float4 _FaceCells, _FaceForward;
@@ -218,14 +220,14 @@ Shader "SystemPrompt/Toon"
             float _SeaFigureRim;
 
             // tail: x how much of the whole is the tail's (vertex green 0), yz its place on it (uv3: along, round).
-            struct v2f { float4 pos : SV_POSITION; float3 world : TEXCOORD0; float3 normal : TEXCOORD1; float2 uv : TEXCOORD2; float4 screen : TEXCOORD3; float lift : TEXCOORD4; float3 tail : TEXCOORD5; float3 root : TEXCOORD6; };
+            struct v2f { float4 pos : SV_POSITION; float3 world : TEXCOORD0; float3 normal : TEXCOORD1; float2 uv : TEXCOORD2; float4 screen : TEXCOORD3; float2 lift : TEXCOORD4; float3 tail : TEXCOORD5; float3 root : TEXCOORD6; };
 
             v2f vert(appdata_full v)
             {
                 v2f o;
                 o.uv = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
                 // A mesh with no colours of its own reads as white: no lift.
-                o.lift = _Lift * (1.0 - v.color.r);
+                o.lift = float2(_Lift * (1.0 - v.color.r), _Trim * (1.0 - v.color.b));
                 o.tail = float3(_Starlit * (1.0 - v.color.g), v.texcoord2.xy);
                 // Where the figure stands, for the scan band's height and its own beat (the object's origin is at its feet).
                 o.root = mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz;
@@ -352,7 +354,7 @@ Shader "SystemPrompt/Toon"
                 float3 toLight = normalize(lerp(normalize(_SeaLightDir.xyz), key, _CameraLight));
                 float ndl = dot(n, toLight);
                 float4 albedo = tex2D(_MainTex, i.uv);
-                albedo.rgb *= 1.0 + i.lift;
+                albedo.rgb *= 1.0 + i.lift.x;
                 // A cut-out part of a VRoid figure (hair, cloth; Dungeon/SeaFigure.cs) hands its edge to MSAA as
                 // coverage, its alpha sharpened to a ramp a pixel wide round _Cutoff, instead of a stair-stepped cut.
                 float cover = saturate((albedo.a - _Cutoff) / max(fwidth(albedo.a), 1e-4) + 0.5);
@@ -506,6 +508,17 @@ Shader "SystemPrompt/Toon"
                     float flow = saturate(1.0 - abs(frac(_Time.y * 0.3) * 1.6 - 0.3 - along) * 5.0);
                     float edge = pow(1.0 - saturate(dot(n, view)), 2.5) * step(0, facing);
                     emission += i.tail.x * _StarColor.rgb * (star * 1.4 + edge * (0.3 + 0.9 * smoothstep(0.6, 1.0, along)) + flow * flow * 0.3);
+                }
+                // Her ear fins and the bows over them (ModelAssetImporter.MarkTrim: a fin 1, a bow 0.5) lit from within,
+                // brightest at their edges, breathing slowly; on a bow only its pale blue, not the dark hair the box takes in.
+                [branch] if (i.lift.y > 0.01)
+                {
+                    float fin = step(0.75, i.lift.y);
+                    float luma = dot(col, float3(0.3, 0.55, 0.15));
+                    float take = fin + (1.0 - fin) * smoothstep(0.28, 0.45, luma) * 0.8;
+                    float edge = pow(1.0 - saturate(dot(n, view)), 2.0) * step(0, facing);
+                    float breath = 0.75 + 0.25 * sin(_Time.y * 1.6 + i.root.x * 3.0);
+                    emission += _TrimColor.rgb * take * (0.22 + edge * 1.1) * breath * saturate(i.lift.y * 2.0);
                 }
                 // A data scan band (a figure in the latent space is data): every few seconds a bright line sweeps up the
                 // figure from its feet, with a scatter of pixels just under it and a faint wash above; each figure on its

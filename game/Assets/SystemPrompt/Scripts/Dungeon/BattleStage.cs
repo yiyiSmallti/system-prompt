@@ -1266,7 +1266,16 @@ namespace SystemPrompt.Dungeon
         // Done as the last bursts, for the hits.
         public async Awaitable Maelstrom(int member, IList<int> targets, bool charged, System.Action frozen)
         {
-            Move(Beside(member), 0.4f);
+            var beside = Beside(member);
+            Move(beside, 0.4f);
+            // The whale of light called up as she casts (the PV's S12): rising out of sparks beyond her in the side
+            // shot, and after the cut diving out of the sky into the whirlpool (BattleEffects.Summon).
+            var away = beside.Look - beside.Position;
+            away.y = 0f;
+            var pool = FoeCentre;
+            pool.y = 0f;
+            var rise = beside.Look + away.normalized * 4.5f - Vector3.up * 0.6f;
+            effects.Summon(beside.Position, rise, rise + Vector3.up * 1.4f + away.normalized * 0.5f, pool, charged ? 8f : 7f, 0.4f + CastLands, 1.2f, Frozen).Forget();
             await Cast(member, charged);
             if (this == null) return;
             effects.Flash(Hand(member), Frozen, 1.6f, 0.3f);

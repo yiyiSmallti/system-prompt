@@ -1453,6 +1453,7 @@ namespace SystemPrompt.E2E
             Film("battle-spoon-leap", "饭勺·跃劈：跳起落到噪声体面前砸下，海床冲起水柱", () => OnStage("Spoon Leap"), 10, 0.09f);
             Film("battle-current", "寒流：冰晶寒流从掌心横穿画面、镜头横移跟随，噪声体结冰碎裂", () => OnStage("Stream"), 15, 0.09f); // the ice bursts about 0.95 s in
             Film("battle-maelstrom", "深海潜流：冰蓝漩涡卷起噪声体、镜头后拉，全体冻结碎裂", () => OnStage("Vortex"), 14, 0.12f);
+            Watch("battle-maelstrom-whale", "深海潜流：召来的光鲸（身后升起，再从漩涡另一侧扎下来）", () => OnStage("Whale Rising"), 0.7f);
             Watch("battle-impact", "打中弱点：放射光线和冲击环", () => OnStage("Impact"), 0.05f, false);
             Film("battle-popups", "标题党型「震惊！」：弹窗广告砸向队员", () => OnStage("Popup"), 8, 0.08f);
             Film("battle-forward", "转发型「转发保平安」：分叉箭头升空分裂、落向全队", () => OnStage("Forward"), 10, 0.08f);

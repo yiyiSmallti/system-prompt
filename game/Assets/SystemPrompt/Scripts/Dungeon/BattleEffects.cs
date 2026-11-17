@@ -9,7 +9,7 @@ namespace SystemPrompt.Dungeon
     // freeze a noise body into and its shards; the thoughts and the charge of 深度思考; a guard's shield of cells;
     // a thrown can of soda bursting into foam and a 辣条 into flame; the 标题党型's pop-up windows and the 转发型's
     // splitting arrows; lines of light at a weakness; light trails behind whoever dashes, pillars of light, and
-    // the whale of the 集成. Nearly all of it is additive light on the Glow shader (the whale on Holo, the ice on
+    // the whale of light of the 集成 and 深海潜流. Nearly all of it is additive light on the Glow shader (the whale on Phantom, the ice on
     // Ice, the can and the windows solid on Toon), made in code and gone once played. The field is drawn in HDR
     // and glows (SeaLens): the hot middles of the effects go past white and bloom, their bodies stay under
     // it. Smoke is drawn over what is behind it, to stand the flames out against. The flares light the noise
@@ -27,7 +27,8 @@ namespace SystemPrompt.Dungeon
         Material canLook, rimLook, stripLook, chrome, page, bar, cardLook, cardInk, shardLook, swipeLook, mote;
         MaterialPropertyBlock gain; // the thoughts' words lit past white (Text.shader _Gain)
         static readonly int GainId = Shader.PropertyToID("_Gain");
-        GameObject whale;
+        GameObject whale;     // the whale of light (Phantom), made the first time it is called up
+        Material whaleLook;
 
         public BattleEffects(Transform parent, Camera camera)
         {
@@ -59,7 +60,7 @@ namespace SystemPrompt.Dungeon
         {
             foreach (var o in new Object[] { white, ring, bubble, glint, spikes, flake, spark, trail, glare, glareCore, wave, flame, flameSheet, fog, smoke, quad, lance, ice, shard,
                          frame, arrow, can, rim, strip, adChrome, adPage, adBar, cardFace, cardStripe, canLook, rimLook, stripLook, chrome, page, bar,
-                         cardLook, cardInk, shardLook, swipeLook, mote })
+                         cardLook, cardInk, shardLook, swipeLook, mote, whaleLook })
                 if (o != null) Object.Destroy(o);
             glims.Clear();
             Shader.SetGlobalColor("_SeaFlashColor", Color.clear);
@@ -1907,14 +1908,87 @@ namespace SystemPrompt.Dungeon
             return trail;
         }
 
-        // DeepSeek's whale, made of light (Resources/Models/Props/Whale, a Tripo model, on the Holo shader),
-        // swimming along a curve from `from` over `over` to `to`, `length` metres long nose to tail, with a wake
-        // of light and bubbles; `passing` is called when it is halfway.
+        // DeepSeek's whale of light, as the PV has it (pv/README.md S12): a humpback (Models/Props/WhalePhantom,
+        // assets/characters/whale/whale_phantom.py) on the Phantom shader, `length` metres nose to tail, its holder
+        // at the middle of its belly. Named `name` for the E2E's watches, so the 集成's whale is not taken for the one
+        // 深海潜流 calls up.
+        Transform CallWhale(string name, float length, Color color)
+        {
+            if (whale == null)
+            {
+                whaleLook = SeaArt.Phantom(color);
+                whale = SeaModels.Place("WhalePhantom", parent, 1f, whaleLook);
+                var bounds = whale.GetComponentInChildren<MeshFilter>().sharedMesh.bounds;
+                whaleLook.SetFloat("_Length", bounds.size.z);
+                whaleLook.SetFloat("_Mid", bounds.center.z);
+            }
+            whale.name = name;
+            whaleLook.SetColor("_Color", color);
+            whaleLook.SetFloat("_Shown", 0f);
+            whaleLook.SetFloat("_Fade", 1f);
+            whale.transform.localScale = Vector3.one * length;
+            whale.SetActive(true);
+            return whale.transform;
+        }
+
+        // How much of the whale has come and how bright it is, `t` of the way through its swim: called up out of
+        // sparks over the first `coming` of it, gone over the last `going`.
+        void WhaleShown(float t, float coming, float going)
+        {
+            whaleLook.SetFloat("_Shown", Mathf.Clamp01(t / coming));
+            whaleLook.SetFloat("_Fade", Mathf.Clamp01((1f - t) / going));
+        }
+
+        // 深海潜流 (BattleStage.Maelstrom), in two parts either side of the cut to the whirlpool. First (`rising`
+        // seconds, the side shot) it is called up out of sparks at `rise`, beyond her, and comes up slowly toward
+        // `risen`, side on to the shot's camera at `eye` as the PV has it behind her (headed away from that camera it
+        // was a sliver), its nose lifted toward the noise bodies; then, after the cut, it comes again out of the sky over
+        // the far side of the whirlpool at `pool` and dives into it (`diving` seconds) toward the cameras there,
+        // going out as it reaches it. Flown in one sweep from her to it, it went over the whirlpool's camera and
+        // filled the picture white. Not waited for.
+        public async Awaitable Summon(Vector3 eye, Vector3 rise, Vector3 risen, Vector3 pool, float length, float rising, float diving, Color color)
+        {
+            var body = CallWhale("Whale Rising", length, color);
+            var lamp = Lamp(rise, color * 1.6f, length);
+            var seen = rise - eye;
+            seen.y = 0f;
+            var across = Vector3.Cross(Vector3.up, seen.normalized);
+            if (Vector3.Dot(across, pool - rise) < 0f) across = -across;
+            var up = Quaternion.LookRotation(across) * Quaternion.Euler(-18f, 0f, 0f);
+            await Anim.Tween(rising, t =>
+            {
+                if (body == null) return;
+                var p = Vector3.LerpUnclamped(rise, risen, Ease.OutCubic(t));
+                body.SetPositionAndRotation(p, up * Quaternion.Euler(0f, 0f, Mathf.Sin(t * Mathf.PI) * 8f));
+                lamp.At = p;
+                whaleLook.SetFloat("_Shown", Mathf.Clamp01(t / 0.6f));
+                whaleLook.SetFloat("_Fade", 1f - Mathf.Clamp01((t - 0.85f) / 0.15f) * 0.6f);
+            }, Ease.Linear, () => body == null);
+            if (body == null) return;
+            Sparks(body.position + Vector3.up * length * 0.15f, color, 16, 3f);
+            body.localScale = Vector3.one * (length * 0.7f); // smaller from the whirlpool's cameras, nearer to it than hers
+            Vector3 from = pool + new Vector3(1.5f, 8f, 9f), over = pool + new Vector3(0.5f, 5f, 3f), to = pool + Vector3.up * 0.3f;
+            Vector3 At(float t) => Vector3.Lerp(Vector3.Lerp(from, over, t), Vector3.Lerp(over, to, t), t);
+            await Anim.Tween(diving, t =>
+            {
+                if (body == null) return;
+                var p = At(t);
+                var way = At(Mathf.Min(1f, t + 0.02f)) - At(Mathf.Max(0f, t - 0.02f));
+                body.SetPositionAndRotation(p, Quaternion.LookRotation(way) * Quaternion.Euler(0f, 0f, Mathf.Sin(t * Mathf.PI) * 14f));
+                lamp.At = p;
+                WhaleShown(t, 0.2f, 0.3f);
+            }, Ease.InCubic, () => body == null);
+            Out(lamp);
+            if (body == null) return;
+            Sparks(to + Vector3.up * 0.5f, color, 14, 4f);
+            whale.SetActive(false);
+        }
+
+        // The 集成's whale swimming along a curve from `from` over `over` to `to`, with a wake of light and bubbles;
+        // `passing` is called when it is halfway.
         public async Awaitable Whale(Vector3 from, Vector3 over, Vector3 to, float length, float seconds, Color color, System.Action passing)
         {
-            if (whale == null) whale = SeaModels.Place("Whale", parent, length, SeaArt.Holo(color, SeaModels.Texture("Whale")));
-            whale.SetActive(true);
-            var body = whale.transform;
+            var body = CallWhale("Whale", length, color);
             var wake = Streak(body, color, length * 0.35f, 0.5f);
             wake.transform.localPosition = Vector3.zero;
             var bubbles = BubbleTrail(body, length);
@@ -1928,6 +2002,7 @@ namespace SystemPrompt.Dungeon
                 var ahead = At(Mathf.Min(1f, t + 0.02f)) - At(Mathf.Max(0f, t - 0.02f));
                 body.SetPositionAndRotation(p, Quaternion.LookRotation(ahead) * Quaternion.Euler(0f, 0f, Mathf.Sin(t * Mathf.PI * 2f) * 10f));
                 lamp.At = p;
+                WhaleShown(t, 0.2f, 0.12f);
                 if (!passed && t >= 0.5f)
                 {
                     passed = true;

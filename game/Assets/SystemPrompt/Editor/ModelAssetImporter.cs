@@ -93,7 +93,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // Bump when the import below changes, so the models and textures already in the library are redone.
-        public override uint GetVersion() => 16;
+        public override uint GetVersion() => 17;
 
         // Tripo's rig has no bones for a tail, a bag or hair down the back, and gives their vertices to the limb
         // nearest in the T-pose: casual DeepSeek's whale tail went to her feet and right thigh, the hair down her
@@ -178,6 +178,7 @@ namespace SystemPrompt.EditorTools
             }
             var normals = mesh.normals;
             var weights = mesh.boneWeights;
+            var trim = Trim(mesh.vertices, weights, head, At(head), up, -behind, out var fins, out var bows);
             var colors = new Color32[mesh.vertexCount];
             var place = new Vector2[mesh.vertexCount];
             var marked = 0;
@@ -200,7 +201,7 @@ namespace SystemPrompt.EditorTools
                 if (share > 0.5f && its.sqrMagnitude > 1e-6f)
                     under = Mathf.Clamp01((-Vector3.Dot(normals[v], its.normalized) - 0.1f) / 0.5f) * Mathf.Clamp01((share - 0.5f) / 0.3f);
                 if (under > 0f) marked++;
-                colors[v] = new Color32((byte)Mathf.RoundToInt(255f * (1f - under)), (byte)Mathf.RoundToInt(255f * (1f - Mathf.Clamp01(share))), 255, 255);
+                colors[v] = new Color32((byte)Mathf.RoundToInt(255f * (1f - under)), (byte)Mathf.RoundToInt(255f * (1f - Mathf.Clamp01(share))), (byte)Mathf.RoundToInt(255f * (1f - trim[v])), 255);
                 if (main >= 0)
                 {
                     var n = Vector3.ProjectOnPlane(normals[v], axis[main]);
@@ -210,7 +211,43 @@ namespace SystemPrompt.EditorTools
             }
             mesh.colors32 = colors;
             mesh.SetUVs(2, place);
-            Debug.Log($"{mesh.name}: 尾巴腹面标了 {marked} 个顶点");
+            Debug.Log($"{mesh.name}: 尾巴腹面标了 {marked} 个顶点，耳鳍 {fins} 个、蝴蝶结 {bows} 个");
+        }
+
+        // Her ear fins and the bows over them, for Toon.shader's _Trim (vertex blue: 1 − this): of what hangs on the
+        // head bone, by where it is from the head joint in units of how high the head reaches above it (so neither
+        // the file's scale nor its axes matter), across either way from the middle, up, and ahead. The fins stand
+        // out flat at the sides at about a quarter of that height, wider than the hair there; the bows sit just
+        // above them on the band, and the box takes in some dark hair, which the shader leaves out by its colour.
+        // (Measured on the battle dress in Blender, the head's vertices plotted by the texture's colour.)
+        static float[] Trim(Vector3[] vertices, BoneWeight[] weights, int head, Vector3 joint, Vector3 up, Vector3 ahead, out int fins, out int bows)
+        {
+            var trim = new float[vertices.Length];
+            fins = bows = 0;
+            var across = Vector3.Cross(up, ahead);
+            float OnHead(BoneWeight w) => (w.boneIndex0 == head ? w.weight0 : 0f) + (w.boneIndex1 == head ? w.weight1 : 0f)
+                + (w.boneIndex2 == head ? w.weight2 : 0f) + (w.boneIndex3 == head ? w.weight3 : 0f);
+            var top = 0f;
+            for (var v = 0; v < vertices.Length; v++)
+                if (OnHead(weights[v]) >= 0.3f) top = Mathf.Max(top, Vector3.Dot(vertices[v] - joint, up));
+            if (top <= 0f) return trim;
+            for (var v = 0; v < vertices.Length; v++)
+            {
+                if (OnHead(weights[v]) < 0.3f) continue;
+                var p = (vertices[v] - joint) / top;
+                float side = Mathf.Abs(Vector3.Dot(p, across)), high = Vector3.Dot(p, up), front = Vector3.Dot(p, ahead);
+                if (side > 0.34f && high > 0.2f && high < 0.42f)
+                {
+                    trim[v] = 1f;
+                    fins++;
+                }
+                else if (side > 0.27f && side < 0.4f && high >= 0.42f && high < 0.56f && front > -0.08f && front < 0.15f)
+                {
+                    trim[v] = 0.5f;
+                    bows++;
+                }
+            }
+            return trim;
         }
 
         // Keeps the triangles of the largest connected part. Vertices split along uv and normal seams are joined

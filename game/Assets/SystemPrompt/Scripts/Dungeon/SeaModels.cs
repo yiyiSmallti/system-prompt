@@ -15,10 +15,9 @@ namespace SystemPrompt.Dungeon
         static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
         static readonly Dictionary<string, Material> looks = new Dictionary<string, Material>();
 
-        // Turns that put a model's front toward +z: the whale's nose, the old monitor's screen.
+        // Turns that put a model's front toward +z: the old monitor's screen.
         static readonly Dictionary<string, Quaternion> Turns = new Dictionary<string, Quaternion>
         {
-            ["Whale"] = Quaternion.Euler(0f, 180f, 0f),
             ["OldMonitor"] = Quaternion.Euler(0f, 90f, 0f),
         };
 
