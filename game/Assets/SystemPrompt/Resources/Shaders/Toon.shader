@@ -64,6 +64,11 @@ Shader "SystemPrompt/Toon"
         _Chin ("The chin's shade on the neck (_ChinAt, _ChinUp, _ChinAhead)", Float) = 0
         _FaceRound ("Shaded as a ball round the head (_HeadAt): 1 all of it (a face's own parts), 2 its skin near the head (a generated model)", Float) = 0
         _ShadePure ("A figure's cloth this much purer in colour in its shade", Float) = 0.2
+        _RimGain ("A figure's rim this much stronger", Float) = 1
+        _Starlit ("Starlit whale tail where the mesh marks its tail (vertex green 0, place on it in uv3)", Float) = 0
+        _StarColor ("The starlit tail's glow", Color) = (0.45,0.85,1,1)
+        _Scan ("A data scan band sweeps up it now and then", Float) = 0
+        _ScanColor ("The scan band", Color) = (0.55,0.95,1,1)
         _CastOwn ("How much of the figure's own shadows it takes (hair on the brow, a hem on the thighs)", Float) = 1
         _HairGloss ("Band of light round hair", Float) = 0
         _HairGlossColor ("Its colour", Color) = (0.5,0.6,0.8,1)
@@ -176,7 +181,8 @@ Shader "SystemPrompt/Toon"
             float _Wrap, _Sink, _Lift, _BackLit, _Legs, _Inner, _Sheen, _HairGloss, _Chin, _SwayAmp, _SwayAnchor, _SwayLength;
             float4 _InnerColor, _SkinEdge, _LegTop0, _LegEnd0, _LegTop1, _LegEnd1, _HairGlossColor, _ChinAt, _ChinUp, _ChinAhead;
             float4 _HeadAt;
-            float _FaceRound, _CastOwn, _ShadePure;
+            float _FaceRound, _CastOwn, _ShadePure, _RimGain, _Starlit, _Scan;
+            float4 _StarColor, _ScanColor;
             sampler2D _Faces, _FaceDepth;
             float _FaceOn;
             float4 _FaceCells, _FaceForward;
@@ -211,7 +217,8 @@ Shader "SystemPrompt/Toon"
             sampler2D _SeaFigureDepth;
             float _SeaFigureRim;
 
-            struct v2f { float4 pos : SV_POSITION; float3 world : TEXCOORD0; float3 normal : TEXCOORD1; float2 uv : TEXCOORD2; float4 screen : TEXCOORD3; float lift : TEXCOORD4; };
+            // tail: x how much of the whole is the tail's (vertex green 0), yz its place on it (uv3: along, round).
+            struct v2f { float4 pos : SV_POSITION; float3 world : TEXCOORD0; float3 normal : TEXCOORD1; float2 uv : TEXCOORD2; float4 screen : TEXCOORD3; float lift : TEXCOORD4; float3 tail : TEXCOORD5; float3 root : TEXCOORD6; };
 
             v2f vert(appdata_full v)
             {
@@ -219,6 +226,9 @@ Shader "SystemPrompt/Toon"
                 o.uv = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
                 // A mesh with no colours of its own reads as white: no lift.
                 o.lift = _Lift * (1.0 - v.color.r);
+                o.tail = float3(_Starlit * (1.0 - v.color.g), v.texcoord2.xy);
+                // Where the figure stands, for the scan band's height and its own beat (the object's origin is at its feet).
+                o.root = mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz;
                 o.world = SeaSway(mul(unity_ObjectToWorld, v.vertex).xyz, _SwayAmp, _SwayAnchor, _SwayLength);
                 if (_Legs > 0.5) o.world = SeaOutOf(SeaOutOf(o.world, _LegTop0, _LegEnd0), _LegTop1, _LegEnd1);
                 o.normal = normalize(mul((float3x3)unity_ObjectToWorld, v.normal));
@@ -472,10 +482,46 @@ Shader "SystemPrompt/Toon"
                 // hair card, so the folds of a hoodie and the inside of the hair don't catch specks of it.
                 rim = figure > 0 ? smoothstep(0.5, 0.62, rim) * saturate(n.y * 0.6 + 0.4) * step(0, facing) : smoothstep(0.35, 0.55, rim);
                 // While a sea camera draws, a figure's rim comes from its depth instead (DepthRim), less on the skin.
-                [branch] if (figure > 0 && _SeaFigureRim > 0) col += _RimColor.rgb * DepthRim(i, n) * 0.6 * (1.0 - skin * 0.5) * step(0, facing);
-                else col += _RimColor.rgb * rim * _RimColor.a;
+                [branch] if (figure > 0 && _SeaFigureRim > 0) col += _RimColor.rgb * DepthRim(i, n) * 0.6 * _RimGain * (1.0 - skin * 0.5) * step(0, facing);
+                else col += _RimColor.rgb * rim * _RimColor.a * _RimGain;
                 // The racks' LEDs blink and carry packets (SeaBlink); the rift's cracks breathe.
                 float3 emission = _Emission.rgb;
+                // The PV's starlit whale tail (pv/README.md S11, S12, S16): deep navy at the root going to sea blue toward
+                // the fluke, keeping the texture's own light and dark; small stars that twinkle, set evenly along and round
+                // the tail (its uv3, ModelAssetImporter.MarkUnderside) so they stay on it as it bends; a pale glow round its
+                // edges that grows toward the fluke; and now and then a wash of light running down it from the root.
+                [branch] if (i.tail.x > 0.01)
+                {
+                    float along = i.tail.y;
+                    float luma = dot(col, float3(0.3, 0.55, 0.15));
+                    float3 deep = lerp(float3(0.03, 0.06, 0.24), float3(0.1, 0.36, 0.85), smoothstep(0.15, 1.0, along));
+                    col = lerp(col, deep * (0.55 + luma * 1.6), i.tail.x * 0.7);
+                    float2 g = float2(along * 46.0, i.tail.z * 12.0);
+                    float2 cell = floor(g);
+                    float h = frac(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
+                    float2 at = float2(frac(h * 13.7), frac(h * 71.3)) * 0.6 + 0.2;
+                    float twinkle = 0.45 + 0.55 * sin(_Time.y * (1.3 + h * 2.7) + h * 40.0);
+                    float star = step(0.68, h) * smoothstep(0.22, 0.0, length(frac(g) - at)) * twinkle;
+                    star *= saturate(1.5 - max(fwidth(g.x), fwidth(g.y))); // gone where a cell is finer than a pixel
+                    float flow = saturate(1.0 - abs(frac(_Time.y * 0.3) * 1.6 - 0.3 - along) * 5.0);
+                    float edge = pow(1.0 - saturate(dot(n, view)), 2.5) * step(0, facing);
+                    emission += i.tail.x * _StarColor.rgb * (star * 1.4 + edge * (0.3 + 0.9 * smoothstep(0.6, 1.0, along)) + flow * flow * 0.3);
+                }
+                // A data scan band (a figure in the latent space is data): every few seconds a bright line sweeps up the
+                // figure from its feet, with a scatter of pixels just under it and a faint wash above; each figure on its
+                // own beat, from where it stands.
+                [branch] if (_Scan > 0)
+                {
+                    float beat = frac(_Time.y / 5.5 + frac(sin(dot(i.root.xz, float2(12.9898, 78.233))) * 43758.5453));
+                    float y = i.world.y - i.root.y;
+                    float top = beat / 0.16 * 2.6 - 0.2; // in the first 0.16 of the beat (0.9 s) the band climbs past the head
+                    float dy = top - y;
+                    float line_ = smoothstep(0.03, 0.0, abs(dy));
+                    float2 px = floor(i.screen.xy / i.screen.w * _ScreenParams.xy / 3.0);
+                    float bits = step(0.82, frac(sin(dot(px + floor(_Time.y * 24.0), float2(41.3, 289.1))) * 13758.5)) * smoothstep(0.18, 0.02, dy) * step(0, dy);
+                    float wash = smoothstep(0.35, 0.0, -dy) * step(dy, 0) * 0.15;
+                    emission += _ScanColor.rgb * (line_ * 0.9 + bits * 0.5 + wash) * step(beat, 0.16) * _Scan;
+                }
                 if (_Blink > 0) emission *= SeaBlink(i.world, n, _Blink);
                 if (_Breathe > 0) emission *= lerp(1.0, 0.8 + 0.2 * sin(_SeaTime * 1.3 + i.world.y), _Breathe);
                 // Light falling on a surface leaves it at white at most, under the lens's threshold (Dungeon/SeaLens.cs):

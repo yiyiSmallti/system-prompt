@@ -93,7 +93,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // Bump when the import below changes, so the models and textures already in the library are redone.
-        public override uint GetVersion() => 15;
+        public override uint GetVersion() => 16;
 
         // Tripo's rig has no bones for a tail, a bag or hair down the back, and gives their vertices to the limb
         // nearest in the T-pose: casual DeepSeek's whale tail went to her feet and right thigh, the hair down her
@@ -148,6 +148,10 @@ namespace SystemPrompt.EditorTools
         // (Tail...), and underside by its normal against the tail's own back there: across the bone, in her middle
         // plane, on the side behind her where the tail hangs and above it where it lies. Models with no such bones
         // are left as they are.
+        // The whole tail is marked as well, for the starlit tail of the PV (Toon.shader's _Starlit): green 0 where a
+        // vertex is wholly the tail's (1 off it), and uv3 its place on the tail, x along it (0 at the root, 1 at the
+        // fluke's end) and y round it (the normal's turn about the bone, 0 to 1), so the stars sit evenly on the tail
+        // and stay put on it as it bends, whatever the texture's own islands are.
         static void MarkUnderside(SkinnedMeshRenderer skin)
         {
             var mesh = skin.sharedMesh;
@@ -163,34 +167,49 @@ namespace SystemPrompt.EditorTools
             var behind = Vector3.ProjectOnPlane(At(tail[tail.Count - 1]) - At(hips), up).normalized;
             var across = Vector3.Cross(up, behind);
             var back = new Dictionary<int, Vector3>();
+            var axis = new Dictionary<int, Vector3>();
+            var order = new Dictionary<int, float>();
             for (var i = 0; i < tail.Count; i++)
             {
                 var along = i + 1 < tail.Count ? At(tail[i + 1]) - At(tail[i]) : At(tail[i]) - At(tail[i - 1]);
                 back[tail[i]] = Vector3.Cross(along.normalized, across).normalized;
+                axis[tail[i]] = along.normalized;
+                order[tail[i]] = (float)i / (tail.Count - 1);
             }
             var normals = mesh.normals;
             var weights = mesh.boneWeights;
             var colors = new Color32[mesh.vertexCount];
+            var place = new Vector2[mesh.vertexCount];
             var marked = 0;
             for (var v = 0; v < colors.Length; v++)
             {
                 var w = weights[v];
-                float share = 0f;
+                float share = 0f, along = 0f, most = 0f;
                 var its = Vector3.zero;
+                var main = -1;
                 void Add(int bone, float weight)
                 {
                     if (weight <= 0f || !back.TryGetValue(bone, out var b)) return;
                     share += weight;
                     its += b * weight;
+                    along += order[bone] * weight;
+                    if (weight > most) { most = weight; main = bone; }
                 }
                 Add(w.boneIndex0, w.weight0); Add(w.boneIndex1, w.weight1); Add(w.boneIndex2, w.weight2); Add(w.boneIndex3, w.weight3);
                 var under = 0f;
                 if (share > 0.5f && its.sqrMagnitude > 1e-6f)
                     under = Mathf.Clamp01((-Vector3.Dot(normals[v], its.normalized) - 0.1f) / 0.5f) * Mathf.Clamp01((share - 0.5f) / 0.3f);
                 if (under > 0f) marked++;
-                colors[v] = new Color32((byte)Mathf.RoundToInt(255f * (1f - under)), 255, 255, 255);
+                colors[v] = new Color32((byte)Mathf.RoundToInt(255f * (1f - under)), (byte)Mathf.RoundToInt(255f * (1f - Mathf.Clamp01(share))), 255, 255);
+                if (main >= 0)
+                {
+                    var n = Vector3.ProjectOnPlane(normals[v], axis[main]);
+                    var round = Mathf.Atan2(Vector3.Dot(n, Vector3.Cross(axis[main], back[main])), Vector3.Dot(n, back[main]));
+                    place[v] = new Vector2(along / share, round / (2f * Mathf.PI) + 0.5f);
+                }
             }
             mesh.colors32 = colors;
+            mesh.SetUVs(2, place);
             Debug.Log($"{mesh.name}: 尾巴腹面标了 {marked} 个顶点");
         }
 

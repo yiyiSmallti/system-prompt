@@ -1316,8 +1316,61 @@ namespace SystemPrompt.Dungeon
             }
         }
 
-        // Motes rising round `holder` all the time, until stopped.
-        ParticleSystem Rising(Transform holder, Color color)
+        // Whose turn it is (BattleStage.Ready): a soft disc of light with a bright rim under `follow`'s feet,
+        // breathing, a ripple going out from it every RippleEvery seconds, and a few motes rising round it (flakes of
+        // ice for DeepSeek, `ice`). Quieter than 深度思考's dials, which can stand on it at once: under the glow's
+        // threshold but for the ripple's leading edge. Fades in, and out once released.
+        const float RippleEvery = 1.6f;
+        public Held Turn(Transform follow, Color color, bool ice)
+        {
+            var root = Parts.Node("Turn", follow, new Vector3(0f, 0.04f, 0f));
+            var look = SeaArt.Glow(SeaArt.Ring, color);
+            var disc = Parts.Shape("Disc", root, quad, look).transform;
+            disc.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            disc.localScale = Vector3.one * 1.5f;
+            var rippleLook = SeaArt.Glow(SeaArt.Ring, color);
+            var ripple = Parts.Shape("Ripple", root, quad, rippleLook).transform;
+            ripple.localRotation = disc.localRotation;
+            var motes = ice ? Rising(root, color, 6f, flake, 0.5f, 0.35f) : Rising(root, color, 9f, null, 0.5f);
+            var held = new Held();
+            Hold().Forget();
+            return held;
+
+            async Awaitable Hold()
+            {
+                var t = 0f;
+                var gain = Calm ? 0.7f : 1f;
+                while (!held.Released && root != null)
+                {
+                    t += Time.unscaledDeltaTime;
+                    var shown = Mathf.Clamp01(t * 3f);
+                    look.color = Hot(color, gain * (0.75f + 0.15f * Mathf.Sin(t * 2.4f)), shown);
+                    var k = t % RippleEvery / RippleEvery;
+                    ripple.localScale = Vector3.one * Mathf.Lerp(1.5f, 2.6f, Ease.OutCubic(k));
+                    rippleLook.color = Hot(color, gain * 1.3f, shown * Mathf.Pow(1f - k, 1.5f));
+                    await Awaitable.NextFrameAsync();
+                }
+                if (root != null)
+                {
+                    motes.Stop();
+                    var from = look.color.a;
+                    var rippled = rippleLook.color.a;
+                    await Anim.Tween(0.25f, k =>
+                    {
+                        if (root == null) return;
+                        look.color = new Color(look.color.r, look.color.g, look.color.b, from * (1f - k));
+                        rippleLook.color = new Color(rippleLook.color.r, rippleLook.color.g, rippleLook.color.b, rippled * (1f - k));
+                    });
+                    if (root != null) Object.Destroy(root.gameObject);
+                }
+                Object.Destroy(look);
+                Object.Destroy(rippleLook);
+            }
+        }
+
+        // Motes rising round `holder` all the time, until stopped: `rate` a second, drawn with `look` (glints of
+        // light if none) `size` times their usual size, off a ring `radius` metres out.
+        ParticleSystem Rising(Transform holder, Color color, float rate = 34f, Material look = null, float radius = 0.6f, float size = 1f)
         {
             var go = new GameObject("Motes");
             go.transform.SetParent(holder, false);
@@ -1326,16 +1379,16 @@ namespace SystemPrompt.Dungeon
             var main = ps.main;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.9f, 1.5f);
             main.startSpeed = 0f;
-            main.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.24f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.1f * size, 0.24f * size);
             main.startColor = new ParticleSystem.MinMaxGradient(color, Color.white);
             main.maxParticles = 140;
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
             main.useUnscaledTime = true;
             var emission = ps.emission;
-            emission.rateOverTime = 34f;
+            emission.rateOverTime = rate;
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = 0.6f;
+            shape.radius = radius;
             shape.radiusThickness = 0f;
             shape.rotation = new Vector3(90f, 0f, 0f);
             var flow = ps.velocityOverLifetime;
@@ -1346,7 +1399,7 @@ namespace SystemPrompt.Dungeon
             flow.z = new ParticleSystem.MinMaxCurve(0f, 0f);
             Fading(ps);
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = mote ??= SeaArt.Glow(SeaArt.Flare, Color.white * 1.5f);
+            renderer.sharedMaterial = look != null ? look : mote ??= SeaArt.Glow(SeaArt.Flare, Color.white * 1.5f);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             ps.Play();

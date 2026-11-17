@@ -1891,7 +1891,12 @@ namespace SystemPrompt.E2E
             var line = $"{Now:0.0}s [{type}] {message}";
             if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) logErrors.Add(line + "\n" + stack);
             else if (type == LogType.Warning) logWarnings.Add(line);
+            // Unity says a look rotation had nothing to look along as a plain log, not a warning, every frame it
+            // happens: a zero direction somewhere, which a frame later can be a NaN on a transform. Once per caller.
+            else if (message.StartsWith("Look rotation viewing vector is zero") && zeroLooks.Add(stack)) logWarnings.Add(line + "\n" + stack);
         }
+
+        readonly HashSet<string> zeroLooks = new HashSet<string>();
 
         // ------------------------------------------------------------------ report
 

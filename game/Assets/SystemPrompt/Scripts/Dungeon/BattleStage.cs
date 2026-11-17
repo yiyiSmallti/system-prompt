@@ -86,6 +86,7 @@ namespace SystemPrompt.Dungeon
         // cursor is on, else at the nearest, glancing now and then at whoever's turn it is (actor).
         const float ThreatSeen = 2.5f, GlanceSeen = 0.8f;
         int actor = -1;
+        BattleEffects.Held turnLight; // the light under the actor's feet (Ready), gone as their turn ends or they fall
         public SeaFigure.PhoneHold Held { get; private set; } // how the last 截图 was taken
 
         // partyIds in BattleScreen's order (GameState.PlayerId first); foeKinds the noise bodies' kinds.
@@ -1721,6 +1722,11 @@ namespace SystemPrompt.Dungeon
             {
                 Unguard(member);
                 Charged(member, false);
+                if (member == actor)
+                {
+                    turnLight?.Release();
+                    turnLight = null;
+                }
                 // Already lying where a blow knocked them, they stay there.
                 if (!m.Knocked)
                 {
@@ -2072,11 +2078,15 @@ namespace SystemPrompt.Dungeon
         public void Ready(int member, bool oneMore = false)
         {
             actor = member;
+            turnLight?.Release();
+            turnLight = null;
             if (member < 0) return;
             var m = party[member];
             m.Threatened = 0f;
             m.Striker = null; // a blow after this that nothing came at them for is taken from ahead
             if (m.Fall > 0f) return;
+            var deepSeek = m.Root.name == "DeepSeek";
+            turnLight = effects.Turn(m.Root, deepSeek ? Frozen : Sea, deepSeek);
             var k = oneMore ? 1.5f : 1f;
             m.Figure.Nudge(Vector3.down * (0.02f * k), 0.15f, 0.35f);
             m.Figure.Flick(8f * k);

@@ -119,6 +119,19 @@ namespace SystemPrompt.Dungeon
         // A dense mesh turns grazing faces to the camera all over its folds and hair; a high power keeps
         // the rim to the silhouette.
         const float RimPower = 8f;
+        // In the blue of the sea the figures ran into the water round them: the rim is drawn this much stronger, in
+        // each one's own colour (the player cyan, DeepSeek ice blue), and a data scan band runs up each of them now
+        // and then (Toon.shader's _Scan). The battle dress's tail is the PV's starlit whale tail (_Starlit).
+        const float RimGain = 1.8f;
+        static readonly Color PlayerRim = new Color(0.45f, 0.95f, 1f, 0.35f), DeepSeekRim = new Color(0.6f, 0.82f, 1f, 0.35f);
+
+        static void Glow(Material m, string model)
+        {
+            m.SetColor("_RimColor", model.StartsWith("DeepSeek") ? DeepSeekRim : PlayerRim);
+            m.SetFloat("_RimGain", RimGain);
+            m.SetFloat("_Scan", 1f);
+            if (model == "DeepSeek") m.SetFloat("_Starlit", 1f);
+        }
         // No outline as the scenery has it (a hull some centimetres out): on a generated mesh the hull of the fringe
         // and the jaw showed through as thick black strokes across the eyes and cheeks.
         const float Outline = 0f;
@@ -331,9 +344,9 @@ namespace SystemPrompt.Dungeon
         // bunched against her shin. A wag lifts the fluke as it swings.
         // In battle the hook goes round to whichever side has no one standing (TailTo, BattleStage): beside the
         // player it stood in front of their feet from every camera behind the party.
-        const float TailTilt = 16f, TailOut = 14f, TailLow = 0.03f, TailFlukeSize = 0.6f, TailLain = 90f;
+        const float TailTilt = 16f, TailOut = 14f, TailLow = 0.03f, TailFlukeSize = 0.72f, TailLain = 90f;
         const float TailStreamFrom = 0.3f, TailStreamFull = 1.4f, TailStreamTime = 0.35f;
-        static readonly float[] TailLaid = { 1f, 0f, 0.45f, 0.22f, 0.26f, 0.36f, 0.48f };
+        static readonly float[] TailLaid = { 1f, 0f, 0.45f, 0.22f, 0.28f, 0.42f, 0.6f };
         static readonly float[] TailStreamed = { 1f, 0f, 0.6f, 0.47f, 0.4f, 0.36f, 0.4f };
         static readonly float[] TailCurl = { 0f, 0f, 50f, 90f, 133f, 167f, 177f };
         float tailSpeed;  // how fast she goes, for LayTail
@@ -444,6 +457,7 @@ namespace SystemPrompt.Dungeon
                 look.SetFloat("_CameraLight", 1f); // faces stay lit whichever way the figure turns
                 look.SetFloat("_Lift", UndersideLift);
                 look.SetFloat("_FaceRound", 2f); // its face, by its skin near the head (Toon.shader)
+                Glow(look, model);
                 worn.Add(look);
                 look.mainTexture = texture;
             }
@@ -658,6 +672,7 @@ namespace SystemPrompt.Dungeon
             }
             m.SetColor("_RimColor", Rim);
             m.SetFloat("_RimPower", RimPower);
+            Glow(m, model);
             m.SetFloat("_CameraLight", 1f);
             m.SetFloat("_OutlineWidth", Outline);
             var overlay = part.GetFloat("_ZWrite") < 0.5f || part.name.Contains("_EYE") || part.name.Contains("_FACE");
