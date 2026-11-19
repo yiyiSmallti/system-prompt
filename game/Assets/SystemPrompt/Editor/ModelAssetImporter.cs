@@ -93,7 +93,7 @@ namespace SystemPrompt.EditorTools
         }
 
         // Bump when the import below changes, so the models and textures already in the library are redone.
-        public override uint GetVersion() => 17;
+        public override uint GetVersion() => 18;
 
         // Tripo's rig has no bones for a tail, a bag or hair down the back, and gives their vertices to the limb
         // nearest in the T-pose: casual DeepSeek's whale tail went to her feet and right thigh, the hair down her
@@ -135,10 +135,23 @@ namespace SystemPrompt.EditorTools
             {
                 if (onePiece) KeepBody(skin.sharedMesh);
                 MarkUnderside(skin);
+                FillDefaults(skin.sharedMesh);
                 if (blender) continue;
                 RoundChin(skin);
                 Unhook(skin);
             }
+        }
+
+        // The vertex colours and uv3 Toon.shader's TOON pass reads, where MarkUnderside gave a mesh none: white and zero,
+        // which is what the shader takes their absence for (no lift, no trim, off the tail), so a real GPU draws it as
+        // before. The Apple Paravirtual device of a macOS VM drew a skinned mesh missing them as huge shards (issue #1).
+        static void FillDefaults(Mesh mesh)
+        {
+            if (mesh == null) return;
+            if (!mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.Color))
+                mesh.colors32 = Enumerable.Repeat(new Color32(255, 255, 255, 255), mesh.vertexCount).ToArray();
+            if (!mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.TexCoord2))
+                mesh.SetUVs(2, new Vector2[mesh.vertexCount]);
         }
 
         // A tail's underside marked in the mesh's vertex colours: red 0 where a vertex is wholly underside, 1 anywhere

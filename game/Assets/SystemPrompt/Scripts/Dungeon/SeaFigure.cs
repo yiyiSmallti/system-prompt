@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -258,6 +259,7 @@ namespace SystemPrompt.Dungeon
         readonly string stance;
         readonly bool carriesPhone; // the player: in the stance the phone is in their right hand
         readonly List<(Material look, Vector2 radii)> overLegs = new List<(Material, Vector2)>(); // the tops kept out of the legs, and how thick those are
+        readonly List<Mesh> filled = new List<Mesh>(); // copies of meshes given the vertex data Toon.shader reads (WithDefaults)
         readonly List<Material> necks = new List<Material>(); // the body's skin of a VRoid figure, which takes the chin's shade (Toon.shader's _Chin)
         readonly List<Material> worn = new List<Material>();  // every material of the figure's own, which are told where its head is (_HeadAt)
         Vector3 headUp, headAhead; // up and ahead of the head, in the head bone's own space, as the model stands in its file
@@ -503,7 +505,13 @@ namespace SystemPrompt.Dungeon
                 }
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
-                if (skin == null) continue;
+                if (skin == null)
+                {
+                    var filter = r.GetComponent<MeshFilter>();
+                    filter.sharedMesh = WithDefaults(filter.sharedMesh);
+                    continue;
+                }
+                skin.sharedMesh = WithDefaults(skin.sharedMesh);
                 skin.updateWhenOffscreen = true; // the bounds follow the pose, not the T of the bind
                 if (skin.sharedMesh.GetBlendShapeIndex("Fcl_EYE_Close") >= 0) faceMesh = skin;
             }
@@ -1172,6 +1180,7 @@ namespace SystemPrompt.Dungeon
         {
             if (graph.IsValid()) graph.Destroy();
             trinkets.Dispose();
+            foreach (var mesh in filled) Object.Destroy(mesh);
         }
 
         // A phone held landscape, its lens toward +z and its lit screen toward the one holding it. Its case is pale
@@ -1817,6 +1826,23 @@ namespace SystemPrompt.Dungeon
             foreach (var clip in Resources.LoadAll<AnimationClip>(path))
                 if (!clip.name.StartsWith("__preview__")) return clip;
             throw new InvalidOperationException($"Resources/{path} 里没有动作");
+        }
+
+        // A VRoid figure's meshes (Characters/<model>/<model>_Meshes.asset) come in through no importer, so the vertex
+        // colours and uv3 that Editor/ModelAssetImporter.cs FillDefaults gives the FBX figures are given to a copy here:
+        // white and zero, what Toon.shader takes their absence for, so a real GPU draws it as before. The Apple
+        // Paravirtual device of a macOS VM drew a mesh missing them as huge shards (issue #1).
+        Mesh WithDefaults(Mesh mesh)
+        {
+            var color = mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.Color);
+            var uv3 = mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.TexCoord2);
+            if (color && uv3) return mesh;
+            var copy = Object.Instantiate(mesh);
+            copy.name = mesh.name;
+            if (!color) copy.colors32 = Enumerable.Repeat(new Color32(255, 255, 255, 255), copy.vertexCount).ToArray();
+            if (!uv3) copy.SetUVs(2, new Vector2[copy.vertexCount]);
+            filled.Add(copy);
+            return copy;
         }
     }
 }
