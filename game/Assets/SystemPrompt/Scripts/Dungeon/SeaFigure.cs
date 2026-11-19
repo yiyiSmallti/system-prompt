@@ -505,7 +505,12 @@ namespace SystemPrompt.Dungeon
                 }
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
-                if (skin == null) continue;
+                if (skin == null)
+                {
+                    var filter = r.GetComponent<MeshFilter>();
+                    filter.sharedMesh = WithDefaults(filter.sharedMesh);
+                    continue;
+                }
                 skin.sharedMesh = WithDefaults(skin.sharedMesh);
                 skin.updateWhenOffscreen = true; // the bounds follow the pose, not the T of the bind
                 if (skin.sharedMesh.GetBlendShapeIndex("Fcl_EYE_Close") >= 0) faceMesh = skin;
@@ -1826,7 +1831,7 @@ namespace SystemPrompt.Dungeon
         // A VRoid figure's meshes (Characters/<model>/<model>_Meshes.asset) come in through no importer, so the vertex
         // colours and uv3 that Editor/ModelAssetImporter.cs FillDefaults gives the FBX figures are given to a copy here:
         // white and zero, what Toon.shader takes their absence for, so a real GPU draws it as before. The Apple
-        // Paravirtual device of a macOS VM drew a skinned mesh missing them as huge shards (issue #1).
+        // Paravirtual device of a macOS VM drew a mesh missing them as huge shards (issue #1).
         Mesh WithDefaults(Mesh mesh)
         {
             var color = mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.Color);
