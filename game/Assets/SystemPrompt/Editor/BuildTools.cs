@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -13,6 +14,7 @@ namespace SystemPrompt.EditorTools
     {
         const string BootScene = "Assets/SystemPrompt/Scenes/Boot.unity";
         const string E2EProduct = "System Prompt E2E";
+        const string ReleaseProduct = "System Prompt";
 
         // The E2E build (game/Tools/e2e.sh) includes E2E/PrologueRun.cs and gets its own product name,
         // so its saves and settings never mix with the real game's.
@@ -20,33 +22,133 @@ namespace SystemPrompt.EditorTools
         public static void BuildE2E()
         {
             var output = Arg("-buildOutput") ?? "Builds/E2E/SystemPromptE2E.app";
+            var ok = Build(BuildTarget.StandaloneOSX, output, E2EProduct, true, new[] { "SP_E2E" });
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+        }
+
+        // Release builds for distribution (game/Tools/release.sh). No SP_E2E define, so the E2E driver,
+        // the visual lab and the tour recorder are compiled out; the window pauses when it loses focus.
+        [MenuItem("System Prompt/构建正式版/macOS")]
+        public static void BuildReleaseMac() => BuildRelease(BuildTarget.StandaloneOSX);
+
+        [MenuItem("System Prompt/构建正式版/Windows")]
+        public static void BuildReleaseWindows() => BuildRelease(BuildTarget.StandaloneWindows64);
+
+        static void BuildRelease(BuildTarget target)
+        {
+            var ok = false;
+            if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone, target))
+                Debug.LogError($"正式版构建失败：没装 {target} 的构建模块。在 Unity Hub 里给 {Application.unityVersion} 加上"
+                               + (target == BuildTarget.StandaloneOSX ? " Mac Build Support (Mono)" : " Windows Build Support (Mono)"));
+            else
+            {
+                var output = Arg("-buildOutput") ?? DefaultReleaseOutput(target);
+                ok = Build(target, output, ReleaseProduct, false, Array.Empty<string>(), ReleaseIdentity);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+        }
+
+        static string DefaultReleaseOutput(BuildTarget target) => target == BuildTarget.StandaloneOSX
+            ? $"Builds/Release/macOS/{ReleaseProduct}.app"
+            // A Windows player is a folder: the .exe, UnityPlayer.dll, <name>_Data and MonoBleedingEdge.
+            : $"Builds/Release/Windows/{ReleaseProduct}.exe";
+
+        // Company name and bundle id decide where saves and settings live (macOS: ~/Library/Application Support/<bundle id>,
+        // Windows: %USERPROFILE%\AppData\LocalLow\<company>\<product>). Once players have saves they must not change.
+        // They are set only for the duration of a release build: the project keeps Unity's derived id, so the E2E build
+        // stays com.DefaultCompany.System-Prompt-E2E and e2e.sh, which wipes that folder, never touches release saves.
+        static readonly (string Company, string BundleId) ReleaseIdentity = ("System Prompt", "com.systemprompt.game");
+
+        static bool Build(BuildTarget target, string output, string product, bool runInBackground, string[] defines,
+                          (string Company, string BundleId)? identity = null)
+        {
             YarnStorySync.Sync(true);
             EnsureBootScene();
-            var product = PlayerSettings.productName;
-            var runInBackground = PlayerSettings.runInBackground;
+            var savedProduct = PlayerSettings.productName;
+            var savedRunInBackground = PlayerSettings.runInBackground;
+            var savedCompany = PlayerSettings.companyName;
+            var savedId = StoredStandaloneId();
+            var savedOverride = OverrideStandaloneId;
             BuildReport report;
             try
             {
-                PlayerSettings.productName = E2EProduct;
-                PlayerSettings.runInBackground = true;
+                PlayerSettings.productName = product;
+                PlayerSettings.runInBackground = runInBackground;
+                if (identity is { } id)
+                {
+                    PlayerSettings.companyName = id.Company;
+                    PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, id.BundleId);
+                    OverrideStandaloneId = true;
+                }
                 report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
                     scenes = new[] { BootScene },
                     locationPathName = output,
-                    target = BuildTarget.StandaloneOSX,
-                    extraScriptingDefines = new[] { "SP_E2E" },
+                    target = target,
+                    extraScriptingDefines = defines,
                 });
             }
             finally
             {
-                PlayerSettings.productName = product;
-                PlayerSettings.runInBackground = runInBackground;
+                PlayerSettings.productName = savedProduct;
+                PlayerSettings.runInBackground = savedRunInBackground;
+                PlayerSettings.companyName = savedCompany;
+                RestoreStandaloneId(savedId);
+                OverrideStandaloneId = savedOverride;
                 AssetDatabase.SaveAssets();
             }
-            var ok = report.summary.result == BuildResult.Succeeded;
-            Debug.Log($"E2E 构建{(ok ? "完成" : "失败")}：{report.summary.result}，{report.summary.totalErrors} 个错误，输出 {output}");
-            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+            var s = report.summary;
+            var ok = s.result == BuildResult.Succeeded;
+            Debug.Log($"{product} {target} 构建{(ok ? "完成" : "失败")}：{s.result}，{s.totalErrors} 个错误，"
+                      + $"{s.totalSize / 1048576f:F0} MB，用时 {s.totalTime:mm\\:ss}，输出 {output}");
+            return ok;
         }
+
+        // Player Settings' "Override Default Bundle Identifier" for macOS. Off, Unity derives com.<company>.<product> and
+        // ignores the Standalone identifier; there is no public API for it, so it goes through the serialized settings.
+        static bool OverrideStandaloneId
+        {
+            get => PlayerSettingsObject().FindProperty("overrideDefaultApplicationIdentifier").boolValue;
+            set
+            {
+                var so = PlayerSettingsObject();
+                so.FindProperty("overrideDefaultApplicationIdentifier").boolValue = value;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        // The Standalone entry of the serialized applicationIdentifier map, or null when the project has none.
+        // GetApplicationIdentifier returns the derived com.<company>.<product> for a missing entry, so restoring
+        // through it would write that derived id into ProjectSettings after every release build.
+        static string StoredStandaloneId()
+        {
+            var map = PlayerSettingsObject().FindProperty("applicationIdentifier");
+            for (var i = 0; i < map.arraySize; i++)
+            {
+                var pair = map.GetArrayElementAtIndex(i);
+                if (pair.FindPropertyRelative("first").stringValue == "Standalone")
+                    return pair.FindPropertyRelative("second").stringValue;
+            }
+            return null;
+        }
+
+        static void RestoreStandaloneId(string id)
+        {
+            if (id != null)
+            {
+                PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, id);
+                return;
+            }
+            var so = PlayerSettingsObject();
+            var map = so.FindProperty("applicationIdentifier");
+            for (var i = map.arraySize - 1; i >= 0; i--)
+                if (map.GetArrayElementAtIndex(i).FindPropertyRelative("first").stringValue == "Standalone")
+                    map.DeleteArrayElementAtIndex(i);
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static SerializedObject PlayerSettingsObject() =>
+            new SerializedObject(Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings"));
 
         static void EnsureBootScene()
         {

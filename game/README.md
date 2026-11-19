@@ -6,7 +6,7 @@
 
 ## 打开与运行
 
-1. 用 Unity Hub 打开 `game/` 文件夹，编辑器版本用 `ProjectSettings/ProjectVersion.txt` 里的 6000.0.85f1（Unity 6.0 LTS）。要构建 macOS 播放器还需要装 Mac Build Support 模块。
+1. 用 Unity Hub 打开 `game/` 文件夹，编辑器版本用 `ProjectSettings/ProjectVersion.txt` 里的 6000.0.85f1（Unity 6.0 LTS）。要构建 macOS 播放器还需要装 Mac Build Support 模块，构建 Windows 正式版要装 Windows Build Support (Mono)。
 2. 依赖写在 `Packages/manifest.json`：Input System 1.20.0、uGUI 2.0.0（提供 TextMeshPro，Yarn Spinner 需要）、Yarn Spinner for Unity 3.2.8。Yarn Spinner 从 [OpenUPM](https://openupm.com) 的 scoped registry 下载，打开工程的机器需要能访问 `package.openupm.com`。没有改用 GitHub 的 git 依赖：在 macOS 27 上，Unity 包管理进程调用系统 git 会因 Command Line Tools 只有 arm64 而失败。
 3. Player Settings 里 Active Input Handling 已经设为 Input System。代码同时支持新旧两套输入，改成 Both 也可以。
 4. 打开 `Assets/SystemPrompt/Scenes/Boot.unity`（一个空场景），直接进入 Play。`GameBootstrap` 会在场景加载后自动创建相机、`GameRoot`、UI 和音频，场景里不需要放任何东西。
@@ -177,6 +177,20 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 
 同一个仓库的所有检出共用一把锁（git 公共目录下的 `sp-lab.lock`），一次只有一个实验室在构建或运行，所以几个人同时调用会轮流等，被占着时最多等 60 分钟，每 30 秒报一次是谁占着，持有者的进程不在了就清掉失效的锁。`e2e.sh` 取的是同一把锁：实验室和端到端验证都用 batchmode 构建同一个工程、都弹出窗口并用虚拟输入操作，同时跑会互相拖慢到超时，所以两边轮流。自己另开 Unity batchmode（转换动作、重新生成站姿）时不经过这把锁，要错开。`VisualLab.cs` 和 `PrologueRun.cs` 一样只编进编辑器和带 `SP_E2E` 定义的测试版，正式构建里没有，只在带 `-lab` 参数启动时才运行。
 
+## 正式版构建
+
+```bash
+game/Tools/release.sh
+```
+
+用 batchmode 构建 macOS 和 Windows 两个正式版，各打成一个 zip，用来上传 itch.io 这类平台：`game/Builds/Release/SystemPrompt-<版本>-macOS.zip` 和 `-Windows.zip`，版本取 Player Settings 的 Version。只打一个平台时写 `release.sh mac` 或 `release.sh win`。编辑器菜单 **System Prompt → 构建正式版** 下也有这两项，只构建不打包。
+
+正式版不带 `SP_E2E`，端到端驱动、视觉实验室和录像都不编进去，窗口失去焦点时游戏暂停。macOS 版同时包含 Intel 和 Apple Silicon。Windows 版要先在 Unity Hub 里给 6000.0.85f1 加 Windows Build Support (Mono)，Mac 上就能直接打；没装时脚本停下来，并提示缺哪个模块。Windows 版是一整个文件夹（`System Prompt.exe`、`UnityPlayer.dll`、`System Prompt_Data`、`MonoBleedingEdge`），要整个打包。
+
+正式版的公司名是 `System Prompt`，Bundle ID 是 `com.systemprompt.game`（`BuildTools.ReleaseIdentity`），只在构建期间写进 Player Settings，构建完就改回去。存档和设置的位置由这两个值决定：macOS 是 `~/Library/Application Support/com.systemprompt.game`，Windows 是 `%USERPROFILE%\AppData\LocalLow\System Prompt\System Prompt`。已经发布，就不能再改，否则玩家的旧存档会读不到。工程本身仍然用 Unity 默认生成的标识，所以测试版还是 `com.DefaultCompany.System-Prompt-E2E`。`e2e.sh` 每次运行前都会清空这个目录，但碰不到正式版的存档。
+
+macOS 版没有签名和公证。从网上下载的 zip 解压后，系统会提示应用「已损坏」或无法验证开发者。玩家可以右键选「打开」，或者在终端运行 `xattr -cr "/Applications/System Prompt.app"`。不想让玩家多这一步，就要用 Apple 开发者账号的 Developer ID Application 证书签名，再用 `notarytool` 公证。
+
 ## 目录
 
 | 路径 | 内容 |
@@ -197,6 +211,7 @@ game/Tools/lab.sh [场景 id 或前缀 ...] [--no-build] [--out 目录]
 | `Assets/SystemPrompt/Resources/Fonts/` | Noto Sans SC 三个字重、JetBrains Mono 两个字重和字体许可 |
 | `Assets/SystemPrompt/Resources/Story/` | `Prologue.yarnproject`，以及从 `story/` 同步过来的剧本副本 |
 | `Tools/e2e.sh` | 端到端验证脚本 |
+| `Tools/release.sh` | 构建正式版（macOS、Windows）并打成 zip，见[正式版构建](#正式版构建) |
 | `Tools/lab.sh` | 视觉实验室脚本：构建测试版，按场景把战斗、浅层和深层的画面拍成胶片，见[视觉实验室](#视觉实验室) |
 | `Tools/dive_video.py` | 渲潜入转场的循环视频 `Resources/Art/Transitions/dive.mp4`（需要 Pillow、Blender 和 ffmpeg，`--preview` 先出一段低清预览） |
 | `Tools/transition_textures.py` | 把 [assets/ui/transitions/](../assets/ui/transitions/README.md) 的生成图压到黑底放进 `Resources/Art/Transitions/`，并画出转场用的噪声图（需要 Pillow 和 numpy） |

@@ -74,6 +74,7 @@
 | `design/` | 设定集（世界观、游戏系统、数值、技能、道具装备、角色和服装），目录见 [design/README.md](design/README.md) |
 | `pv/` | 序章宣传 PV：分镜、生成与渲染脚本、镜头素材和成片 |
 | `game/` | Unity 工程（`Assets/`、`Packages/`、`ProjectSettings/`） |
+| `release/` | 公开下载页 [yiyiSmallti/system-prompt-releases](https://github.com/yiyiSmallti/system-prompt-releases) 的 README 源文件，改完同步过去；游戏包由 `game/Tools/release.sh` 打出，挂在那个仓库的 Releases 上 |
 | `art/` | 美术源文件（`.blend`、`.psd`、`.vroid` 等），导出的 `.fbx` 和贴图放进 `game/Assets/` |
 | `audio/` | 音频源文件 |
 | `assets/` | README 和设定集用的图片，包括建模用的角色四视图 |
