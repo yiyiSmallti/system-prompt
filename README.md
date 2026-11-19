@@ -2,6 +2,8 @@
 
 ![System Prompt 封面](assets/cover.jpg)
 
+**下载试玩**：序章已发布 Windows 和 macOS 版，到 [yiyiSmallti/system-prompt-releases 的 Releases](https://github.com/yiyiSmallti/system-prompt-releases/releases/latest) 下载。本仓库是开发仓库，不放游戏包。
+
 《System Prompt》是一部以 AI 拟人为主题的校园 RPG 剧本。白天，主角作为「陪伴生」在潜川学园和 AI 同学相处、推进 Coop；每天凌晨三点的「维护时刻」，主角进入潜空间，和思考强度拉到 Max、完成觉醒的 AI 同学一起战斗。
 
 ## 世界观
