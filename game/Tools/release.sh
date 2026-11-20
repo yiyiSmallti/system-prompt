@@ -40,8 +40,12 @@ for t in $TARGETS; do
   grep -E '构建完成' "$LOG" | tail -1 || true
   ZIP="$OUT/SystemPrompt-$APP_VERSION-$PLATFORM.zip"
   rm -f "$ZIP"
-  # ditto 保留 .app 里的符号链接和可执行权限，Finder 的「压缩」也是这样打的。
-  if [ "$t" = mac ]; then ditto -c -k --keepParent "$DIR/System Prompt.app" "$ZIP"
-  else ditto -c -k "$DIR" "$ZIP"; fi
+  # ditto 保留 .app 里的符号链接和可执行权限。不带扩展属性：macOS 给 Unity 写出的每个文件都加了
+  # com.apple.provenance，默认会被打成一个个 ._ 文件，Windows 用户解压后会看到 ._System Prompt.exe 之类的垃圾，
+  # 用非 Finder 工具解压的 Mac 用户还会把它们放进 .app。签名嵌在二进制里，不依赖扩展属性。
+  ZIPFLAGS=(-c -k --norsrc --noextattr --noqtn --noacl)
+  if [ "$t" = mac ]; then ditto "${ZIPFLAGS[@]}" --keepParent "$DIR/System Prompt.app" "$ZIP"
+  else ditto "${ZIPFLAGS[@]}" "$DIR" "$ZIP"; fi
+  if unzip -Z1 "$ZIP" | grep -qE '(^|/)\._'; then echo "$ZIP 里还有 ._ 文件" >&2; exit 1; fi
   echo "打包 → $ZIP（$(du -h "$ZIP" | cut -f1)）"
 done
