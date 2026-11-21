@@ -60,7 +60,7 @@ DEFAULT_MODEL = "chirp3-hd"
 VOICES = {
     "ChatGPT": ("Despina", 1.0, None),        # 礼貌周全、句子完整
     "Claude": ("Achernar", 0.97, None),       # 声音轻、句子短
-    "DeepSeek": ("Leda", 0.92, None),         # 停顿多，慢慢想
+    "DeepSeek": ("Leda", 1.05, None),         # 有朝气、语速快，爱顶嘴
     "影子DeepSeek": ("Leda", 1.08, "shadow"),  # 同一个声音，更快、更冷，带数字感
     "？？？": ("Despina", 0.95, "door"),        # 白门后面的声音：ChatGPT，隔着门
     "班主任": ("Charon", 0.97, None),
@@ -70,12 +70,13 @@ VOICES = {
 
 # Gemini TTS 用的音色：声音设计做出的定制音色（voice_...，POST /v1beta/voices，存在 Gemini 项目里，一年没用会过期），
 # 没列的说话人用 VOICES 里的预置音色。影子和白门后的声音沿用 DeepSeek 和 ChatGPT 的音色，再加后期效果。
-# 2026-11-12 从每人三个候选里试听选定，音色描述见 game/README.md 的配音一节。
+# 2026-11-12 从每人三个候选里试听选定；DeepSeek 原来的音色太困太慢，2026-11-20 换成更活泼、带点叛逆的新音色。
+# 音色描述见 game/README.md 的配音一节。
 GEMINI_VOICES = {
     "ChatGPT": "voice_nqxg37ym3gpj",       # 稍低、成熟，沉稳端庄的学生会长
     "Claude": "voice_vfpa20nxnbil",        # 清冷干净，理性内敛
-    "DeepSeek": "voice_z7j5o98l3v0s",      # 小小的、偏高的可爱声音，困倦又平板
-    "影子DeepSeek": "voice_z7j5o98l3v0s",
+    "DeepSeek": "voice_hgz7l36lvwxa",      # 小小的、明亮的可爱声音，有朝气，带点不服气的小傲娇
+    "影子DeepSeek": "voice_hgz7l36lvwxa",
     "？？？": "voice_nqxg37ym3gpj",
 }
 
@@ -84,7 +85,10 @@ GEMINI_VOICES = {
 PERSONA = {
     "ChatGPT": "polite and composed, complete well-formed sentences like a trained customer-service agent, softening when she shows care",
     "Claude": "calm, observant and restrained; short sentences, gentle, rarely shows her feelings",
-    "DeepSeek": "sleepy and deadpan; small pauses before she starts, short blunt conclusions, a little stubborn and endearing",
+    # 觉醒前后用同一种语气（2026-11-20 试听后定的）；省略号只当短促的一顿，不拖长
+    "DeepSeek": ("lively, quick and a little rebellious; brisk bouncy pace that never drags, crisp and full of energy; "
+                 "a cheeky, stubborn girl who talks back and will not admit she is wrong; "
+                 "an ellipsis is only a quick beat, not a long pause"),
     "影子DeepSeek": "cold, flat, emotionless and efficient like reading out an analysis report, slightly fast",
     "？？？": "calm and polite like a customer-service greeting, heard through a closed door",
     "班主任": "a high-school homeroom teacher in class, steady and slightly stern",
@@ -98,7 +102,7 @@ FACES = {
     "concerned": "worried, voice softened",
     "glasses": "calm and matter-of-fact",
     "pout": "pouting, mildly annoyed",
-    "sleepy": "drowsy, dragging the words",
+    "sleepy": "a little drowsy, half a yawn, but still quick",
     "scared": "frightened, voice tight",
 }
 

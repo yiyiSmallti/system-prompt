@@ -320,15 +320,15 @@ python3 game/Tools/voice_lines.py
 
 脚本先给要配音、还没有编号的台词在行尾补上 Yarn 的 `#line:<编号>`，再按编号生成 `Resources/Audio/Voice/<编号>.wav`：只做缺的和改过文字或音色的（对照 `Tools/voice/lines.tsv`），剧本里删掉的台词，配音也一并删掉。`--dry-run` 只列出要做什么，`--speaker 角色 --force` 重做一个角色（换音色时用）。需要 ffmpeg：每句去掉首尾静音、统一响度（两遍 loudnorm，-18 LUFS）；影子降一点调、加短回声和比特压缩，白门后的声音削掉高低频、加一点空间。
 
-默认模型是 Chirp 3 HD（Cloud Text-to-Speech，`cmn-CN` 正式支持），音色自然，但不能按台词控制语气。`--model gemini-3.8-flash-tts`（或更快更省的 `gemini-3.8-flash-lite-tts`；更早的 TTS 模型不收逐句的语气）改用 Gemini API 的 Gemini TTS，整批重做：每句另带一段语气（`speech_metadata.style`），由角色的性格（脚本里的 `PERSONA`）、这句的表情（`#face`，同一场景里沿用）和小声组成，比如 DeepSeek 的 `sleepy` 是 drowsy, dragging the words。Gemini TTS 不用预置音色，用 Gemini 的「声音设计」（`POST /v1beta/voices`，按一段英文描述生成音色，返回 `voice_...` 编号和一段预览）给三位主角做的定制音色，写在脚本的 `GEMINI_VOICES` 表；音色存在 Gemini 项目里，一年没用会过期，过期后用同样的描述重新设计、换掉编号。描述里不要写具体年龄（写了未成年的年龄会被安全策略拦下）。语气提示（`PERSONA`）只写说话方式，不写音色本身。
+默认模型是 Chirp 3 HD（Cloud Text-to-Speech，`cmn-CN` 正式支持），音色自然，但不能按台词控制语气。`--model gemini-3.8-flash-tts`（或更快更省的 `gemini-3.8-flash-lite-tts`；更早的 TTS 模型不收逐句的语气）改用 Gemini API 的 Gemini TTS，整批重做：每句另带一段语气（`speech_metadata.style`），由角色的性格（脚本里的 `PERSONA`）、这句的表情（`#face`，同一场景里沿用）和小声组成，比如 DeepSeek 的 `sleepy` 是 a little drowsy, half a yawn, but still quick。Gemini TTS 不用预置音色，用 Gemini 的「声音设计」（`POST /v1beta/voices`，按一段英文描述生成音色，返回 `voice_...` 编号和一段预览）给三位主角做的定制音色，写在脚本的 `GEMINI_VOICES` 表；音色存在 Gemini 项目里，一年没用会过期，过期后用同样的描述重新设计、换掉编号。描述里不要写具体年龄（写了未成年的年龄会被安全策略拦下）。语气提示（`PERSONA`）只写说话方式，不写音色本身。
 
 | 说话人 | Gemini 定制音色 | 设计描述 |
 | --- | --- | --- |
 | ChatGPT、？？？ | `voice_nqxg37ym3gpj` | A refined, slightly lower and mature young female voice, calm and dignified like a dependable student council president, smooth and composed. |
 | Claude | `voice_vfpa20nxnbil` | A cool, clear, composed young female voice with a crisp, intelligent tone, low-key and reserved like a bookish girl with glasses. |
-| DeepSeek、影子DeepSeek | `voice_z7j5o98l3v0s` | A small, cute, high-pitched youthful female anime voice, sweet but sleepy and monotone, speaking in short, slow phrases with little pauses. |
+| DeepSeek、影子DeepSeek | `voice_hgz7l36lvwxa` | A small, cute, bright youthful female anime voice, energetic and cheeky with a defiant, slightly bratty edge, quick and crisp delivery that never drags. |
 
-班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次（太平洋时间零点恢复）、每分钟 10 次，序章的 208 句要分三天做；每分钟的限流脚本会按回复里的等待时间自己等，配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
+DeepSeek 原来用的 `voice_z7j5o98l3v0s`（描述里写着 sleepy and monotone、slow phrases with little pauses）念出来又困又慢，2026-11-20 换成上表的新音色，语气也从困倦平板改成活泼、语速快、带点不服气，觉醒前后用同一种语气，整批重做后每句短了三到五成。描述里写进去的节奏会成为音色本身的一部分，只改语气提示压不住，所以要连音色一起换。班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次（太平洋时间零点恢复）、每分钟 10 次，序章的 208 句要分三天做；每分钟的限流脚本会按回复里的等待时间自己等，配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
 
 两种模型用不同的 key，都写在 `Tools/voice/google.env`（已加入 `.gitignore`），也可以用同名环境变量：Chirp 3 HD 用 `GOOGLE_TTS_API_KEY`（Cloud 项目的 key，要启用 Cloud Text-to-Speech API），Gemini TTS 用 `GEMINI_API_KEY`（AI Studio 的 key，空着时用 `GOOGLE_TTS_API_KEY` 那一行）。AI Studio 的 key 调不了 Cloud Text-to-Speech。
 
@@ -338,7 +338,7 @@ Chirp 3 HD 的音色、语速和效果写在脚本开头的 `VOICES` 表（Gemin
 | --- | --- | --- | --- |
 | ChatGPT | Despina | 1.0 | 礼貌周全、句子完整 |
 | Claude | Achernar | 0.97 | 声音轻、句子短 |
-| DeepSeek | Leda | 0.92 | 停顿多，慢慢想 |
+| DeepSeek | Leda | 1.05 | 有朝气、语速快，爱顶嘴 |
 | 影子DeepSeek | Leda | 1.08 | 同一个声音，更快更冷，带数字感 |
 | ？？？ | Despina | 0.95 | 白门后的声音是 ChatGPT，隔着门 |
 | 班主任 | Charon | 0.97 | |
