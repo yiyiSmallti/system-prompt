@@ -24,6 +24,8 @@ namespace SystemPrompt
         float fade = 1f;
         float duck = 1f;
         float voiceLevel = 1f; // the line's own level (a whisper is quieter)
+        AudioClip pendingVoice; // 已经要放、但声音数据还在后台解码的配音，解码完在 Update 里开始放
+        string pendingSpeaker;
         readonly Dictionary<string, AudioClip> cache = new Dictionary<string, AudioClip>();
 
         public void Init(GameSettings s)
@@ -55,35 +57,58 @@ namespace SystemPrompt
         public event Action<string, string> VoiceStarted;
 
         // The voice of a line by its Yarn id ("line:1a2b3c4d"), or null for a line without one (most aren't voiced).
+        // 配音按载入时解压、在后台载入导入（Editor/UiAssetImporter.cs）：这里一拿到台词就开始在后台解码，
+        // 不等 Play 时在主线程上同步解码（那样每句配音开头卡 10–70 ms）。
         public static AudioClip VoiceFor(string lineId)
         {
             if (string.IsNullOrEmpty(lineId) || !lineId.StartsWith("line:", StringComparison.Ordinal)) return null;
-            return Resources.Load<AudioClip>("Audio/Voice/" + lineId.Substring(5));
+            var clip = Resources.Load<AudioClip>("Audio/Voice/" + lineId.Substring(5));
+            if (clip != null && clip.loadState == AudioDataLoadState.Unloaded) clip.LoadAudioData();
+            return clip;
         }
 
         public void PlayVoice(AudioClip clip, string speaker, float level = 1f)
         {
             if (clip == null) return;
             voice.Stop();
-            voice.clip = clip;
             voiceLevel = level;
             voice.volume = settings.voiceVolume * voiceLevel;
+            if (clip.loadState == AudioDataLoadState.Unloaded) clip.LoadAudioData();
+            if (clip.loadState == AudioDataLoadState.Loaded) StartVoice(clip, speaker);
+            else
+            {
+                // 还在后台解码：先记下，解码完再放（通常就晚一两帧）；这段时间里 Voicing 仍算在念。
+                pendingVoice = clip;
+                pendingSpeaker = speaker;
+            }
+        }
+
+        void StartVoice(AudioClip clip, string speaker)
+        {
+            pendingVoice = null;
+            voice.clip = clip;
             voice.Play();
             VoiceStarted?.Invoke(speaker, clip.name);
         }
 
-        // Whether this clip is still being spoken.
-        public bool Voicing(AudioClip clip) => clip != null && voice.isPlaying && voice.clip == clip;
+        // Whether this clip is still being spoken (or about to be, its data still decoding).
+        public bool Voicing(AudioClip clip) => clip != null && (pendingVoice == clip || (voice.isPlaying && voice.clip == clip));
 
         // Cuts a line's voice off when the line is left. Only that clip: the next line's voice may already be on,
         // and a line without a voice (null) stops nothing.
         public void StopVoice(AudioClip clip)
         {
-            if (clip != null && voice.clip == clip) voice.Stop();
+            if (clip == null) return;
+            if (pendingVoice == clip) pendingVoice = null;
+            if (voice.clip == clip) voice.Stop();
         }
 
         // Silences whatever is being said (the story is stopped).
-        public void StopVoice() => voice.Stop();
+        public void StopVoice()
+        {
+            pendingVoice = null;
+            voice.Stop();
+        }
 
         // The track that is playing or about to, by name; null when there is none.
         public string Music => currentMusic;
@@ -116,6 +141,16 @@ namespace SystemPrompt
         void Update()
         {
             if (music == null) return;
+            if (pendingVoice != null)
+            {
+                var state = pendingVoice.loadState;
+                if (state == AudioDataLoadState.Loaded) StartVoice(pendingVoice, pendingSpeaker);
+                else if (state == AudioDataLoadState.Failed)
+                {
+                    Debug.LogError($"配音解码失败：{pendingVoice.name}");
+                    pendingVoice = null;
+                }
+            }
             var step = Time.unscaledDeltaTime;
             if (nextMusic != null && (music.isPlaying || intro.isPlaying) && fade > 0)
                 fade = Mathf.Max(0, fade - step / FadeOut);

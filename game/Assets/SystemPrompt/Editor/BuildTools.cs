@@ -22,7 +22,9 @@ namespace SystemPrompt.EditorTools
         public static void BuildE2E()
         {
             var output = Arg("-buildOutput") ?? "Builds/E2E/SystemPromptE2E.app";
-            var ok = Build(BuildTarget.StandaloneOSX, output, E2EProduct, true, new[] { "SP_E2E" });
+            // -development 构建开发版：E2E/HitchProbe.cs 要靠它读到 Profiler 标记的计时，正常的端到端验证不带它。
+            var options = Array.IndexOf(Environment.GetCommandLineArgs(), "-development") >= 0 ? BuildOptions.Development : BuildOptions.None;
+            var ok = Build(BuildTarget.StandaloneOSX, output, E2EProduct, true, new[] { "SP_E2E" }, options: options);
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
@@ -60,7 +62,7 @@ namespace SystemPrompt.EditorTools
         static readonly (string Company, string BundleId) ReleaseIdentity = ("System Prompt", "com.systemprompt.game");
 
         static bool Build(BuildTarget target, string output, string product, bool runInBackground, string[] defines,
-                          (string Company, string BundleId)? identity = null)
+                          (string Company, string BundleId)? identity = null, BuildOptions options = BuildOptions.None)
         {
             YarnStorySync.Sync(true);
             EnsureBootScene();
@@ -86,6 +88,7 @@ namespace SystemPrompt.EditorTools
                     locationPathName = output,
                     target = target,
                     extraScriptingDefines = defines,
+                    options = options,
                 });
             }
             finally

@@ -43,6 +43,12 @@ namespace SystemPrompt.UI
             var asset = FontAsset.CreateFontAsset(font, 64, 6, GlyphRenderMode.SDFAA, 2048, 2048);
             if (asset == null) throw new InvalidOperationException($"字体 {file} 无法生成字体资源，检查导入设置是否为 Dynamic");
             asset.name = file;
+            // 动态字体每加进一批新字形，TextCore 都会在下一次排版时回源字体查这些字形的 GPOS 字距对
+            // （FontEngine.GetPairAdjustmentRecords）。Noto Sans SC 是 10 MB 的 CJK 字体，每查一次要 10–90 ms，
+            // 剧情里每句话出现没见过的字都会卡一下（端到端跑一遍序章有 160 多帧）。这套字体的 kern 只给拉丁字母
+            // 和假名配了字距对，汉字和中文标点一对也没有；关掉以后只少了拉丁字母的成对字距（如 Te、AV），
+            // 字形本身照常按需加进图集。
+            asset.getFontFeatures = false;
             return asset;
         }
 
