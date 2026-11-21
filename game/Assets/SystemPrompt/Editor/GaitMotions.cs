@@ -80,12 +80,16 @@ namespace SystemPrompt.EditorTools
             // forearm reached out ahead at each swing as if rowing), and the hands hang half open. The foot is down for
             // half of each step. The sprinter's chest and head also pitch forward and back with every step, the head
             // some 17 degrees and the chest as much again: stood upright at a run that is a nod into the collar at
-            // each footfall, so under half of that swing is kept (Pitch).
-            new Gait { Name = "Run", Source = "Sprint_Loop", Speed = 4.6f, Bob = 1.1f, Lean = 0.5f, Upright = 0.16f, Nod = 0.12f, Pitch = 0.45f, Stance = 0.55f,
+            // each footfall, so under half of that swing is kept (Pitch). The sprinter also swings its hips 40 degrees round
+            // the upright and rolls them 21 degrees from side to side every step, the upper chest twisting hard back
+            // against them: at a run, seen from behind, that is a waddle, the waist wringing at each footfall. Under half of
+            // it is kept (Turn), about what a runner's pelvis does.
+            new Gait { Name = "Run", Source = "Sprint_Loop", Speed = 4.6f, Bob = 1.1f, Lean = 0.5f, Turn = 0.45f, Upright = 0.16f, Nod = 0.12f, Pitch = 0.45f, Stance = 0.55f,
                 ReachFront = 42f, ReachBack = 30f, StanceKnees = 0.65f, Straightest = 0.72f, Track = 0.03f, Arms = 1.1f, ArmsIn = -0.2f, Elbows = -0.12f, Hands = -0.45f },
             // The sprint: the same loop leaning nearly as the library has it and reaching further, the body rising as
-            // it does. One loop in two carriages, so the two blend in step (SeaFigure keeps them at one time).
-            new Gait { Name = "Sprint", Source = "Sprint_Loop", Speed = 6.6f, Lean = 0.85f, Upright = 0.08f, Nod = 0.1f, Stance = 0.5f,
+            // it does, the hips swinging a little further than at the run. One loop in two carriages, so the two blend in
+            // step (SeaFigure keeps them at one time).
+            new Gait { Name = "Sprint", Source = "Sprint_Loop", Speed = 6.6f, Lean = 0.85f, Turn = 0.6f, Upright = 0.08f, Nod = 0.1f, Stance = 0.5f,
                 ReachFront = 60f, ReachBack = 34f, StanceKnees = 0.8f, Track = 0.03f, Arms = 1.2f, ArmsIn = -0.1f, Hands = -0.6f },
         };
 
