@@ -74,6 +74,7 @@ namespace SystemPrompt
             Fonts.Init();
             global::SystemPrompt.Dungeon.SeaArt.WarmText();
             global::SystemPrompt.Dungeon.SeaArt.WarmCaustics();
+            global::SystemPrompt.Dungeon.SeaArt.WarmShaders();
             BuildUi();
             EnterTitle();
             Transitions.Boot().Forget();

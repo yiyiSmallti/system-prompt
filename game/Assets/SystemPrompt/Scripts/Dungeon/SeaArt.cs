@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 
 namespace SystemPrompt.Dungeon
 {
@@ -270,6 +272,33 @@ namespace SystemPrompt.Dungeon
         }
 
         public static void WarmCaustics() => Shader.SetGlobalTexture("_SeaCausticTex", Caustics);
+
+        // 着色器的 GPU 程序是第一次用它画东西时才建的：图形驱动在那一帧里编译（D3D11 从字节码、Metal 从源码），
+        // 一个着色器几十到几百毫秒。不预热时，第一次潜入（Toon、Seabed、Rack 等一起出现）、第一次放深海潜流
+        // （Phantom 的光鲸）和第一次进深层，画面都会停一下（macOS 开发版实测单帧 250–430 ms）。
+        // GameRoot 在第一帧之前把 Resources/Shaders 下的着色器全部建好。顶点格式按人物网格给全
+        // （位置、法线、切线、顶点色、uv0 到 uv3），D3D11 上程序和输入布局无关，Metal 上建好的程序库也会复用。
+        public static void WarmShaders()
+        {
+            var setup = new ShaderWarmupSetup
+            {
+                vdecl = new[]
+                {
+                    new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+                    new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
+                    new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4),
+                    new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
+                    new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
+                    new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2),
+                    new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2),
+                    new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2),
+                },
+            };
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var shaders = Resources.LoadAll<Shader>("Shaders");
+            foreach (var shader in shaders) ShaderWarmup.WarmupShader(shader, setup);
+            Debug.Log($"着色器预热：{shaders.Length} 个，用时 {watch.ElapsedMilliseconds} ms");
+        }
 
         // The atlas rectangle of one cell, for a material's scale and offset.
         public static Vector4 AtlasCell(int i) => new Vector4(0.25f, 1f, 0.25f * i, 0f);

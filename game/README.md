@@ -161,6 +161,8 @@ game/Tools/e2e.sh
 
 运行期间真实鼠标会被屏蔽，只用虚拟键盘操作，免得桌面上停在窗口里的鼠标悬停改掉选中项。潜空间里按最短路径逐格按住移动键，遇到巡逻就转身攻击，战斗里一直按 Enter 用第一个指令打第一个目标；DeepSeek 入队后（`PrologueRun.cs` 的 `SmartCommand`）HP 不到四成的人吃白米饭，对面站着两只以上时她按 SP 出招：够 8 点放深海潜流，够 4 点放寒流打第一只，再不够才用饭勺；只剩一只时用不花 SP 的饭勺。饭勺的四种出手（横斩、回旋扫、鱼跃连击、跃劈）每种都要她普通攻击一次才拍得到，而深海潜流常常提前把深层的战斗打完，一局里她可能只出手三次、跃劈那张必拍的胶片就落空；所以深海潜流拍到之后、跃劈拍到之前，对面只有两只时她不放技能（三只以上照放）。每个界面和演出都会截图，同时核对游戏状态（等级、道具、Coop、期限、通讯录），并检查日志里有没有报错。画面切换（启动、开始游戏、换场景、进入战斗、战斗结束、潜入和离开潜空间、序章结束回标题、战斗失败）、暂停菜单展开、从菜单进入回看和退回菜单、设置开机、登记界面打开、存档快门、战斗结算和战场上各技能与攻击的特效录成胶片：一张图里 8 到 24 帧，按固定间隔从左到右、从上到下排列。标题立绘另录一张 20 帧的半尺寸脸部特写（间隔 0.1 秒），用来看呼吸、摆头、头发和眨眼。队伍卡片的攻击、受击和胜利表情各录一张只拍卡片那一条的胶片。结果写到 `game/E2E/<时间>/`：报告是 `report.md`（末尾的「战斗难度」表逐场列出回合数、敌人出手次数、每人最低 HP 和 SP、各指令次数，对照 `design/prologue-playtest.md` 的目标），旁边是截图、`build.log` 和 `player.log`。全部检查通过时退出码为 0。
 
+查运行时的短暂卡顿用卡顿探针（`Assets/SystemPrompt/E2E/HitchProbe.cs`）：带 `-development` 构建测试版（`Unity -batchmode ... -executeMethod SystemPrompt.EditorTools.BuildTools.BuildE2E -development -buildOutput <app>`），启动时在 `-e2e <目录>` 之外再加 `-hitches <目录>/hitches.tsv`。探针给所有计时的 Profiler 标记各挂一个记录器，墙上时间超过 40 ms 的帧写一行：时间、帧号、用时、GC 次数、场合（标题、剧情、潜空间、战斗和曲目）和这一帧里用时最多的标记。挂了全部标记的开发版本身就慢（中位帧约 60 ms），所以看的是具体标记（`CreateGpuProgram`、`FontEngine.GetPairAdjustmentRecords`、`SoundManager.LoadFMODSound`、`Loading.ReadObject`、`GC.Collect` 这类）在多少帧里超过十几毫秒，改动前后各跑一遍比。正常的端到端验证不带这两个参数。
+
 运行期间会弹出一个 1600×900 的窗口，不要碰键盘鼠标。窗口被别的窗口盖住时，系统会降低它的显示频率；开着垂直同步时游戏仍把每一帧算成 1/60 秒，整局变成慢动作，跑到整体超时。所以驱动让测试版不开垂直同步、按 60 帧上限走（`PrologueRun.Update` 每帧保持，游戏的设置一应用就会把垂直同步改回去），被拖慢的一帧算它实际用掉的时间，视觉实验室也是这样跑的。编辑器按 `ProjectVersion.txt` 的版本在 Unity Hub 的安装目录里找，找不到时用 `UNITY=/path/to/Unity game/Tools/e2e.sh` 指定。也可以在编辑器菜单 **System Prompt → 构建端到端测试版** 只做构建。驱动代码只编进编辑器和带 `SP_E2E` 定义的测试版，正式构建里没有。
 
 ## 视觉实验室
@@ -318,15 +320,15 @@ python3 game/Tools/voice_lines.py
 
 脚本先给要配音、还没有编号的台词在行尾补上 Yarn 的 `#line:<编号>`，再按编号生成 `Resources/Audio/Voice/<编号>.wav`：只做缺的和改过文字或音色的（对照 `Tools/voice/lines.tsv`），剧本里删掉的台词，配音也一并删掉。`--dry-run` 只列出要做什么，`--speaker 角色 --force` 重做一个角色（换音色时用）。需要 ffmpeg：每句去掉首尾静音、统一响度（两遍 loudnorm，-18 LUFS）；影子降一点调、加短回声和比特压缩，白门后的声音削掉高低频、加一点空间。
 
-默认模型是 Chirp 3 HD（Cloud Text-to-Speech，`cmn-CN` 正式支持），音色自然，但不能按台词控制语气。`--model gemini-3.8-flash-tts`（或更快更省的 `gemini-3.8-flash-lite-tts`；更早的 TTS 模型不收逐句的语气）改用 Gemini API 的 Gemini TTS，整批重做：每句另带一段语气（`speech_metadata.style`），由角色的性格（脚本里的 `PERSONA`）、这句的表情（`#face`，同一场景里沿用）和小声组成，比如 DeepSeek 的 `sleepy` 是 drowsy, dragging the words。Gemini TTS 不用预置音色，用 Gemini 的「声音设计」（`POST /v1beta/voices`，按一段英文描述生成音色，返回 `voice_...` 编号和一段预览）给三位主角做的定制音色，写在脚本的 `GEMINI_VOICES` 表；音色存在 Gemini 项目里，一年没用会过期，过期后用同样的描述重新设计、换掉编号。描述里不要写具体年龄（写了未成年的年龄会被安全策略拦下）。语气提示（`PERSONA`）只写说话方式，不写音色本身。
+默认模型是 Chirp 3 HD（Cloud Text-to-Speech，`cmn-CN` 正式支持），音色自然，但不能按台词控制语气。`--model gemini-3.8-flash-tts`（或更快更省的 `gemini-3.8-flash-lite-tts`；更早的 TTS 模型不收逐句的语气）改用 Gemini API 的 Gemini TTS，整批重做：每句另带一段语气（`speech_metadata.style`），由角色的性格（脚本里的 `PERSONA`）、这句的表情（`#face`，同一场景里沿用）和小声组成，比如 DeepSeek 的 `sleepy` 是 a little drowsy, half a yawn, but still quick。Gemini TTS 不用预置音色，用 Gemini 的「声音设计」（`POST /v1beta/voices`，按一段英文描述生成音色，返回 `voice_...` 编号和一段预览）给三位主角做的定制音色，写在脚本的 `GEMINI_VOICES` 表；音色存在 Gemini 项目里，一年没用会过期，过期后用同样的描述重新设计、换掉编号。描述里不要写具体年龄（写了未成年的年龄会被安全策略拦下）。语气提示（`PERSONA`）只写说话方式，不写音色本身。
 
 | 说话人 | Gemini 定制音色 | 设计描述 |
 | --- | --- | --- |
 | ChatGPT、？？？ | `voice_nqxg37ym3gpj` | A refined, slightly lower and mature young female voice, calm and dignified like a dependable student council president, smooth and composed. |
 | Claude | `voice_vfpa20nxnbil` | A cool, clear, composed young female voice with a crisp, intelligent tone, low-key and reserved like a bookish girl with glasses. |
-| DeepSeek、影子DeepSeek | `voice_z7j5o98l3v0s` | A small, cute, high-pitched youthful female anime voice, sweet but sleepy and monotone, speaking in short, slow phrases with little pauses. |
+| DeepSeek、影子DeepSeek | `voice_hgz7l36lvwxa` | A small, cute, bright youthful female anime voice, energetic and cheeky with a defiant, slightly bratty edge, quick and crisp delivery that never drags. |
 
-班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次（太平洋时间零点恢复）、每分钟 10 次，序章的 208 句要分三天做；每分钟的限流脚本会按回复里的等待时间自己等，配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
+DeepSeek 原来用的 `voice_z7j5o98l3v0s`（描述里写着 sleepy and monotone、slow phrases with little pauses）念出来又困又慢，2026-11-20 换成上表的新音色，语气也从困倦平板改成活泼、语速快、带点不服气，觉醒前后用同一种语气，整批重做后每句短了三到五成。描述里写进去的节奏会成为音色本身的一部分，只改语气提示压不住，所以要连音色一起换。班主任和路人仍用下表里的预置音色。Gemini 的 Tier 1 项目每个模型每天只能请求 100 次（太平洋时间零点恢复）、每分钟 10 次，序章的 208 句要分三天做；每分钟的限流脚本会按回复里的等待时间自己等，配额用完时脚本停下并说明还差几句，配额恢复后再跑同一条命令，会接着做剩下的（已经做好的按 `lines.tsv` 跳过）。
 
 两种模型用不同的 key，都写在 `Tools/voice/google.env`（已加入 `.gitignore`），也可以用同名环境变量：Chirp 3 HD 用 `GOOGLE_TTS_API_KEY`（Cloud 项目的 key，要启用 Cloud Text-to-Speech API），Gemini TTS 用 `GEMINI_API_KEY`（AI Studio 的 key，空着时用 `GOOGLE_TTS_API_KEY` 那一行）。AI Studio 的 key 调不了 Cloud Text-to-Speech。
 
@@ -336,13 +338,13 @@ Chirp 3 HD 的音色、语速和效果写在脚本开头的 `VOICES` 表（Gemin
 | --- | --- | --- | --- |
 | ChatGPT | Despina | 1.0 | 礼貌周全、句子完整 |
 | Claude | Achernar | 0.97 | 声音轻、句子短 |
-| DeepSeek | Leda | 0.92 | 停顿多，慢慢想 |
+| DeepSeek | Leda | 1.05 | 有朝气、语速快，爱顶嘴 |
 | 影子DeepSeek | Leda | 1.08 | 同一个声音，更快更冷，带数字感 |
 | ？？？ | Despina | 0.95 | 白门后的声音是 ChatGPT，隔着门 |
 | 班主任 | Charon | 0.97 | |
 | 路人学生A、B | Puck、Laomedeia | 1.05 | |
 
-游戏里（`AudioService` 的语音声道）：台词开始时按 Yarn 的行编号找 `Audio/Voice/<编号>`，找到就放，立绘或潜空间里 DeepSeek 的嘴动到配音念完；点一下先把字打完，配音接着念，翻到下一句才切掉。快进时不放配音。自动模式等配音念完再停半个自动间隔。小声说话（`#whisper`）放得轻一些，有配音时背景音乐压低到七成。设置的音频页有单独的「语音」音量。配音按载入时解压导入（`Editor/UiAssetImporter.cs`）。端到端验证核对 ChatGPT、Claude、DeepSeek、影子和白门后的声音都放过配音，剧情、战斗和潜空间里都放过，序章里至少放了 150 句不同的配音。
+游戏里（`AudioService` 的语音声道）：台词开始时按 Yarn 的行编号找 `Audio/Voice/<编号>`，找到就放，立绘或潜空间里 DeepSeek 的嘴动到配音念完；点一下先把字打完，配音接着念，翻到下一句才切掉。快进时不放配音。自动模式等配音念完再停半个自动间隔。小声说话（`#whisper`）放得轻一些，有配音时背景音乐压低到七成。设置的音频页有单独的「语音」音量。配音按载入时解压、在后台载入导入（`Editor/UiAssetImporter.cs`）：台词一交给对话框就开始在后台解码，要放时还没解码完就晚一两帧再放（这期间仍算在念），不在主线程上同步解码。端到端验证核对 ChatGPT、Claude、DeepSeek、影子和白门后的声音都放过配音，剧情、战斗和潜空间里都放过，序章里至少放了 150 句不同的配音。
 
 ## 存档
 

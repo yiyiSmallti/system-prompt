@@ -39,8 +39,10 @@ namespace SystemPrompt.EditorTools
             if (assetPath.StartsWith(VoiceRoot))
             {
                 // Voiced lines (Tools/voice_lines.py): short and loaded one at a time as their line comes up,
-                // so they are decompressed on load and play the moment the line does.
+                // so they are decompressed on load and play the moment the line does. 解压放在后台线程
+                // （loadInBackground）：AudioService.VoiceFor 一拿到台词就开始解码，不在 Play 时卡主线程。
                 var voice = (AudioImporter)assetImporter;
+                voice.loadInBackground = true;
                 var vs = voice.defaultSampleSettings;
                 vs.loadType = AudioClipLoadType.DecompressOnLoad;
                 vs.compressionFormat = AudioCompressionFormat.Vorbis;
