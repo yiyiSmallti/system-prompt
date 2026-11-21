@@ -26,7 +26,7 @@ namespace SystemPrompt.Dungeon
         // How fast the foot pressed to the ground goes back in the walk, the run and the sprint at their own pace, per
         // metre of the avatar's human scale (about its hips' height), as Editor/GaitMotions.cs makes and measures them:
         // each plays at the rate that takes its foot back as fast as the ground goes by, so the feet don't slip.
-        const float WalkPace = 1.05f, RunPace = 4.4f, SprintPace = 4.84f;
+        const float WalkPace = 1.05f, RunPace = 4.44f, SprintPace = 4.85f;
         const float FadeIn = 0.12f, FadeOut = 0.22f; // a one-off motion over the idle, in seconds, unless told otherwise
         const float FlinchOut = 0.2f; // a hit's jolt easing off at the end, seconds
         const float PhoneUp = 0.18f, PhoneDown = 0.25f; // bringing the 截图's phone up and down, in seconds
